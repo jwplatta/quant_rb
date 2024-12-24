@@ -1,0 +1,6 @@
+.env
+/tmp
+schwab_token.json
+/env
+.tool-versions
+/**/*.json
