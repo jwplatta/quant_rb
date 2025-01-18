@@ -1,7 +1,7 @@
 GIT
   remote: https://github.com/jwplatta/schwab_rb.git
-  revision: 71b3d62fc556e2d676e4d1ea27140293941374d2
-  ref: 71b3d62fc556e2d676e4d1ea27140293941374d2
+  revision: 56788c14378a50446c58e9e5c4b435b885e2e32d
+  ref: 56788c14378a50446c58e9e5c4b435b885e2e32d
   specs:
     schwab_rb (0.1.0)
       async (~> 2.18)
@@ -26,6 +26,7 @@ GEM
       fiber-annotation
       fiber-local (~> 1.1)
       json
+    diff-lcs (1.5.1)
     dotenv (3.1.7)
     faraday (2.12.2)
       faraday-net_http (>= 2.0, < 3.5)
@@ -73,6 +74,19 @@ GEM
       rack (>= 3.0.0)
     rackup (2.2.1)
       rack (>= 3)
+    rspec (3.13.0)
+      rspec-core (~> 3.13.0)
+      rspec-expectations (~> 3.13.0)
+      rspec-mocks (~> 3.13.0)
+    rspec-core (3.13.2)
+      rspec-support (~> 3.13.0)
+    rspec-expectations (3.13.3)
+      diff-lcs (>= 1.2.0, < 2.0)
+      rspec-support (~> 3.13.0)
+    rspec-mocks (3.13.2)
+      diff-lcs (>= 1.2.0, < 2.0)
+      rspec-support (~> 3.13.0)
+    rspec-support (3.13.2)
     ruby2_keywords (0.0.5)
     sinatra (4.1.1)
       logger (>= 1.6.0)
@@ -95,6 +109,7 @@ PLATFORMS
 DEPENDENCIES
   dotenv
   pry
+  rspec
   schwab_rb!
 
 BUNDLED WITH
