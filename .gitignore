@@ -3,4 +3,4 @@
 schwab_token.json
 /env
 .tool-versions
-/**/*.json
+/data
