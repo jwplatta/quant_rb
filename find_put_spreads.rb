@@ -2,7 +2,7 @@ require 'pry'
 require 'dotenv'
 require 'json'
 require 'csv'
-require_relative 'option_chain'
+require_relative 'models/option_chain'
 
 # NOTE
 # less than the 15-delta
@@ -24,7 +24,6 @@ def load_option_chain(ticker)
   end
 rescue StandardError => e
   puts "Error loading option chain for #{ticker}: #{e.message}"
-  nil
   binding.pry
 end
 
@@ -39,48 +38,25 @@ tickers.each do |ticker|
   puts "Underlying Price: #{ticker} #{option_chain.underlying_price}"
 
   short_filters = [
-    {
-      attribute: :delta,
-      comparison: "<=",
-      value: 0.15
-    },
-    {
-      attribute: :open_interest,
-      comparison: ">",
-      value: 0
-    },
-    {
+    OptionFilter.new(attribute: :delta, comparison: "<=", value: 0.15),
+    OptionFilter.new(attribute: :open_interest, comparison: ">", value: 0),
+    OptionFilter.new(
       attribute: :strike,
-      comparison: ->(strike) { ((option_chain.underlying_price - strike) / option_chain.underlying_price).abs >= 0.07 },
-    },
-    {
-      attribute: :mark,
-      comparison: ->(mark) { mark * 100.0 >= 100.0 }
-    }
+      comparison: ->(strike) { ((option_chain.underlying_price - strike) / option_chain.underlying_price).abs >= 0.07 }
+    ),
+    OptionFilter.new(attribute: :mark, comparison: ->(mark) { mark * 100.0 >= 100.0 })
   ]
 
   potential_short_puts = option_chain.filter(put_call: :put, filters: short_filters)
-
   potential_short_puts.each do |short_put|
     long_filters = [
-      {
+      OptionFilter.new(
         attribute: :strike,
         comparison: ->(strike) { ((short_put.strike - 20.0)...short_put.strike).cover? strike }
-      },
-      {
-        attribute: :open_interest,
-        comparison: ">",
-        value: 0
-      },
-      {
-        attribute: :expiration_date,
-        comparison: "==",
-        value: short_put.expiration_date
-      },
-      {
-        attribute: :mark,
-        comparison: ->(mark) { (short_put.mark - mark) * 100.0 >= 100.0 }
-      }
+      ),
+      OptionFilter.new(attribute: :open_interest, comparison: ">", value: 0),
+      OptionFilter.new(attribute: :expiration_date, comparison: "==", value: short_put.expiration_date),
+      OptionFilter.new(attribute: :mark, comparison: ->(mark) { (short_put.mark - mark) * 100.0 >= 100.0 })
     ]
 
     potential_long_puts = option_chain.filter(put_call: :put, filters: long_filters)
