@@ -116,7 +116,7 @@ class OptionChain
   attr_reader :symbol, :status, :strategy, :interval, :is_delayed, :is_index, :interest_rate, :underlying_price, :volatility, :days_to_expiration, :dividend_yield, :number_of_contracts, :asset_main_type, :asset_sub_type, :is_chain_truncated, :call_dates, :call_opts, :put_dates, :put_opts
 
   def filter(put_call: nil, filters: [])
-    selected_options =
+    options =
       case put_call
       when :put
         put_opts
@@ -126,14 +126,8 @@ class OptionChain
         call_opts + put_opts
       end
 
-    filters.each do |filter|
-      selected_options = selected_options.select do |opt|
-        filter.apply(opt)
-      end
+    options.select do |opt|
+      filters.map { |f| f.apply(opt) }.all?
     end
-
-    selected_options
   end
-
-  private
 end
