@@ -1,0 +1,140 @@
+require_relative 'instrument'
+
+class ExecutionLeg
+  attr_reader :leg_id, :quantity, :mismarked_quantity, :price, :time, :instrument_id
+  class << self
+    def build(data)
+      new(
+        leg_id: data[:legId],
+        quantity: data[:quantity],
+        mismarked_quantity: data[:mismarkedQuantity],
+        price: data[:price],
+        time: data[:time],
+        instrument_id: data[:instrumentId]
+      )
+    end
+  end
+
+  def initialize(leg_id:, quantity:, mismarked_quantity:, price:, time:, instrument_id:)
+    @leg_id = leg_id
+    @quantity = quantity
+    @mismarked_quantity = mismarked_quantity
+    @price = price
+    @time = time
+    @instrument_id = instrument_id
+  end
+end
+
+class OrderActivity
+  attr_reader :activity_type, :activity_id, :execution_type, :quantity, :order_remaining_quantity, :execution_legs
+
+  class << self
+    def build(data)
+      new(
+        activity_type: data[:activityType],
+        activity_id: data[:activityId],
+        execution_type: data[:executionType],
+        quantity: data[:quantity],
+        order_remaining_quantity: data[:orderRemainingQuantity],
+        execution_legs: data.fetch(:executionLegs, []).map { |leg| ExecutionLeg.build(leg) }
+      )
+    end
+  end
+
+  def initialize(activity_type:, activity_id:, execution_type:, quantity:, order_remaining_quantity:, execution_legs:)
+    @activity_type = activity_type
+    @activity_id = activity_id
+    @execution_type = execution_type
+    @quantity = quantity
+    @order_remaining_quantity = order_remaining_quantity
+    @execution_legs = execution_legs
+  end
+end
+
+class OrderLeg
+  attr_reader :leg_id, :order_leg_type, :quantity, :instrument, :instruction, :position_effect
+
+  class << self
+    def build(data)
+      new(
+        leg_id: data[:legId],
+        order_leg_type: data[:orderLegType],
+        quantity: data[:quantity],
+        instrument: Instrument.build(data[:instrument]),
+        instruction: data.fetch(:instruction, nil),
+        position_effect: data[:positionEffect]
+      )
+    end
+  end
+
+  def initialize(leg_id:, order_leg_type:, quantity:, instrument:, instruction:, position_effect:)
+    @leg_id = leg_id
+    @order_leg_type = order_leg_type
+    @quantity = quantity
+    @instrument = instrument
+    @instruction = instruction
+    @position_effect = position_effect
+  end
+end
+
+class Order
+  attr_reader :session, :duration, :order_type, :complex_order_strategy_type, :quantity,
+    :filled_quantity, :remaining_quantity, :requested_destination, :destination_link_name,
+    :price, :order_leg_collection, :order_strategy_type, :order_id, :cancelable,
+    :editable, :status, :entered_time, :close_time, :tag, :account_number,
+    :order_activity_collection
+
+  class << self
+    def build(data)
+      new(
+        session: data[:session],
+        duration: data[:duration],
+        order_type: data[:orderType],
+        complex_order_strategy_type: data[:complexOrderStrategyType],
+        quantity: data[:quantity],
+        filled_quantity: data[:filledQuantity],
+        remaining_quantity: data[:remainingQuantity],
+        requested_destination: data[:requestedDestination],
+        destination_link_name: data[:destinationLinkName],
+        price: data[:price],
+        order_leg_collection: data.fetch(:orderLegCollection, []).map { |leg| OrderLeg.build(leg) },
+        order_strategy_type: data[:orderStrategyType],
+        order_id: data[:orderId],
+        cancelable: data[:cancelable],
+        editable: data[:editable],
+        status: data[:status],
+        entered_time: data[:enteredTime],
+        close_time: data[:closeTime],
+        tag: data[:tag],
+        account_number: data[:accountNumber],
+        order_activity_collection: data.fetch(:orderActivityCollection, []).map do |activity|
+          OrderActivity.build(activity)
+        end
+      )
+    end
+  end
+
+  def initialize(session:, duration:, order_type:, complex_order_strategy_type:, quantity:, filled_quantity:, remaining_quantity:, requested_destination:, destination_link_name:, price:, order_leg_collection: [], order_strategy_type:, order_id:, cancelable:, editable:, status:, entered_time:, close_time:, tag:, account_number:, order_activity_collection: [])
+    @session = session
+    @duration = duration
+    @order_type = order_type
+    @complex_order_strategy_type = complex_order_strategy_type
+    @quantity = quantity
+    @filled_quantity = filled_quantity
+    @remaining_quantity = remaining_quantity
+    @requested_destination = requested_destination
+    @destination_link_name = destination_link_name
+    @price = price
+    @order_leg_collection = order_leg_collection
+    @order_strategy_type = order_strategy_type
+    @order_id = order_id
+    @cancelable = cancelable
+    @editable = editable
+    @status = status
+    @entered_time = entered_time
+    @close_time = close_time
+    @tag = tag
+    @account_number = account_number
+    @order_activity_collection = order_activity_collection
+  end
+end
