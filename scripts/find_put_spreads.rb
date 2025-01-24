@@ -2,7 +2,7 @@ require 'pry'
 require 'dotenv'
 require 'json'
 require 'csv'
-require_relative 'models/option_chain'
+require_relative '../models/option_chain'
 
 # NOTE
 # less than the 15-delta
@@ -10,7 +10,7 @@ require_relative 'models/option_chain'
 # verify that the strikes are at least 7% away from the current underlying price
 # credit should be at least $100
 # should receive at least 12% on buying power (or capital required)
-tickers = File.open('sp_500_tickers.txt', 'r') do |f|
+tickers = File.open('../sp_500_tickers.txt', 'r') do |f|
   f.read.split("\n")
 end
 
@@ -46,7 +46,6 @@ tickers.each do |ticker|
     ),
     OptionFilter.new(attribute: :mark, comparison: ->(mark) { mark * 100.0 >= 100.0 })
   ]
-
   potential_short_puts = option_chain.filter(put_call: :put, filters: short_filters)
   potential_short_puts.each do |short_put|
     long_filters = [
