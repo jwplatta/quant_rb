@@ -1,13 +1,13 @@
 require 'rspec'
-require_relative '../models/option_chain'
+require_relative '../../models/option_chain'
 
 RSpec.describe OptionChain do
   let(:raw_data) do
     JSON.parse(File.read('spec/fixtures/option_chains/AAPL.json'), symbolize_names: true)
   end
-  describe '.from_raw' do
+  describe '.build' do
     it 'creates an option chain object from raw data' do
-      option_chain = OptionChain.from_raw(raw_data)
+      option_chain = OptionChain.build(raw_data)
       expect(option_chain).to be_an_instance_of OptionChain
       expect(option_chain.symbol).to eq 'AAPL'
     end
@@ -15,7 +15,7 @@ RSpec.describe OptionChain do
 
   describe '#filter' do
     it 'use the absolute value of delta to filter the options chain' do
-      option_chain = OptionChain.from_raw(raw_data)
+      option_chain = OptionChain.build(raw_data)
 
       filters = [
         OptionFilter.new(attribute: :delta, comparison: "<=", value: 0.15),
@@ -29,7 +29,7 @@ RSpec.describe OptionChain do
       end
     end
     it 'filters the options chain based on the open interest' do
-      option_chain = OptionChain.from_raw(raw_data)
+      option_chain = OptionChain.build(raw_data)
       filters = [
         OptionFilter.new(attribute: :open_interest, comparison: ">", value: 0),
       ]
