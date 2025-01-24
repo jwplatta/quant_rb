@@ -11,13 +11,6 @@ class OptionFilter
 
   attr_reader :attribute, :comparison, :value
 
-  # opt_value = transform_attribute(opt, attribute)
-  # if comparison.respond_to?(:call)
-  #   comparison.call(opt_value)
-  # else
-  #   opt_value.public_send(comparison, value)
-  # end
-
   def apply(option)
     transform_attribute(option).then do |opt_val|
       if comparison.respond_to?(:call)
@@ -42,7 +35,7 @@ end
 
 class OptionChain
   class << self
-    def from_raw(data)
+    def build(data)
       underlying_symbol = data.fetch(:symbol)
 
       call_dates = []
