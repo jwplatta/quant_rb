@@ -57,4 +57,8 @@ class Position
     @previous_session_short_quantity = previous_session_short_quantity
     @current_day_cost = current_day_cost
   end
+
+  def symbol
+    instrument.symbol
+  end
 end
