@@ -75,6 +75,22 @@ class OrderLeg
     @instruction = instruction
     @position_effect = position_effect
   end
+
+  def call?
+    put_call == "CALL"
+  end
+
+  def put?
+    put_call == "PUT"
+  end
+
+  def put_call
+    instrument.put_call
+  end
+
+  def symbol
+    instrument.symbol
+  end
 end
 
 class Order
@@ -136,5 +152,27 @@ class Order
     @tag = tag
     @account_number = account_number
     @order_activity_collection = order_activity_collection
+  end
+
+  def symbols
+    order_leg_collection.map(&:symbol)
+  end
+
+  def strategy
+    if complex_order_strategy_type == "VERTICAL" and order_leg_collection.all?(&:call?)
+      "CALL_SPREAD"
+    elsif complex_order_strategy_type == "VERTICAL" and order_leg_collection.all?(&:put?)
+      "PUT_SPREAD"
+    else
+      order_strategy_type
+    end
+  end
+
+  def close?
+    order_leg_collection.all? { |leg| leg.position_effect == "CLOSING" }
+  end
+
+  def open?
+    order_leg_collection.all? { |leg| leg.position_effect == "OPENING" }
   end
 end
