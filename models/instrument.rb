@@ -67,7 +67,7 @@ class Instrument
     new(
       asset_type: data.fetch(:assetType),
       symbol: data.fetch(:symbol, nil),
-      description: data.fetch(:description),
+      description: data.fetch(:description, nil),
       cusip: data.fetch(:cusip, nil),
       net_change: data.fetch(:netChange, nil),
       type: data.fetch(:type, nil),
