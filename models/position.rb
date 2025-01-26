@@ -61,4 +61,41 @@ class Position
   def symbol
     instrument.symbol
   end
+
+  def underlying_symbol
+    instrument.underlying_symbol
+  end
+
+  def long?
+    long_quantity.positive?
+  end
+
+  def short?
+    short_quantity.positive?
+  end
+
+  def long_short
+    if long?
+      "LONG"
+    elsif short?
+      "SHORT"
+    else
+      "NONE"
+    end
+  end
+
+  def put_call
+    instrument.put_call
+  end
+
+  def to_h
+    {
+      symbol: symbol,
+      underlying_symbol: underlying_symbol,
+      average_price: average_price,
+      market_value: market_value,
+      put_call: put_call,
+      long_short: long_short,
+    }
+  end
 end
