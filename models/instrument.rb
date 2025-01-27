@@ -19,7 +19,8 @@ class Asset
     )
   end
 
-  def initialize(asset_type:, status:, symbol:, instrument_id:, closing_price:, type:, description:, active_contract:, expiration_date:, last_trading_date:, multiplier:, future_type:)
+  def initialize(
+    asset_type: nil, status: nil, symbol: nil, instrument_id: nil, closing_price: nil, type: nil, description: nil, active_contract: nil, expiration_date: nil, last_trading_date: nil, multiplier: nil, future_type: nil)
     @asset_type = asset_type
     @status = status
     @symbol = symbol
@@ -80,7 +81,8 @@ class Instrument
     )
   end
 
-  def initialize(asset_type:, cusip:, symbol:, description:, net_change:, type:, put_call:, underlying_symbol:, status:, instrument_id:, closing_price:, option_deliverables: [])
+  def initialize(
+    symbol:, description:, asset_type: nil, cusip: nil, net_change: nil, type: nil, put_call: nil, underlying_symbol: nil, status: nil, instrument_id: nil, closing_price: nil, option_deliverables: [])
     @asset_type = asset_type
     @cusip = cusip
     @symbol = symbol
