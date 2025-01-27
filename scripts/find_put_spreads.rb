@@ -20,7 +20,7 @@ trades = []
 def load_option_chain(ticker)
   path = "./data/#{ticker.gsub("/", "")}_option_chain.json"
   File.open(path, 'r') { |f| JSON.parse(f.read, symbolize_names: true) }.then do |data|
-    OptionChain.from_raw(data)
+    OptionChain.build(data)
   end
 rescue StandardError => e
   puts "Error loading option chain for #{ticker}: #{e.message}"
@@ -53,9 +53,18 @@ tickers.each do |ticker|
         attribute: :strike,
         comparison: ->(strike) { ((short_put.strike - 20.0)...short_put.strike).cover? strike }
       ),
-      OptionFilter.new(attribute: :open_interest, comparison: ">", value: 0),
-      OptionFilter.new(attribute: :expiration_date, comparison: "==", value: short_put.expiration_date),
-      OptionFilter.new(attribute: :mark, comparison: ->(mark) { (short_put.mark - mark) * 100.0 >= 100.0 })
+      OptionFilter.new(
+        attribute: :open_interest, comparison: ">", value: 0
+      ),
+      OptionFilter.new(
+        attribute: :expiration_date,
+        comparison: "==",
+        value: short_put.expiration_date
+      ),
+      OptionFilter.new(
+        attribute: :mark,
+        comparison: ->(mark) { (short_put.mark - mark) * 100.0 >= 100.0 }
+      )
     ]
 
     potential_long_puts = option_chain.filter(put_call: :put, filters: long_filters)
