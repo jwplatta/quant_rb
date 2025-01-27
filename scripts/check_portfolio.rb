@@ -35,3 +35,4 @@ filled_orders = JSON.parse(orders_resp.body, symbolize_names: true).then do |ord
 end
 
 portfolio = Portfolio.build(filled_orders, account)
+puts portfolio.to_h
