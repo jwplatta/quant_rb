@@ -123,4 +123,18 @@ class OptionChain
       filters.map { |f| f.apply(opt) }.all?
     end
   end
+
+  def to_a(date = nil)
+    call_opts.map do |copt|
+      [copt.expiration_date.strftime("%Y-%m-%d"), copt.put_call, copt.strike, copt.delta, copt.bid, copt.ask, copt.mark]
+    end + put_opts.map do |popt|
+      [popt.expiration_date.strftime("%Y-%m-%d"), popt.put_call, popt.strike, popt.delta, popt.bid, popt.ask, popt.mark]
+    end
+  end
+
+  private
+
+  def build_filter(**args)
+    OptionFilter.new(**args)
+  end
 end
