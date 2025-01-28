@@ -64,7 +64,7 @@ class Position
   end
 
   def symbol
-    instrument.symbol
+    instrument ? instrument.symbol : nil
   end
 
   def underlying_symbol
