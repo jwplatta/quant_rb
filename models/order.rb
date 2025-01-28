@@ -49,6 +49,10 @@ class OrderActivity
     @order_remaining_quantity = order_remaining_quantity
     @execution_legs = execution_legs
   end
+
+  def remove_legs(leg_ids)
+    @execution_legs = execution_legs.reject { |leg| leg_ids.include?(leg.leg_id) }.flatten
+  end
 end
 
 class OrderLeg
@@ -78,6 +82,14 @@ class OrderLeg
 
   def call?
     put_call == "CALL"
+  end
+
+  def close?
+    position_effect == "CLOSING"
+  end
+
+  def open?
+    position_effect == "OPENING"
   end
 
   def put?
@@ -154,14 +166,21 @@ class Order
     @order_activity_collection = order_activity_collection
   end
 
+  def remove_legs(leg_ids)
+    @order_leg_collection = order_leg_collection.reject { |leg| leg_ids.include?(leg.leg_id) }
+    order_activity_collection.each do |activity|
+      activity.remove_legs(leg_ids)
+    end
+  end
+
   def symbols
     order_leg_collection.map(&:symbol)
   end
 
   def strategy
-    if complex_order_strategy_type == "VERTICAL" and order_leg_collection.all?(&:call?)
+    if ["VERTICAL", "CUSTOM"].include? complex_order_strategy_type and order_leg_collection.all?(&:call?)
       "CALL_SPREAD"
-    elsif complex_order_strategy_type == "VERTICAL" and order_leg_collection.all?(&:put?)
+    elsif ["VERTICAL", "CUSTOM"].include? complex_order_strategy_type and order_leg_collection.all?(&:put?)
       "PUT_SPREAD"
     else
       order_strategy_type
