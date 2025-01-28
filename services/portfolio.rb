@@ -24,8 +24,40 @@ end
 class Portfolio
   class << self
     def build(orders, account)
+      # TODO: would be easier to just keep track of your trades in a database
       # NOTE: for each order, see if there is an existing position or positions
       # NOTE: match the order leg with the position
+      # NOTE: for any orders that contain closing and opening legs, separate
+      # them into separate order objects
+
+      orders = orders.map do |order|
+        if !order.close? && !order.open?
+            closing_leg_ids = order.order_leg_collection.reduce([]) do |acc, leg|
+              if leg.close?
+                acc << leg.leg_id
+              end
+              acc
+            end
+
+            opening_leg_ids = order.order_leg_collection.reduce([]) do |acc, leg|
+              if leg.open?
+                acc << leg.leg_id
+              end
+              acc
+            end
+
+            close_order = order.dup
+            close_order.remove_legs(closing_leg_ids)
+
+            open_order = order.dup
+            open_order.remove_legs(opening_leg_ids)
+
+            [close_order, open_order]
+        else
+          order
+        end
+      end.flatten
+
       open_orders = orders.select(&:open?).select do |order|
         !orders.select(&:close?).any? { |close_order| close_order?(order, close_order) }
       end
@@ -72,7 +104,7 @@ class Portfolio
     def close_order?(open_order, close_order)
       return false if open_order.order_leg_collection.any? { |leg| leg.position_effect == "CLOSING" }
       return false if close_order.order_leg_collection.any? { |leg| leg.position_effect == "OPENING" }
-      return false unless open_order.complex_order_strategy_type == close_order.complex_order_strategy_type
+      # return false unless open_order.complex_order_strategy_type == close_order.complex_order_strategy_type
       return false unless open_order.filled_quantity == close_order.filled_quantity
 
       # NOTE:
@@ -80,14 +112,18 @@ class Portfolio
       # - get the first leg of order a, then find the leg in order b with the same symbol
       # - check that if the first is SELL_TO_OPEN then the other is BUY_TO_CLOSE
       # or if the first is BUY_TO_OPEN then the other is SELL_TO_CLOSE
-      open_order.order_leg_collection.all? do |open_leg|
-        close_order.order_leg_collection.any? do |close_leg|
-          open_leg.symbol == close_leg.symbol && (
-            (open_leg.instruction == "BUY_TO_OPEN" && close_leg.instruction == "SELL_TO_CLOSE") ||
-            (open_leg.instruction == "SELL_TO_OPEN" && close_leg.instruction == "BUY_TO_CLOSE")
-          )
+      open_order.order_leg_collection.permutation.any? do |open_leg_perm|
+        close_order.order_leg_collection.zip(open_leg_perm).all? do |close_leg, open_leg|
+          matching_legs?(open_leg, close_leg)
         end
       end
+    end
+
+    def matching_legs?(open_leg, close_leg)
+      open_leg.symbol == close_leg.symbol && (
+        (open_leg.instruction == "BUY_TO_OPEN" && close_leg.instruction == "SELL_TO_CLOSE") ||
+        (open_leg.instruction == "SELL_TO_OPEN" && close_leg.instruction == "BUY_TO_CLOSE")
+      )
     end
   end
 
