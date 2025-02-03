@@ -78,6 +78,16 @@ class OptionQuote
     @underlying = data.dig(:reference, :underlying)
     @underlying_asset_type = data.dig(:reference, :underlyingAssetType)
   end
+
+  def zone
+    if quote_delta.abs >= 0.31
+      "DANGER"
+    elsif quote_delta.abs >= 0.16
+      "AT_RISK"
+    else
+      "SAFE"
+    end
+  end
 end
 
 class IndexQuote
