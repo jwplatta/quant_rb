@@ -35,7 +35,7 @@ class IronCondor < Trade
   end
 
   def expected_return
-    ((credit_debit * pop) - (max_loss * (1 - pop)))
+    ((credit_debit * prob_of_profit) - (max_loss * (1 - prob_of_profit)))
   end
 
   def symbols
