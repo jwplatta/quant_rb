@@ -33,16 +33,12 @@ class Portfolio
       orders = orders.map do |order|
         if !order.close? && !order.open?
             closing_leg_ids = order.order_leg_collection.reduce([]) do |acc, leg|
-              if leg.close?
-                acc << leg.leg_id
-              end
+              acc << leg.leg_id if leg.close?
               acc
             end
 
             opening_leg_ids = order.order_leg_collection.reduce([]) do |acc, leg|
-              if leg.open?
-                acc << leg.leg_id
-              end
+              acc << leg.leg_id if leg.open?
               acc
             end
 
