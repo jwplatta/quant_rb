@@ -109,18 +109,21 @@ class OptionChain
   attr_reader :symbol, :status, :strategy, :interval, :is_delayed, :is_index, :interest_rate, :underlying_price, :volatility, :days_to_expiration, :dividend_yield, :number_of_contracts, :asset_main_type, :asset_sub_type, :is_chain_truncated, :call_dates, :call_opts, :put_dates, :put_opts
 
   def filter(put_call: nil, filters: [])
-    options =
-      case put_call
-      when :put
-        put_opts
-      when :call
-        call_opts
-      else
-        call_opts + put_opts
-      end
-
+    options = filter_by_type(put_call)
+    filters = filters.map { |f_args| build_filter(*f_args) }
     options.select do |opt|
       filters.map { |f| f.apply(opt) }.all?
+    end
+  end
+
+  def filter_by_type(put_call)
+    case put_call
+    when :put
+      put_opts
+    when :call
+      call_opts
+    else
+      call_opts + put_opts
     end
   end
 
@@ -134,7 +137,36 @@ class OptionChain
 
   private
 
-  def build_filter(**args)
-    OptionFilter.new(**args)
+  def build_filter(*args)
+    validate_attr(args.first)
+
+    if args.count == 2 && args.last.lambda?
+      OptionFilter.new(
+        attribute: args.first,
+        comparison: args.last
+      )
+    elsif args.count == 3
+      validate_comparison(args[1])
+
+      OptionFilter.new(
+        attribute: args.first,
+        comparison: args[1],
+        value: args.last
+      )
+    else
+      raise ArgumentError, "Invalid filter arguments"
+    end
+  end
+
+  def validate_attr(attr)
+    unless %i[delta open_interest strike mark expiration_date].include?(attr)
+      raise ArgumentError, "Invalid filter attribute"
+    end
+  end
+
+  def validate_comparison(comparison_op)
+    unless %w[< > <= >= == !=].include?(comparison_op)
+      raise ArgumentError, "Invalid comparison operator"
+    end
   end
 end
