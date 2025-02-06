@@ -36,3 +36,9 @@ end
 
 portfolio = Portfolio.build(filled_orders, account)
 puts portfolio.to_h
+
+portfolio.positions.each do |position|
+  puts "#{position.symbols}: #{position.progress}"
+end
+
+binding.pry
