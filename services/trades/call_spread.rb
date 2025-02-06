@@ -11,9 +11,6 @@ class CallSpread < Trade
     @approx_fees = approx_fees
   end
 
-  def tested?
-  end
-
   def delta
     short_leg.delta
   end
