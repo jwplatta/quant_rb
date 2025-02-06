@@ -2,8 +2,24 @@ require "pry"
 require "dotenv"
 require "schwab_rb"
 require_relative "../../models/option_chain"
+require_relative "../trades/iron_condor"
+require_relative "../trades/put_spread"
 
 Dotenv.load
+
+# REVIEW: Need to resolve the shared interface between the Position
+# class in models and the Position-like objects that get used in the
+# trades classes.
+OptionPosition = Struct.new(
+  :symbol,
+  :underlying_symbol,
+  :strike,
+  :delta,
+  :mark,
+  :ask,
+  :bid,
+  :expiration_date
+)
 
 class SpreadFinder
   CONTRACT_TYPES = %w[CALL PUT]
@@ -39,40 +55,36 @@ class SpreadFinder
     potential_short_puts = option_chain.filter(put_call: call_put, filters: short_filters)
     trades = []
 
-    potential_short_puts.each do |short_put|
+    potential_short_puts.each do |short_put_raw|
+      short_put = Position.new(
+        short_put_raw.symbol,
+        short_put_raw.underlying_symbol,
+        short_put_raw.strike,
+        short_put_raw.delta,
+        short_put_raw.mark,
+        short_put_raw.ask,
+        short_put_raw.bid,
+        short_put_raw.expiration_date
+      )
       potential_long_puts = option_chain.filter(put_call: call_put, filters: long_filters(short_put))
 
       if potential_long_puts.any?
-        best_long_put = potential_long_puts.min_by(&:mark)
-        trade_cnt += 1
+        best_long_put_raw = potential_long_puts.min_by(&:mark)
+        long_put = Position.new(
+          best_long_put_raw.symbol,
+          best_long_put_raw.underlying_symbol,
+          best_long_put_raw.strike,
+          best_long_put_raw.delta,
+          best_long_put_raw.mark,
+          best_long_put_raw.ask,
+          best_long_put_raw.bid,
+          best_long_put_raw.expiration_date
+        )
 
-        trades << [
-          trade_cnt,
-          ticker,
-          option_chain.underlying_price.round(3),
-          short_put.expiration_date.strftime('%Y-%m-%d'),
-          short_put.days_to_expiration,
-          "SELL",
-          short_put.strike,
-          short_put.delta,
-          short_put.bid,
-          short_put.ask,
-          short_put.mark
-        ]
-
-        trades << [
-          trade_cnt,
-          "",
-          "",
-          "",
-          "",
-          "BUY",
-          best_long_put.strike,
-          best_long_put.delta,
-          best_long_put.bid,
-          best_long_put.ask,
-          best_long_put.mark
-        ]
+        trades << PutSpread.new(
+          short_leg: short_put,
+          long_leg: long_put
+        )
       end
     end
 
@@ -126,20 +138,22 @@ class SpreadFinder
   end
 
   def option_chain
-    @option_chain ||= client.get_option_chain(
+    return @option_chain if @option_chain
+
+    resp = client.get_option_chain(
       symbol,
       contract_type: contract_type,
       strike_range: "OTM",
       from_date: start_date,
       to_date: end_date
-    ).then do |resp|
-      if resp.status == 200
-        JSON.parse(resp.body, symbolize_names: true)
-      else
-        raise "Error getting option chain: #{resp.body}"
+    )
+
+    @option_chain = if resp.status == 200
+      JSON.parse(resp.body, symbolize_names: true).then do |data|
+        OptionChain.build(data)
       end
-    end.then do |data|
-      OptionChain.build(data)
+    else
+      raise "Error getting option chain: #{resp.body}"
     end
   end
 
