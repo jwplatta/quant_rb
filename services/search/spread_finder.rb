@@ -24,12 +24,11 @@ OptionPosition = Struct.new(
 class SpreadFinder
   CONTRACT_TYPES = %w[CALL PUT]
 
-  attr_reader :symbol, :contract_type, :start_date, :end_date, :short_delta, :max_spread, :min_credit, :min_open_interest, :dist_from_strike
+  attr_reader :symbol, :contract_type, :end_date, :short_delta, :max_spread, :min_credit, :min_open_interest, :dist_from_strike
 
   def initialize(
     symbol:,
     contract_type:,
-    start_date: Date.today,
     end_date: Date.today + 90,
     short_delta: 0.15,
     max_spread: 20.0,
@@ -41,7 +40,6 @@ class SpreadFinder
 
     raise "Invalid spread type" unless CONTRACT_TYPES.include?(contract_type)
     @contract_type = contract_type
-    @start_date = start_date
     @end_date = end_date
     @short_delta = short_delta
     @max_spread = max_spread
@@ -52,11 +50,14 @@ class SpreadFinder
 
   def search
     call_put = contract_type.downcase.to_sym
-    potential_short_puts = option_chain.filter(put_call: call_put, filters: short_filters)
+    potential_short_puts = option_chain.filter(
+      put_call: call_put,
+      filters: short_filters
+    )
     trades = []
 
     potential_short_puts.each do |short_put_raw|
-      short_put = Position.new(
+      short_put = OptionPosition.new(
         short_put_raw.symbol,
         short_put_raw.underlying_symbol,
         short_put_raw.strike,
@@ -70,7 +71,7 @@ class SpreadFinder
 
       if potential_long_puts.any?
         best_long_put_raw = potential_long_puts.min_by(&:mark)
-        long_put = Position.new(
+        long_put = OptionPosition.new(
           best_long_put_raw.symbol,
           best_long_put_raw.underlying_symbol,
           best_long_put_raw.strike,
@@ -93,58 +94,41 @@ class SpreadFinder
 
   def short_filters
     [
-      OptionFilter.new(
-        attribute: :delta,
-        comparison: "<=",
-        value: short_delta
-      ),
-      OptionFilter.new(
-        attribute: :open_interest,
-        comparison: ">",
-        value: min_open_interest
-      ),
-      OptionFilter.new(
-        attribute: :strike,
-        comparison: ->(strike) { ((option_chain.underlying_price - strike) / option_chain.underlying_price).abs >= dist_from_strike }
-      ),
-      OptionFilter.new(
-        attribute: :mark,
-        comparison: ->(mark) { mark * 100.0 >= min_credit }
-      )
+        [:delta, "<=", short_delta],
+        [:open_interest, ">", min_open_interest],
+        [
+          :strike,
+          ->(strike) { ((option_chain.underlying_price - strike) / option_chain.underlying_price).abs >= dist_from_strike }
+        ],
+        [
+          :mark,
+          ->(mark) { mark * 100.0 >= min_credit }
+        ]
     ]
   end
 
   def long_filters(short_put)
     [
-      OptionFilter.new(
-        attribute: :strike,
-        comparison: ->(strike) { ((short_put.strike - max_spread.to_f)...short_put.strike).cover? strike }
-      ),
-      OptionFilter.new(
-        attribute: :open_interest,
-        comparison: ">",
-        value: min_open_interest
-      ),
-      OptionFilter.new(
-        attribute: :expiration_date,
-        comparison: "==",
-        value: short_put.expiration_date
-      ),
-      OptionFilter.new(
-        attribute: :mark,
-        comparison: ->(mark) { (short_put.mark - mark) * 100.0 >= 100.0 }
-      )
+      [
+        :strike,
+        ->(strike) { ((short_put.strike - max_spread.to_f)...short_put.strike).cover? strike }
+      ],
+      [:open_interest, ">", min_open_interest],
+      [:expiration_date, "==", short_put.expiration_date],
+      [
+        :mark,
+        ->(mark) { (short_put.mark - mark) * 100.0 >= 100.0 }
+      ]
     ]
   end
 
   def option_chain
-    return @option_chain if @option_chain
+    return @option_chain if defined?(@option_chain)
 
     resp = client.get_option_chain(
       symbol,
       contract_type: contract_type,
       strike_range: "OTM",
-      from_date: start_date,
       to_date: end_date
     )
 
