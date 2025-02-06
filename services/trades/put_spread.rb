@@ -11,9 +11,6 @@ class PutSpread < Trade
     @approx_fees = approx_fees
   end
 
-  def tested?
-  end
-
   def delta
     short_leg.delta
   end
@@ -39,6 +36,8 @@ class PutSpread < Trade
   end
 
   def entry_price
+    # REIVEW: the average_price is returned on the positions that
+    # are associated with the account from the get_account endpoint
     @entry_price ||= (long_leg.average_price * 100 * -1) + (short_leg.average_price * 100)
   end
 
