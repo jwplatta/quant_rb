@@ -113,7 +113,7 @@ class SpreadFinder
       [
         [
           :strike,
-          ->(strike) { (short.strike...(short.strike + max_spread.to_f)).cover? strike }
+          ->(strike) { (short.strike..(short.strike + max_spread.to_f)).cover? strike }
         ],
         [:open_interest, ">", min_open_interest],
         [:expiration_date, "==", short.expiration_date],
@@ -126,7 +126,7 @@ class SpreadFinder
       [
         [
           :strike,
-          ->(strike) { ((short.strike - max_spread.to_f)...short.strike).cover? strike }
+          ->(strike) { ((short.strike - max_spread.to_f)..short.strike).cover? strike }
         ],
         [:open_interest, ">", min_open_interest],
         [:expiration_date, "==", short.expiration_date],
