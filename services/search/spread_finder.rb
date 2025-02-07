@@ -50,41 +50,42 @@ class SpreadFinder
 
   def search
     call_put = contract_type.downcase.to_sym
-    potential_short_puts = option_chain.filter(
+
+    potential_shorts = option_chain.filter(
       put_call: call_put,
       filters: short_filters
     )
     trades = []
 
-    potential_short_puts.each do |short_put_raw|
-      short_put = OptionPosition.new(
-        short_put_raw.symbol,
-        short_put_raw.underlying_symbol,
-        short_put_raw.strike,
-        short_put_raw.delta,
-        short_put_raw.mark,
-        short_put_raw.ask,
-        short_put_raw.bid,
-        short_put_raw.expiration_date
+    potential_shorts.each do |short_raw|
+      short = OptionPosition.new(
+        short_raw.symbol,
+        short_raw.underlying_symbol,
+        short_raw.strike,
+        short_raw.delta,
+        short_raw.mark,
+        short_raw.ask,
+        short_raw.bid,
+        short_raw.expiration_date
       )
-      potential_long_puts = option_chain.filter(put_call: call_put, filters: long_filters(short_put))
+      potential_longs = option_chain.filter(put_call: call_put, filters: long_filters(short))
 
-      if potential_long_puts.any?
-        best_long_put_raw = potential_long_puts.min_by(&:mark)
-        long_put = OptionPosition.new(
-          best_long_put_raw.symbol,
-          best_long_put_raw.underlying_symbol,
-          best_long_put_raw.strike,
-          best_long_put_raw.delta,
-          best_long_put_raw.mark,
-          best_long_put_raw.ask,
-          best_long_put_raw.bid,
-          best_long_put_raw.expiration_date
+      if potential_longs.any?
+        best_long_raw = potential_longs.min_by(&:mark)
+        long = OptionPosition.new(
+          best_long_raw.symbol,
+          best_long_raw.underlying_symbol,
+          best_long_raw.strike,
+          best_long_raw.delta,
+          best_long_raw.mark,
+          best_long_raw.ask,
+          best_long_raw.bid,
+          best_long_raw.expiration_date
         )
 
         trades << PutSpread.new(
-          short_leg: short_put,
-          long_leg: long_put
+          short_leg: short,
+          long_leg: long
         )
       end
     end
@@ -107,19 +108,34 @@ class SpreadFinder
     ]
   end
 
-  def long_filters(short_put)
-    [
+  def long_filters(short)
+    if contract_type == "CALL"
       [
-        :strike,
-        ->(strike) { ((short_put.strike - max_spread.to_f)...short_put.strike).cover? strike }
-      ],
-      [:open_interest, ">", min_open_interest],
-      [:expiration_date, "==", short_put.expiration_date],
-      [
-        :mark,
-        ->(mark) { (short_put.mark - mark) * 100.0 >= 100.0 }
+        [
+          :strike,
+          ->(strike) { (short.strike...(short.strike + max_spread.to_f)).cover? strike }
+        ],
+        [:open_interest, ">", min_open_interest],
+        [:expiration_date, "==", short.expiration_date],
+        [
+          :mark,
+          ->(mark) { (short.mark - mark) * 100.0 >= 100.0 }
+        ]
       ]
-    ]
+    else
+      [
+        [
+          :strike,
+          ->(strike) { ((short.strike - max_spread.to_f)...short.strike).cover? strike }
+        ],
+        [:open_interest, ">", min_open_interest],
+        [:expiration_date, "==", short.expiration_date],
+        [
+          :mark,
+          ->(mark) { (short.mark - mark) * 100.0 >= 100.0 }
+        ]
+      ]
+    end
   end
 
   def option_chain
