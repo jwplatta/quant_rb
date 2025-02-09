@@ -62,18 +62,16 @@ class OptionChain
         symbol: data.fetch(:symbol),
         status: data.fetch(:status),
         strategy: data.fetch(:strategy),
-        interval: data.fetch(:interval),
-        is_delayed: data.fetch(:isDelayed),
-        is_index: data.fetch(:isIndex),
-        interest_rate: data.fetch(:interestRate),
+        interval: data.fetch(:interval, nil),
+        is_delayed: data.fetch(:isDelayed, nil),
+        is_index: data.fetch(:isIndex, nil),
+        interest_rate: data.fetch(:interestRate, nil),
         underlying_price: data.fetch(:underlyingPrice),
-        volatility: data.fetch(:volatility),
+        volatility: data.fetch(:volatility, nil),
         days_to_expiration: data.fetch(:daysToExpiration),
-        dividend_yield: data.fetch(:dividendYield),
-        number_of_contracts: data.fetch(:numberOfContracts),
         asset_main_type: data.fetch(:assetMainType, nil),
         asset_sub_type: data.fetch(:assetSubType, nil),
-        is_chain_truncated: data.fetch(:isChainTruncated),
+        is_chain_truncated: data.fetch(:isChainTruncated, false),
         call_dates: call_dates,
         call_opts: call_opts,
         put_dates: put_dates,
@@ -83,7 +81,7 @@ class OptionChain
   end
 
   def initialize(
-    symbol:, status:, strategy:, interval:, is_delayed:, is_index:, interest_rate:, underlying_price:, volatility:, days_to_expiration:, dividend_yield:, number_of_contracts:, asset_main_type:, asset_sub_type:, is_chain_truncated:, call_dates: [], call_opts: [], put_dates: [], put_opts: []
+    symbol:, status:, strategy:, interval:, is_delayed:, is_index:, interest_rate:, underlying_price:, volatility:, days_to_expiration:, asset_main_type:, asset_sub_type:, is_chain_truncated:, call_dates: [], call_opts: [], put_dates: [], put_opts: []
   )
     @symbol = symbol
     @status = status
@@ -95,8 +93,6 @@ class OptionChain
     @underlying_price = underlying_price
     @volatility = volatility
     @days_to_expiration = days_to_expiration
-    @dividend_yield = dividend_yield
-    @number_of_contracts = number_of_contracts
     @asset_main_type = asset_main_type
     @asset_sub_type = asset_sub_type
     @is_chain_truncated = is_chain_truncated
@@ -106,7 +102,7 @@ class OptionChain
     @put_opts = put_opts
   end
 
-  attr_reader :symbol, :status, :strategy, :interval, :is_delayed, :is_index, :interest_rate, :underlying_price, :volatility, :days_to_expiration, :dividend_yield, :number_of_contracts, :asset_main_type, :asset_sub_type, :is_chain_truncated, :call_dates, :call_opts, :put_dates, :put_opts
+  attr_reader :symbol, :status, :strategy, :interval, :is_delayed, :is_index, :interest_rate, :underlying_price, :volatility, :days_to_expiration, :asset_main_type, :asset_sub_type, :is_chain_truncated, :call_dates, :call_opts, :put_dates, :put_opts
 
   def filter(put_call: nil, filters: [])
     options = filter_by_type(put_call)
