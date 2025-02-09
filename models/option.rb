@@ -10,55 +10,53 @@ class Option
         description: data.fetch(:description),
         strike: data.fetch(:strikePrice),
         put_call: data.fetch(:putCall),
-        exchange_name: data.fetch(:exchangeName),
+        exchange_name: data.fetch(:exchangeName, nil),
         bid: data.fetch(:bid),
         ask: data.fetch(:ask),
         last: data.fetch(:last),
         mark: data.fetch(:mark),
-        bid_size: data.fetch(:bidSize),
-        ask_size: data.fetch(:askSize),
-        bid_ask_size: data.fetch(:bidAskSize),
-        last_size: data.fetch(:lastSize),
-        high_price: data.fetch(:highPrice),
-        low_price: data.fetch(:lowPrice),
-        open_price: data.fetch(:openPrice),
-        close_price: data.fetch(:closePrice),
-        total_volume: data.fetch(:totalVolume),
-        trade_time_in_long: data.fetch(:tradeTimeInLong),
-        quote_time_in_long: data.fetch(:quoteTimeInLong),
-        net_change: data.fetch(:netChange),
-        volatility: data.fetch(:volatility),
-        delta: data.fetch(:delta),
-        gamma: data.fetch(:gamma),
-        theta: data.fetch(:theta),
-        vega: data.fetch(:vega),
-        rho: data.fetch(:rho),
-        open_interest: data.fetch(:openInterest),
-        time_value: data.fetch(:timeValue),
-        theoretical_option_value: data.fetch(:theoreticalOptionValue),
-        theoretical_volatility: data.fetch(:theoreticalVolatility),
-        option_deliverables_list: data.fetch(:optionDeliverablesList),
-        strike_price: data.fetch(:strikePrice),
+        bid_size: data.fetch(:bidSize, nil),
+        ask_size: data.fetch(:askSize, nil),
+        bid_ask_size: data.fetch(:bidAskSize, nil),
+        last_size: data.fetch(:lastSize, nil),
+        high_price: data.fetch(:highPrice, nil),
+        low_price: data.fetch(:lowPrice, nil),
+        open_price: data.fetch(:openPrice, nil),
+        close_price: data.fetch(:closePrice, nil),
+        total_volume: data.fetch(:totalVolume, nil),
+        trade_time_in_long: data.fetch(:tradeTimeInLong, nil),
+        quote_time_in_long: data.fetch(:quoteTimeInLong, nil),
+        net_change: data.fetch(:netChange, nil),
+        volatility: data.fetch(:volatility, nil),
+        delta: data.fetch(:delta, nil),
+        gamma: data.fetch(:gamma, nil),
+        theta: data.fetch(:theta, nil),
+        vega: data.fetch(:vega, nil),
+        rho: data.fetch(:rho, nil),
+        open_interest: data.fetch(:openInterest, nil),
+        time_value: data.fetch(:timeValue, nil),
+        theoretical_option_value: data.fetch(:theoreticalOptionValue, nil),
+        theoretical_volatility: data.fetch(:theoreticalVolatility, nil),
+        option_deliverables_list: data.fetch(:optionDeliverablesList, nil),
+        strike_price: data.fetch(:strikePrice, nil),
         expiration_date: DateTime.parse(data.fetch(:expirationDate)),
-        days_to_expiration: data.fetch(:daysToExpiration),
-        experiration_type: data.fetch(:expirationType),
-        last_trading_day: data.fetch(:lastTradingDay),
-        multiplier: data.fetch(:multiplier),
-        settlement_type: data.fetch(:settlementType),
-        deliverable_note: data.fetch(:deliverableNote),
-        percent_change: data.fetch(:percentChange),
-        mark_change: data.fetch(:markChange),
-        mark_percent_change: data.fetch(:markPercentChange),
-        intrinsic_value: data.fetch(:intrinsicValue),
-        extrinsic_value: data.fetch(:extrinsicValue),
-        option_root: data.fetch(:optionRoot),
-        exercise_type: data.fetch(:exerciseType),
-        high_52_week: data.fetch(:high52Week),
-        low_52_week: data.fetch(:low52Week),
-        non_standard: data.fetch(:nonStandard),
-        in_the_money: data.fetch(:inTheMoney),
-        mini: data.fetch(:mini),
-        penny_pilot: data.fetch(:pennyPilot)
+        days_to_expiration: data.fetch(:daysToExpiration, nil),
+        expiration_type: data.fetch(:expirationType, nil),
+        last_trading_day: data.fetch(:lastTradingDay, nil),
+        multiplier: data.fetch(:multiplier, nil),
+        settlement_type: data.fetch(:settlementType, nil),
+        deliverable_note: data.fetch(:deliverableNote, nil),
+        percent_change: data.fetch(:percentChange, nil),
+        mark_change: data.fetch(:markChange, nil),
+        mark_percent_change: data.fetch(:markPercentChange, nil),
+        intrinsic_value: data.fetch(:intrinsicValue, nil),
+        extrinsic_value: data.fetch(:extrinsicValue, nil),
+        option_root: data.fetch(:optionRoot, nil),
+        exercise_type: data.fetch(:exerciseType, nil),
+        high_52_week: data.fetch(:high52Week, nil),
+        low_52_week: data.fetch(:low52Week, nil),
+        non_standard: data.fetch(:nonStandard, nil),
+        in_the_money: data.fetch(:inTheMoney, nil),
       )
     end
   end
@@ -71,8 +69,8 @@ class Option
     quote_time_in_long:, net_change:, volatility:, delta:,
     gamma:, theta:, vega:, rho:, open_interest:, time_value:,
     theoretical_option_value:, theoretical_volatility:, option_deliverables_list:, strike_price:,
-    expiration_date:, days_to_expiration:, experiration_type:, last_trading_day:, multiplier:,
-    settlement_type:, deliverable_note:, percent_change:, mark_change:, mark_percent_change:, intrinsic_value:, extrinsic_value:, option_root:, exercise_type:, high_52_week:, low_52_week:, non_standard:, in_the_money:, mini:, penny_pilot:
+    expiration_date:, days_to_expiration:, expiration_type:, last_trading_day:, multiplier:,
+    settlement_type:, deliverable_note:, percent_change:, mark_change:, mark_percent_change:, intrinsic_value:, extrinsic_value:, option_root:, exercise_type:, high_52_week:, low_52_week:, non_standard:, in_the_money:
  )
     @symbol = symbol
     @underlying_symbol = underlying_symbol
@@ -110,7 +108,7 @@ class Option
     @strike_price = strike_price
     @expiration_date = expiration_date
     @days_to_expiration = days_to_expiration
-    @experiration_type = experiration_type
+    @expiration_type = expiration_type
     @last_trading_day = last_trading_day
     @multiplier = multiplier
     @settlement_type = settlement_type
@@ -126,8 +124,6 @@ class Option
     @low_52_week = low_52_week
     @non_standard = non_standard
     @in_the_money = in_the_money
-    @mini = mini
-    @penny_pilot = penny_pilot
   end
 
   attr_reader :symbol, :underlying_symbol, :description, :strike, :put_call,
@@ -137,9 +133,9 @@ class Option
     :net_change, :volatility, :delta, :gamma, :theta, :vega, :rho,
     :open_interest, :time_value, :theoretical_option_value,
     :theoretical_volatility, :option_deliverables_list, :strike_price,
-    :expiration_date, :days_to_expiration, :experiration_type, :last_trading_day,
+    :expiration_date, :days_to_expiration, :expiration_type, :last_trading_day,
     :multiplier, :settlement_type, :deliverable_note, :percent_change,
     :mark_change, :mark_percent_change, :intrinsic_value, :extrinsic_value,
     :option_root, :exercise_type, :high_52_week, :low_52_week, :non_standard,
-    :in_the_money, :mini, :penny_pilot
+    :in_the_money
 end
