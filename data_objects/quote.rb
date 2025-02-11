@@ -80,9 +80,9 @@ class OptionQuote
   end
 
   def zone
-    if quote_delta.abs >= 0.31
+    if quote_delta.abs > 0.3
       "DANGER"
-    elsif quote_delta.abs >= 0.16
+    elsif quote_delta.abs > 0.15
       "AT_RISK"
     else
       "SAFE"
