@@ -1,7 +1,7 @@
 GIT
   remote: https://github.com/jwplatta/schwab_rb.git
-  revision: 56788c14378a50446c58e9e5c4b435b885e2e32d
-  ref: 56788c14378a50446c58e9e5c4b435b885e2e32d
+  revision: b842c9fb62278501bb16c4dae8875214a24fede4
+  ref: b842c9fb62278501bb16c4dae8875214a24fede4
   specs:
     schwab_rb (0.1.0)
       async (~> 2.18)
@@ -15,19 +15,44 @@ GIT
 GEM
   remote: https://rubygems.org/
   specs:
-    async (2.21.1)
+    activemodel (8.0.1)
+      activesupport (= 8.0.1)
+    activerecord (8.0.1)
+      activemodel (= 8.0.1)
+      activesupport (= 8.0.1)
+      timeout (>= 0.4.0)
+    activesupport (8.0.1)
+      base64
+      benchmark (>= 0.3)
+      bigdecimal
+      concurrent-ruby (~> 1.0, >= 1.3.1)
+      connection_pool (>= 2.2.5)
+      drb
+      i18n (>= 1.6, < 2)
+      logger (>= 1.4.2)
+      minitest (>= 5.1)
+      securerandom (>= 0.3)
+      tzinfo (~> 2.0, >= 2.0.5)
+      uri (>= 0.13.1)
+    async (2.23.0)
       console (~> 1.29)
       fiber-annotation
-      io-event (~> 1.6, >= 1.6.5)
+      io-event (~> 1.9)
+      metrics (~> 0.12)
+      traces (~> 0.15)
     base64 (0.2.0)
-    bigdecimal (3.1.8)
+    benchmark (0.4.0)
+    bigdecimal (3.1.9)
     coderay (1.1.3)
+    concurrent-ruby (1.3.5)
+    connection_pool (2.5.0)
     console (1.29.2)
       fiber-annotation
       fiber-local (~> 1.1)
       json
-    diff-lcs (1.5.1)
+    diff-lcs (1.6.0)
     dotenv (3.1.7)
+    drb (2.2.1)
     faraday (2.12.2)
       faraday-net_http (>= 2.0, < 3.5)
       json
@@ -39,12 +64,16 @@ GEM
       fiber-storage
     fiber-storage (1.0.0)
     hashie (5.0.0)
-    io-event (1.7.5)
-    json (2.9.1)
-    jwt (2.9.3)
+    i18n (1.14.7)
+      concurrent-ruby (~> 1.0)
+    io-event (1.9.0)
+    json (2.10.1)
+    jwt (2.10.1)
       base64
-    logger (1.6.4)
+    logger (1.6.6)
     method_source (1.1.0)
+    metrics (0.12.1)
+    minitest (5.25.4)
     multi_xml (0.7.1)
       bigdecimal (~> 3.1)
     mustermann (3.0.3)
@@ -60,25 +89,28 @@ GEM
       snaky_hash (~> 2.0)
       version_gem (~> 1.1)
     openssl (3.3.0)
-    pry (0.15.0)
+    pg (1.5.9)
+    pry (0.15.2)
       coderay (~> 1.1)
       method_source (~> 1.0)
-    puma (6.5.0)
+    puma (6.6.0)
       nio4r (~> 2.0)
-    rack (3.1.8)
+    rack (3.1.10)
     rack-protection (4.1.1)
       base64 (>= 0.1.0)
       logger (>= 1.6.0)
       rack (>= 3.0.0, < 4)
-    rack-session (2.0.0)
+    rack-session (2.1.0)
+      base64 (>= 0.1.0)
       rack (>= 3.0.0)
     rackup (2.2.1)
       rack (>= 3)
+    rake (13.2.1)
     rspec (3.13.0)
       rspec-core (~> 3.13.0)
       rspec-expectations (~> 3.13.0)
       rspec-mocks (~> 3.13.0)
-    rspec-core (3.13.2)
+    rspec-core (3.13.3)
       rspec-support (~> 3.13.0)
     rspec-expectations (3.13.3)
       diff-lcs (>= 1.2.0, < 2.0)
@@ -88,6 +120,7 @@ GEM
       rspec-support (~> 3.13.0)
     rspec-support (3.13.2)
     ruby2_keywords (0.0.5)
+    securerandom (0.4.1)
     sinatra (4.1.1)
       logger (>= 1.6.0)
       mustermann (~> 3.0)
@@ -98,7 +131,11 @@ GEM
     snaky_hash (2.0.1)
       hashie
       version_gem (~> 1.1, >= 1.1.1)
-    tilt (2.5.0)
+    tilt (2.6.0)
+    timeout (0.4.3)
+    traces (0.15.2)
+    tzinfo (2.0.6)
+      concurrent-ruby (~> 1.0)
     uri (1.0.2)
     version_gem (1.1.4)
 
@@ -107,10 +144,16 @@ PLATFORMS
   ruby
 
 DEPENDENCIES
+  activerecord (~> 8.0, >= 8.0.1)
   dotenv
+  pg
   pry
+  rake
   rspec
   schwab_rb!
 
+RUBY VERSION
+   ruby 3.2.2p53
+
 BUNDLED WITH
-   2.5.23
+   2.6.3
