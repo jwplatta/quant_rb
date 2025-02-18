@@ -1,5 +1,4 @@
 require "schwab_rb"
-
 require_relative "iron_condor_order"
 require_relative "vertical_order"
 
