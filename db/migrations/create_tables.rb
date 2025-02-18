@@ -14,19 +14,19 @@ ActiveRecord::Base.establish_connection(
 ActiveRecord::Schema.define do
   create_table :trades, force: true do |t|
     t.string :underlying, null: false
-    t.string :strategy, null: false
+    t.string :strategy_type, null: false
     t.date :open_date, null: false
     t.date :close_date
-    t.integer :trade_type, null: false
 
     t.timestamps
   end
 
   create_table :orders, force: true do |t|
     t.string :order_id, null: false
+    t.string :order_type, null: false
     t.string :underlying, null: false
     t.string :status, null: false
-    t.string :trade_type, null: false
+    t.string :strategy_type, null: false
     t.boolean :adjustment, default: false
     t.decimal :net_amount, default: 0.0
     t.references :trade, foreign_key: true
