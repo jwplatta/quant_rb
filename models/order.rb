@@ -5,8 +5,9 @@ class Order < ActiveRecord::Base
   has_many :transactions
 
   validates :order_id, presence: true
+  validates :order_type, presence: true
   validates :underlying, presence: true
   validates :status, presence: true
-  validates :trade_type, presence: true
+  validates :strategy_type, presence: true
   validates :underlying, presence: true
 end
