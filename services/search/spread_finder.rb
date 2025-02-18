@@ -96,7 +96,7 @@ class SpreadFinder
       end
     end
 
-    @trades.max_by(&:debit_credit)
+    @trades.max_by(&:credit_debit)
   end
 
   def short_filters
