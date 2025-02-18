@@ -1,0 +1,19 @@
+default: &default
+  adapter: postgresql
+  encoding: unicode
+  pool: 5
+  username: <%= ENV["DB_USERNAME"] %>
+  password: <%= ENV["DB_PASSWORD"] %>
+  host: localhost
+
+production:
+  <<: *default
+  database: platypi_db
+
+development:
+  <<: *default
+  database: platypi_db_dev
+
+test:
+  <<: *default
+  database: platypi_db_test
