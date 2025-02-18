@@ -5,11 +5,11 @@ module DataObjects
 
       case quote_data[:assetMainType]
       when "OPTION"
-        OptionQuote.new(quote_data)
+        DataObjects::OptionQuote.new(quote_data)
       when "INDEX"
-        IndexQuote.new(quote_data)
+        DataObjects::IndexQuote.new(quote_data)
       when "EQUITY"
-        EquityQuote.new(quote_data)
+        DataObjects::EquityQuote.new(quote_data)
       else
         raise "Unknown assetMainType: #{quote_data[:assetMainType]}"
       end
