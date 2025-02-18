@@ -1,7 +1,7 @@
 require "pry"
 require "dotenv"
 require "schwab_rb"
-require_relative "../../models/option_chain"
+require_relative "../../data_objects/option_chain"
 require_relative "../trades/iron_condor"
 require_relative "../trades/put_spread"
 
@@ -10,7 +10,8 @@ Dotenv.load
 # REVIEW: Need to resolve the shared interface between the Position
 # class in models and the Position-like objects that get used in the
 # trades classes.
-OptionPosition = Struct.new(
+TradeLeg = Struct.new(
+  :put_call,
   :symbol,
   :underlying_symbol,
   :strike,
@@ -18,7 +19,8 @@ OptionPosition = Struct.new(
   :mark,
   :ask,
   :bid,
-  :expiration_date
+  :expiration_date,
+  :instruction
 )
 
 class SpreadFinder
@@ -46,19 +48,20 @@ class SpreadFinder
     @min_credit = min_credit
     @min_open_interest = min_open_interest
     @dist_from_strike = dist_from_strike
+    @trades = []
   end
 
   def search
-    call_put = contract_type.downcase.to_sym
+    put_call = contract_type.downcase.to_sym
 
     potential_shorts = option_chain.filter(
-      put_call: call_put,
+      put_call: put_call,
       filters: short_filters
     )
-    trades = []
 
     potential_shorts.each do |short_raw|
-      short = OptionPosition.new(
+      short = TradeLeg.new(
+        put_call,
         short_raw.symbol,
         short_raw.underlying_symbol,
         short_raw.strike,
@@ -66,13 +69,15 @@ class SpreadFinder
         short_raw.mark,
         short_raw.ask,
         short_raw.bid,
-        short_raw.expiration_date
+        short_raw.expiration_date,
+        "SELL_TO_OPEN"
       )
-      potential_longs = option_chain.filter(put_call: call_put, filters: long_filters(short))
+      potential_longs = option_chain.filter(put_call: put_call, filters: long_filters(short))
 
       if potential_longs.any?
         best_long_raw = potential_longs.min_by(&:mark)
-        long = OptionPosition.new(
+        long = TradeLeg.new(
+          put_call,
           best_long_raw.symbol,
           best_long_raw.underlying_symbol,
           best_long_raw.strike,
@@ -80,31 +85,32 @@ class SpreadFinder
           best_long_raw.mark,
           best_long_raw.ask,
           best_long_raw.bid,
-          best_long_raw.expiration_date
+          best_long_raw.expiration_date,
+          "BUY_TO_OPEN"
         )
 
-        trades << PutSpread.new(
+        @trades << PutSpread.new(
           short_leg: short,
           long_leg: long
         )
       end
     end
 
-    trades
+    @trades.max_by(&:debit_credit)
   end
 
   def short_filters
     [
-        [:delta, "<=", short_delta],
-        [:open_interest, ">", min_open_interest],
-        [
-          :strike,
-          ->(strike) { ((option_chain.underlying_price - strike) / option_chain.underlying_price).abs >= dist_from_strike }
-        ],
-        [
-          :mark,
-          ->(mark) { mark * 100.0 >= min_credit }
-        ]
+      [:delta, "<=", short_delta],
+      [:open_interest, ">", min_open_interest],
+      [
+        :strike,
+        ->(strike) { ((option_chain.underlying_price - strike) / option_chain.underlying_price).abs >= dist_from_strike }
+      ],
+      [
+        :mark,
+        ->(mark) { mark * 100.0 >= min_credit }
+      ]
     ]
   end
 
@@ -150,7 +156,7 @@ class SpreadFinder
 
     @option_chain = if resp.status == 200
       JSON.parse(resp.body, symbolize_names: true).then do |data|
-        OptionChain.build(data)
+        DataObjects::OptionChain.build(data)
       end
     else
       raise "Error getting option chain: #{resp.body}"
