@@ -107,11 +107,11 @@ module DataObjects
 
     def filter(put_call: nil, filters: [])
       options = filter_by_type(put_call)
-      filters = filters.map { |f_args| build_filter(*f_args) }
-      options.select { |opt| filters.map { |f| f.apply(opt) }.all? }
-      options.select do |opt|
-        filters.map { |f| f.apply(opt) }.all?
-      end
+
+      return options if filters.empty?
+
+      fltrs = filters.map { |f_args| build_filter(*f_args) }
+      options.select { |opt| fltrs.map { |f| f.apply(opt) }.all? }
     end
 
     def filter_by_type(put_call)
