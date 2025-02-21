@@ -1,5 +1,5 @@
 require 'rspec'
-require_relative '../../data_objects/instrument'
+require_relative '../../../../services/schwab/data_objects/instrument'
 
 RSpec.describe DataObjects::Instrument do
   let(:raw_data) do

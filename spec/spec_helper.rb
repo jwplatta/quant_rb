@@ -13,8 +13,8 @@
 # it.
 #
 # See https://rubydoc.info/gems/rspec-core/RSpec/Core/Configuration
-require_relative '../data_objects/option_chain'
-require_relative '../data_objects/option'
+require_relative '../services/schwab/data_objects/option_chain'
+require_relative '../services/schwab/data_objects/option'
 
 RSpec.configure do |config|
   # rspec-expectations config goes here. You can use an alternate
