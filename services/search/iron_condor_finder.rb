@@ -1,7 +1,6 @@
 require "pry"
 require "dotenv"
 require "schwab_rb"
-require_relative "../../data_objects/option_chain"
 require_relative "../trades/iron_condor"
 require_relative "../trades/put_spread"
 require_relative "spread_finder"
@@ -35,7 +34,6 @@ class IronCondorFinder
     @min_open_interest = min_open_interest
     @dist_from_strike = dist_from_strike
     @trades = []
-    @short_legs = []
     @option_chain = option_chain
     @call_spread = nil
     @put_spread = nil
