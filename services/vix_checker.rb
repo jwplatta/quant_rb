@@ -1,7 +1,7 @@
 require "pry"
 require "json"
-require_relative "schwab"
-require_relative "../data_objects/quote"
+require_relative "schwab/schwab"
+require_relative "schwab/data_objects/quote"
 
 class VIXChecker
   include Schwab
@@ -20,7 +20,6 @@ class VIXChecker
   end
 
   def initialize(cache: false)
-    @client = Schwab.client
     @cache = cache
   end
 
@@ -39,18 +38,11 @@ class VIXChecker
   end
 
   def quote
+    # REVIEW: the schwab mixin should return the data objects
     if cache
-      @quote ||= @client.get_quote("$VIX").then do |resp|
-        JSON.parse(resp.body, symbolize_names: true).then do |data|
-          DataObjects::QuoteFactory.build(data)
-        end
-      end
+      @quote ||= Schwab.quote("$VIX")
     else
-      @client.get_quote("$VIX").then do |resp|
-        JSON.parse(resp.body, symbolize_names: true).then do |data|
-          DataObjects::QuoteFactory.build(data)
-        end
-      end
+      Schwab.quote("$VIX")
     end
   end
 end
