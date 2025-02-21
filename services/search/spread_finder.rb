@@ -1,9 +1,6 @@
 require "pry"
 require "schwab_rb"
-require_relative "../../data_objects/option_chain"
 require_relative "../trades/put_spread"
-
-Dotenv.load
 
 # REVIEW: Need to resolve the shared interface between the Position
 # class in models and the Position-like objects that get used in the
@@ -109,6 +106,7 @@ class SpreadFinder
         :delta,
         ->(delta) { delta.abs <= short_delta }
       ],
+      [:open_interest, ">", min_open_interest],
       [
         :strike,
         ->(strike) do
@@ -129,6 +127,7 @@ class SpreadFinder
           :strike,
           ->(strike) { (short.strike..(short.strike + max_spread.to_f)).cover? strike }
         ],
+        [:open_interest, ">", min_open_interest],
         [:expiration_date, "==", short.expiration_date],
         [
           :mark,
@@ -141,6 +140,7 @@ class SpreadFinder
           :strike,
           ->(strike) { ((short.strike - max_spread.to_f)..short.strike).cover? strike }
         ],
+        [:open_interest, ">", min_open_interest],
         [:expiration_date, "==", short.expiration_date],
         [
           :mark,
