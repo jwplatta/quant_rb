@@ -124,6 +124,10 @@ module DataObjects
       @exchange = data.dig(:reference, :exchange)
       @exchange_name = data.dig(:reference, :exchangeName)
     end
+
+    def mark
+      (@quote_high_price + @quote_low_price) / 2
+    end
   end
 
   class EquityQuote
