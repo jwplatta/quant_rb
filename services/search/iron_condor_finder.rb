@@ -46,13 +46,19 @@ class IronCondorFinder
   def search
     @call_spread = call_spread_finder.search
     @put_spread = put_spread_finder.search
+
+    if call_spread && put_spread
+      IronCondor.new(call_spread: call_spread, put_spread: put_spread)
+    else
+      nil
+    end
   end
 
   def call_spread_finder
     @call_spread_finder ||= spread_finder.new(
       symbol: symbol,
       contract_type: "CALL",
-      end_date: end_date,
+      expiration_date: end_date,
       short_delta: short_delta,
       max_spread: max_spread,
       min_credit: min_credit,
@@ -66,7 +72,7 @@ class IronCondorFinder
     @put_spread_finder ||= spread_finder.new(
       symbol: symbol,
       contract_type: "PUT",
-      end_date: end_date,
+      expiration_date: end_date,
       short_delta: short_delta,
       max_spread: max_spread,
       min_credit: min_credit,
