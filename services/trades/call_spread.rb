@@ -19,6 +19,10 @@ class CallSpread < Trade
     short_leg.mark - long_leg.mark
   end
 
+  def credit_debit_5_increment
+    round_to_nearest_five_cent(short_leg.mark - long_leg.mark).round(2)
+  end
+
   def spread_width
     @spread_width ||= (long_leg.strike - short_leg.strike).abs
   end
