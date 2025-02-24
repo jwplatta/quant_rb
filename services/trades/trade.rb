@@ -16,4 +16,8 @@ class Trade
 
   def preview
   end
+
+  def round_to_nearest_five_cent(value)
+    (value / 0.05).floor * 0.05
+  end
 end
