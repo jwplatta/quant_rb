@@ -18,12 +18,18 @@ class IronCondor < Trade
     @max_loss ||= ([put_spread.spread_width, call_spread.spread_width].max - credit_debit) * 100.0
   end
 
-  def credit_debit(include_fees: false)
-    if include_fees
-      put_spread.credit_debit + call_spread.credit_debit - @approx_fees
-    else
+  def credit_debit
+    put_spread.credit_debit + call_spread.credit_debit
+  end
+
+  def credit_debit_5_increment
+    round_to_nearest_five_cent(
       put_spread.credit_debit + call_spread.credit_debit
-    end
+    ).round(2)
+  end
+
+  def credit_debit_with_fees
+    put_spread.credit_debit + call_spread.credit_debit - @approx_fees
   end
 
   def debit?
