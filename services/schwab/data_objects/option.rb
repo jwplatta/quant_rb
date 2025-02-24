@@ -40,7 +40,7 @@ module DataObjects
           theoretical_volatility: data.fetch(:theoreticalVolatility, nil),
           option_deliverables_list: data.fetch(:optionDeliverablesList, nil),
           strike_price: data.fetch(:strikePrice, nil),
-          expiration_date: DateTime.parse(data.fetch(:expirationDate)),
+          expiration_date: Date.parse(data.fetch(:expirationDate)),
           days_to_expiration: data.fetch(:daysToExpiration, nil),
           expiration_type: data.fetch(:expirationType, nil),
           last_trading_day: data.fetch(:lastTradingDay, nil),
