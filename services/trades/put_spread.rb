@@ -3,7 +3,16 @@ require_relative 'trade'
 class PutSpread < Trade
   attr_reader :strategy, :short_leg, :long_leg
 
-  def initialize(positions: [], exit_threshold: 0.75, short_leg: nil, long_leg: nil, approx_fees: 0.0)
+  def initialize(
+    positions: [],
+    exit_threshold: 0.75,
+    short_leg: nil,
+    long_leg: nil,
+    approx_fees: 0.0,
+    increment: 0.01,
+    round: 2
+  )
+    super(increment: increment, round: round)
     @strategy = "VERTICAL"
     @exit_threshold = exit_threshold
     @short_leg = short_leg ? short_leg : positions.find { |p| p.short?}
@@ -16,11 +25,11 @@ class PutSpread < Trade
   end
 
   def credit_debit
-    short_leg.mark - long_leg.mark
+    nearest_increment(short_leg.mark - long_leg.mark).round(2)
   end
 
-  def credit_debit_5_increment
-    round_to_nearest_five_cent(short_leg.mark - long_leg.mark).round(2)
+  def credit_debit_raw
+    short_leg.mark - long_leg.mark
   end
 
   def spread_width

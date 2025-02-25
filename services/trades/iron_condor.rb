@@ -3,7 +3,8 @@ require_relative 'trade'
 class IronCondor < Trade
   attr_reader :strategy, :call_spread, :put_spread
 
-  def initialize(call_spread:, put_spread:, approx_fees: 0.0488)
+  def initialize(call_spread:, put_spread:, approx_fees: 0.0488, increment: 0.01, round: 2)
+    super(increment: increment, round: round)
     @strategy = "IRON_CONDOR"
     @put_spread = put_spread
     @call_spread = call_spread
@@ -19,13 +20,13 @@ class IronCondor < Trade
   end
 
   def credit_debit
-    put_spread.credit_debit + call_spread.credit_debit
+    nearest_increment(
+      put_spread.credit_debit_raw + call_spread.credit_debit_raw
+    ).round(2)
   end
 
-  def credit_debit_5_increment
-    round_to_nearest_five_cent(
-      put_spread.credit_debit + call_spread.credit_debit
-    ).round(2)
+  def credit_debit_raw
+    put_spread.credit_debit_raw + call_spread.credit_debit_raw
   end
 
   def credit_debit_with_fees
