@@ -88,5 +88,13 @@ module DataObjects
     def trade?
       type == "TRADE"
     end
+
+    def symbols
+      transfer_items.map { |ti| ti.instrument.symbol }
+    end
+
+    def option_symbol
+      transfer_items.find { |ti| ti.instrument.option? }.instrument.symbol
+    end
   end
 end
