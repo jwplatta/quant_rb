@@ -68,15 +68,21 @@ module Schwab
   end
 
   def self.account(fields: nil)
-    client.get_account(fields: fields).then do |resp|
+    client.get_account(account_hash, fields: fields).then do |resp|
       JSON.parse(resp.body, symbolize_names: true).then do |data|
         DataObjects::Account.build(data)
       end
     end
   end
 
-  def self.transactions(start_date)
-    client.get_transactions(account_hash, start_date: start_date).then do |resp|
+  def self.transactions(start_date: nil, end_date: nil, transaction_types: nil, symbol: nil)
+    kwargs = {}
+    kwargs[:start_date] = start_date if start_date
+    kwargs[:end_date] = end_date if end_date
+    kwargs[:transaction_types] = transaction_types if transaction_types
+    kwargs[:symbol] = symbol if symbol
+
+    client.get_transactions(account_hash, **kwargs).then do |resp|
       JSON.parse(resp.body, symbolize_names: true).then do |transactions|
         transactions.map { |t| DataObjects::Transaction.build(t) }
       end
