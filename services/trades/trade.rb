@@ -1,23 +1,14 @@
 require 'schwab_rb'
 
 class Trade
-  def send
+  attr_accessor :increment, :round
+
+  def initialize(increment: 0.01, round: 2)
+    @increment = increment
+    @round = round
   end
 
-  def replace
-  end
-
-  def cancel
-  end
-
-  def build_order
-    to_order
-  end
-
-  def preview
-  end
-
-  def round_to_nearest_five_cent(value)
-    (value / 0.05).floor * 0.05
+  def nearest_increment(value)
+    (value / increment).floor * increment
   end
 end
