@@ -22,12 +22,14 @@ class SpreadFinder
   CONTRACT_TYPES = %w[CALL PUT]
 
   attr_reader :symbol, :contract_type, :end_date, :short_delta, :max_spread,
-    :min_credit, :min_open_interest, :dist_from_strike, :trades, :short_legs, :option_chain
+    :min_credit, :min_open_interest, :dist_from_strike, :trades, :short_legs, :option_chain,
+    :expiration_date
 
   def initialize(
     symbol:,
     contract_type:,
     end_date: Date.today + 90,
+    expiration_date: nil,
     short_delta: 0.15,
     max_spread: 20.0,
     min_credit: 100.0,
@@ -42,6 +44,7 @@ class SpreadFinder
 
     @contract_type = contract_type
     @end_date = end_date
+    @expiration_date = expiration_date
     @short_delta = short_delta
     @max_spread = max_spread
     @min_credit = min_credit
@@ -104,7 +107,7 @@ class SpreadFinder
     [
       [
         :delta,
-        ->(delta) { delta.abs <= short_delta }
+        ->(delta) { delta.abs <= short_delta && delta.abs >= 0.00 }
       ],
       [:open_interest, ">", min_open_interest],
       [
@@ -117,7 +120,13 @@ class SpreadFinder
         :mark,
         ->(mark) { mark * 100.0 >= min_credit }
       ]
-    ]
+    ].then do |filters|
+      unless expiration_date.nil?
+        filters << [:expiration_date, "==", expiration_date]
+      else
+        filters
+      end
+    end
   end
 
   def long_filters(short)
@@ -132,7 +141,8 @@ class SpreadFinder
         [
           :mark,
           ->(mark) { (short.mark - mark) * 100.0 >= min_credit }
-        ]
+        ],
+        [:delta, ->(delta) { delta.abs >= 0.00 && delta.abs <= 1.0 }],
       ]
     else
       [
@@ -145,7 +155,8 @@ class SpreadFinder
         [
           :mark,
           ->(mark) { (short.mark - mark) * 100.0 >= min_credit }
-        ]
+        ],
+        [:delta, ->(delta) { delta.abs >= 0.00 && delta.abs <= 1.0 }],
       ]
     end
   end
