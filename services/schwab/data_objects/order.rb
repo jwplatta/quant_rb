@@ -1,4 +1,4 @@
-require_relative 'instrument'
+require_relative "order_leg"
 
 module DataObjects
   class ExecutionLeg
@@ -53,56 +53,6 @@ module DataObjects
 
     def remove_legs(leg_ids)
       @execution_legs = execution_legs.reject { |leg| leg_ids.include?(leg.leg_id) }.flatten
-    end
-  end
-
-  class OrderLeg
-    attr_reader :leg_id, :order_leg_type, :quantity, :instrument, :instruction, :position_effect
-
-    class << self
-      def build(data)
-        new(
-          leg_id: data[:legId],
-          order_leg_type: data[:orderLegType],
-          quantity: data[:quantity],
-          instrument: Instrument.build(data[:instrument]),
-          instruction: data.fetch(:instruction, nil),
-          position_effect: data[:positionEffect]
-        )
-      end
-    end
-
-    def initialize(leg_id:, order_leg_type:, quantity:, instrument:, instruction:, position_effect:)
-      @leg_id = leg_id
-      @order_leg_type = order_leg_type
-      @quantity = quantity
-      @instrument = instrument
-      @instruction = instruction
-      @position_effect = position_effect
-    end
-
-    def call?
-      put_call == "CALL"
-    end
-
-    def close?
-      position_effect == "CLOSING"
-    end
-
-    def open?
-      position_effect == "OPENING"
-    end
-
-    def put?
-      put_call == "PUT"
-    end
-
-    def put_call
-      instrument.put_call
-    end
-
-    def symbol
-      instrument.symbol
     end
   end
 
