@@ -11,9 +11,7 @@ class IronCondorOrder
         builder.set_order_type(SchwabRb::Order::Types::NET_CREDIT)
         builder.set_complex_order_strategy_type(SchwabRb::Order::ComplexOrderStrategyTypes::IRON_CONDOR)
         builder.set_quantity(options[:quantity])
-        # REVIEW: stocks do not need to be rounded to 5 cent
-        # increments
-        builder.set_price(trade.credit_debit_5_increment)
+        builder.set_price(trade.credit_debit)
         builder.add_option_leg(
           SchwabRb::Orders::OptionInstructions::SELL_TO_OPEN,
           trade.put_spread.short_leg.symbol,
