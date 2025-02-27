@@ -32,9 +32,9 @@ module Schwab
 
   def self.quote(symbol)
     client.get_quote(symbol).then do |resp|
-      JSON.parse(resp.body, symbolize_names: true).then do |data|
-        DataObjects::QuoteFactory.build(data)
-      end
+      JSON.parse(resp.body, symbolize_names: true)
+    end.then do |data|
+      DataObjects::QuoteFactory.build(data)
     end
   end
 
@@ -61,17 +61,17 @@ module Schwab
       symbol,
       **kwargs
     ).then do |resp|
-      JSON.parse(resp.body, symbolize_names: true).then do |data|
-        DataObjects::OptionChain.build(data)
-      end
+      JSON.parse(resp.body, symbolize_names: true)
+    end.then do |data|
+      DataObjects::OptionChain.build(data)
     end
   end
 
   def self.account(fields: nil)
     client.get_account(account_hash, fields: fields).then do |resp|
-      JSON.parse(resp.body, symbolize_names: true).then do |data|
-        DataObjects::Account.build(data)
-      end
+      JSON.parse(resp.body, symbolize_names: true)
+    end.then do |data|
+      DataObjects::Account.build(data)
     end
   end
 
@@ -83,9 +83,9 @@ module Schwab
     kwargs[:symbol] = symbol if symbol
 
     client.get_transactions(account_hash, **kwargs).then do |resp|
-      JSON.parse(resp.body, symbolize_names: true).then do |transactions|
-        transactions.map { |t| DataObjects::Transaction.build(t) }
-      end
+      JSON.parse(resp.body, symbolize_names: true)
+    end.then do |transactions|
+      transactions.map { |t| DataObjects::Transaction.build(t) }
     end
   end
 
