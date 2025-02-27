@@ -8,6 +8,14 @@ class Trade
     @round = round
   end
 
+  def debit_credit
+    raise "Must be implemented in subclass"
+  end
+
+  def delta
+    raise "Must be implemented in subclass"
+  end
+
   def nearest_increment(value)
     (value / increment).floor * increment
   end
