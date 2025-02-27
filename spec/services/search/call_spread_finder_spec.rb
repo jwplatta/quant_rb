@@ -9,7 +9,7 @@ RSpec.describe CallSpreadFinder do
       DataObjects::OptionChain.build(data)
     end
   end
-  fdescribe "#search" do
+  describe "#search" do
     it "returns a list of call spreads" do
       finder = CallSpreadFinder.new(
         symbol: "ACME",
