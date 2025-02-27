@@ -14,6 +14,10 @@ class PutOption < Trade
     @quantity = quantity
   end
 
+  def debit_credit
+    mark.round(2)
+  end
+
   def quantity=(new_quantity)
     @quantity = new_quantity
   end
