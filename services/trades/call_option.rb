@@ -18,6 +18,14 @@ class CallOption < Trade
     mark.round(2)
   end
 
+  def short?
+    quantity < 0
+  end
+
+  def long?
+    quantity > 0
+  end
+
   def quantity=(new_quantity)
     @quantity = new_quantity
   end
