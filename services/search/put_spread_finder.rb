@@ -1,33 +1,15 @@
 require "pry"
 require "schwab_rb"
+require_relative "../trades/put_option"
 require_relative "../trades/put_spread"
 
-# REVIEW: Need to resolve the shared interface between the Position
-# class in models and the Position-like objects that get used in the
-# trades classes.
-TradeLeg = Struct.new(
-  :put_call,
-  :symbol,
-  :underlying_symbol,
-  :strike,
-  :delta,
-  :mark,
-  :ask,
-  :bid,
-  :expiration_date,
-  :instruction
-)
-
 class SpreadFinder
-  CONTRACT_TYPES = %w[CALL PUT]
-
-  attr_reader :symbol, :contract_type, :end_date, :short_delta, :max_spread,
+  attr_reader :symbol, :end_date, :short_delta, :max_spread,
     :min_credit, :min_open_interest, :dist_from_strike, :trades, :short_legs, :option_chain,
     :expiration_date
 
   def initialize(
     symbol:,
-    contract_type:,
     end_date: Date.today + 90,
     expiration_date: nil,
     short_delta: 0.15,
@@ -40,9 +22,7 @@ class SpreadFinder
     @symbol = symbol
 
     raise "Option chain must be provided" unless option_chain
-    raise "Invalid spread type" unless CONTRACT_TYPES.include?(contract_type)
 
-    @contract_type = contract_type
     @end_date = end_date
     @expiration_date = expiration_date
     @short_delta = short_delta
@@ -56,46 +36,40 @@ class SpreadFinder
   end
 
   def search
-    put_call = contract_type.downcase.to_sym
-
     @short_legs = option_chain.filter(
-      put_call: put_call,
+      put_call: :put,
       filters: short_filters
     )
 
     short_legs.each do |short_raw|
-      short = TradeLeg.new(
-        put_call,
+      short_leg = PutOption.new(
         short_raw.symbol,
-        short_raw.underlying_symbol,
         short_raw.strike,
         short_raw.delta,
         short_raw.mark,
         short_raw.ask,
         short_raw.bid,
         short_raw.expiration_date,
-        "SELL_TO_OPEN"
+        -1
       )
-      potential_longs = option_chain.filter(put_call: put_call, filters: long_filters(short))
+      potential_longs = option_chain.filter(put_call: :put, filters: long_filters(short_leg))
 
       if potential_longs.any?
         best_long_raw = potential_longs.min_by(&:mark)
-        long = TradeLeg.new(
-          put_call,
+        long_leg = PutOption.new(
           best_long_raw.symbol,
-          best_long_raw.underlying_symbol,
           best_long_raw.strike,
           best_long_raw.delta,
           best_long_raw.mark,
           best_long_raw.ask,
           best_long_raw.bid,
           best_long_raw.expiration_date,
-          "BUY_TO_OPEN"
+          1
         )
 
         @trades << PutSpread.new(
-          short_leg: short,
-          long_leg: long
+          short_leg: short_leg,
+          long_leg: long_leg
         )
       end
     end
@@ -124,40 +98,24 @@ class SpreadFinder
       unless expiration_date.nil?
         filters << [:expiration_date, "==", expiration_date]
       else
-        filters
+        filters << [:expiration_date, "<=", end_date]
       end
     end
   end
 
   def long_filters(short)
-    if contract_type == "CALL"
+    [
       [
-        [
-          :strike,
-          ->(strike) { (short.strike..(short.strike + max_spread.to_f)).cover? strike }
-        ],
-        [:open_interest, ">", min_open_interest],
-        [:expiration_date, "==", short.expiration_date],
-        [
-          :mark,
-          ->(mark) { (short.mark - mark) * 100.0 >= min_credit }
-        ],
-        [:delta, ->(delta) { delta.abs >= 0.00 && delta.abs <= 1.0 }],
-      ]
-    else
+        :strike,
+        ->(strike) { ((short.strike - max_spread.to_f)..short.strike).cover? strike }
+      ],
+      [:open_interest, ">", min_open_interest],
+      [:expiration_date, "==", short.expiration_date],
       [
-        [
-          :strike,
-          ->(strike) { ((short.strike - max_spread.to_f)..short.strike).cover? strike }
-        ],
-        [:open_interest, ">", min_open_interest],
-        [:expiration_date, "==", short.expiration_date],
-        [
-          :mark,
-          ->(mark) { (short.mark - mark) * 100.0 >= min_credit }
-        ],
-        [:delta, ->(delta) { delta.abs >= 0.00 && delta.abs <= 1.0 }],
-      ]
-    end
+        :mark,
+        ->(mark) { (short.mark - mark) * 100.0 >= min_credit }
+      ],
+      [:delta, ->(delta) { delta.abs >= 0.00 && delta.abs <= 1.0 }],
+    ]
   end
 end
