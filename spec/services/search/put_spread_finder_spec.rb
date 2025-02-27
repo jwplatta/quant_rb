@@ -3,7 +3,7 @@ require "pry"
 require_relative "../../../services/search/put_spread_finder"
 require_relative "../../../services/schwab/data_objects/option_chain"
 
-RSpec.describe SpreadFinder do
+RSpec.describe PutSpreadFinder do
   let(:acme_put_options) do
     JSON.parse(File.read("spec/fixtures/option_chains/ACME_puts.json"), symbolize_names: true).then do |data|
       DataObjects::OptionChain.build(data)
@@ -11,7 +11,7 @@ RSpec.describe SpreadFinder do
   end
   describe "#search" do
     it "returns a list of put spreads" do
-      finder = SpreadFinder.new(
+      finder = PutSpreadFinder.new(
         symbol: "ACME",
         option_chain: acme_put_options,
         end_date: Date.new(2025, 1, 17)
