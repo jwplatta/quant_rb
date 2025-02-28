@@ -1,9 +1,38 @@
 require_relative 'trade'
 
 class CallOption < Trade
+  class << self
+    def from_h(hash)
+      expiration_date = hash[:expiration_date] ? Date.parse(hash[:expiration_date]) : nil
+      CallOption.new(
+        hash[:symbol],
+        hash[:strike],
+        expiration_date: expiration_date,
+        quantity: hash.fetch(:quantity, nil),
+        open_credit_debit: hash.fetch(:open_credit_debit, nil),
+        open_date: hash.fetch(:open_date, nil),
+        open_fees: hash.fetch(:open_fees, nil),
+        open_commission: hash.fetch(:open_commission, nil),
+      )
+    end
+  end
+
   attr_reader :symbol, :strike, :delta, :mark, :ask, :bid, :expiration_date, :quantity
 
-  def initialize(symbol, strike, delta, mark, ask, bid, expiration_date, quantity)
+  def initialize(
+    symbol, strike, delta: nil, mark: nil, ask: nil, bid: nil, expiration_date: nil, quantity: nil,
+    open_credit_debit: nil, open_date: nil, open_fees: nil, open_commission: nil,
+    increment: 0.01, round: 2
+  )
+    super(
+      increment: increment,
+      round: round,
+      open_credit_debit: open_credit_debit,
+      open_date: open_date,
+      open_fees: open_fees,
+      open_commission: open_commission
+    )
+    @strategy = "SINGLE"
     @symbol = symbol
     @strike = strike
     @delta = delta
@@ -14,7 +43,7 @@ class CallOption < Trade
     @quantity = quantity
   end
 
-  def debit_credit
+  def credit_debit
     mark.round(2)
   end
 
@@ -36,5 +65,19 @@ class CallOption < Trade
     elsif quantity > 0
       "BUY_TO_CLOSE"
     end
+  end
+
+  def to_h
+    {
+      type: "CALL",
+      strategy: "SIGNLE",
+      symbol: symbol,
+      strike: strike,
+      expiration_date: expiration_date,
+      open_credit_debit: open_credit_debit,
+      open_date: open_date,
+      open_fees: open_fees,
+      open_commission: open_commission,
+    }
   end
 end
