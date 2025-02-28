@@ -45,12 +45,12 @@ class CallSpreadFinder
       short_leg = CallOption.new(
         short_raw.symbol,
         short_raw.strike,
-        short_raw.delta,
-        short_raw.mark,
-        short_raw.ask,
-        short_raw.bid,
-        short_raw.expiration_date,
-        -1
+        delta: short_raw.delta,
+        mark: short_raw.mark,
+        ask: short_raw.ask,
+        bid: short_raw.bid,
+        expiration_date: short_raw.expiration_date,
+        quantity: -1
       )
       potential_longs = option_chain.filter(put_call: :call, filters: long_filters(short_leg))
 
@@ -59,12 +59,12 @@ class CallSpreadFinder
         long_leg = CallOption.new(
           best_long_raw.symbol,
           best_long_raw.strike,
-          best_long_raw.delta,
-          best_long_raw.mark,
-          best_long_raw.ask,
-          best_long_raw.bid,
-          best_long_raw.expiration_date,
-          1
+          delta: best_long_raw.delta,
+          mark: best_long_raw.mark,
+          ask: best_long_raw.ask,
+          bid: best_long_raw.bid,
+          expiration_date: best_long_raw.expiration_date,
+          quantity: 1
         )
 
         @trades << CallSpread.new(
