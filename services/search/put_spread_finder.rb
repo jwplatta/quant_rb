@@ -3,7 +3,7 @@ require "schwab_rb"
 require_relative "../trades/put_option"
 require_relative "../trades/put_spread"
 
-class SpreadFinder
+  class PutSpreadFinder
   attr_reader :symbol, :end_date, :short_delta, :max_spread,
     :min_credit, :min_open_interest, :dist_from_strike, :trades, :short_legs, :option_chain,
     :expiration_date
@@ -45,12 +45,12 @@ class SpreadFinder
       short_leg = PutOption.new(
         short_raw.symbol,
         short_raw.strike,
-        short_raw.delta,
-        short_raw.mark,
-        short_raw.ask,
-        short_raw.bid,
-        short_raw.expiration_date,
-        -1
+        delta: short_raw.delta,
+        mark: short_raw.mark,
+        ask: short_raw.ask,
+        bid: short_raw.bid,
+        expiration_date: short_raw.expiration_date,
+        quantity: -1
       )
       potential_longs = option_chain.filter(put_call: :put, filters: long_filters(short_leg))
 
@@ -59,12 +59,12 @@ class SpreadFinder
         long_leg = PutOption.new(
           best_long_raw.symbol,
           best_long_raw.strike,
-          best_long_raw.delta,
-          best_long_raw.mark,
-          best_long_raw.ask,
-          best_long_raw.bid,
-          best_long_raw.expiration_date,
-          1
+          delta: best_long_raw.delta,
+          mark: best_long_raw.mark,
+          ask: best_long_raw.ask,
+          bid: best_long_raw.bid,
+          expiration_date: best_long_raw.expiration_date,
+          quantity: 1
         )
 
         @trades << PutSpread.new(
