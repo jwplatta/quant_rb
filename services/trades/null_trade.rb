@@ -1,7 +1,7 @@
 require_relative 'trade'
 
 class NullTrade < Trade
-  def debit_credit
+  def credit_debit
     nil
   end
 
