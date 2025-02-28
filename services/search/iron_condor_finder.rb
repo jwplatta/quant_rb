@@ -1,11 +1,6 @@
-require "pry"
-require "dotenv"
-require "schwab_rb"
 require_relative "../trades/iron_condor"
-require_relative "../trades/put_spread"
-require_relative "spread_finder"
-
-Dotenv.load
+require_relative "call_spread_finder"
+require_relative "put_spread_finder"
 
 class IronCondorFinder
   attr_reader :symbol, :end_date, :short_delta, :max_spread,
@@ -48,16 +43,19 @@ class IronCondorFinder
     @put_spread = put_spread_finder.search
 
     if call_spread && put_spread
-      IronCondor.new(call_spread: call_spread, put_spread: put_spread)
+      IronCondor.new(
+        call_spread: call_spread,
+        put_spread: put_spread,
+        expiration_date: end_date
+      )
     else
       nil
     end
   end
 
   def call_spread_finder
-    @call_spread_finder ||= spread_finder.new(
+    @call_spread_finder ||= CallSpreadFinder.new(
       symbol: symbol,
-      contract_type: "CALL",
       expiration_date: end_date,
       short_delta: short_delta,
       max_spread: max_spread,
@@ -69,9 +67,8 @@ class IronCondorFinder
   end
 
   def put_spread_finder
-    @put_spread_finder ||= spread_finder.new(
+    @put_spread_finder ||= PutSpreadFinder.new(
       symbol: symbol,
-      contract_type: "PUT",
       expiration_date: end_date,
       short_delta: short_delta,
       max_spread: max_spread,
@@ -80,11 +77,5 @@ class IronCondorFinder
       dist_from_strike: dist_from_strike,
       option_chain: option_chain
     )
-  end
-
-  private
-
-  def spread_finder
-    SpreadFinder
   end
 end
