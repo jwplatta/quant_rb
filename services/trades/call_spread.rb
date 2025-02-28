@@ -1,23 +1,38 @@
 require_relative 'trade'
+require_relative 'call_option'
 
 class CallSpread < Trade
-  attr_reader :strategy, :short_leg, :long_leg
+  class << self
+    def from_h(hash)
+      short_leg = CallOption.from_h(hash[:short_leg])
+      long_leg = CallOption.from_h(hash[:long_leg])
+      expiration_date = hash[:expiration_date] ? Date.parse(hash[:expiration_date]) : nil
+      CallSpread.new(
+        short_leg: short_leg,
+        long_leg: long_leg,
+        expiration_date: expiration_date,
+      )
+    end
+  end
+
+  attr_reader :strategy, :short_leg, :long_leg, :expiration_date
 
   def initialize(
-    positions: [],
-    exit_threshold: 0.75,
     short_leg: nil,
     long_leg: nil,
-    approx_fees: 0.0,
+    expiration_date: nil,
     increment: 0.01,
     round: 2
   )
     super(increment: increment, round: round)
     @strategy = "VERTICAL"
-    @exit_threshold = exit_threshold
-    @short_leg = short_leg ? short_leg : positions.find { |p| p.short?}
-    @long_leg = long_leg ? long_leg : positions.find { |p| p.long? }
-    @approx_fees = approx_fees
+    @short_leg = short_leg
+    @long_leg = long_leg
+    @expiration_date
+  end
+
+  def complex?
+    true
   end
 
   def delta
@@ -58,13 +73,16 @@ class CallSpread < Trade
 
   def to_h
     {
+      type: "CALL_SPREAD",
       strategy: strategy,
       symbols: symbols,
+      expiration_date: expiration_date,
+      open_credit_debit: open_credit_debit,
+      open_date: open_date,
+      open_fees: open_fees,
+      open_commission: open_commission,
       short_leg: short_leg.to_h,
       long_leg: long_leg.to_h,
-      entry_price: entry_price,
-      exit_price: exit_price,
-      progress: progress
     }
   end
 end
