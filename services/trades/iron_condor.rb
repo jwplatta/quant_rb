@@ -1,14 +1,31 @@
 require_relative 'trade'
 
 class IronCondor < Trade
-  attr_reader :strategy, :call_spread, :put_spread
+  class << self
+    def from_h(hash)
+      call_spread = CallSpread.from_h(hash[:call_spread])
+      put_spread = PutSpread.from_h(hash[:put_spread])
+      expiration_date = hash[:expiration_date] ? Date.parse(hash[:expiration_date]) : nil
+      IronCondor.new(
+        call_spread: call_spread,
+        put_spread: put_spread,
+        expiration_date: expiration_date
+      )
+    end
+  end
 
-  def initialize(call_spread:, put_spread:, approx_fees: 0.0488, increment: 0.01, round: 2)
+  attr_reader :strategy, :call_spread, :put_spread, :expiration_date
+
+  def initialize(call_spread:, put_spread:, expiration_date:, increment: 0.01, round: 2)
     super(increment: increment, round: round)
     @strategy = "IRON_CONDOR"
     @put_spread = put_spread
     @call_spread = call_spread
-    @approx_fees = approx_fees
+    @expiration_date = expiration_date
+  end
+
+  def complex?
+    true
   end
 
   def prob_of_profit
@@ -30,7 +47,7 @@ class IronCondor < Trade
   end
 
   def credit_debit_with_fees
-    put_spread.credit_debit + call_spread.credit_debit - @approx_fees
+    put_spread.credit_debit + call_spread.credit_debit - (fees + commission)
   end
 
   def debit?
@@ -47,5 +64,20 @@ class IronCondor < Trade
 
   def symbols
     put_spread.symbols + call_spread.symbols
+  end
+
+  def to_h
+    {
+      type: "IRON_CONDOR",
+      strategy: strategy,
+      symbols: symbols,
+      open_credit_debit: open_credit_debit,
+      open_date: open_date,
+      open_fees: open_fees,
+      open_commission: open_commission,
+      expiration_date: expiration_date,
+      call_spread: call_spread.to_h,
+      put_spread: put_spread.to_h,
+    }
   end
 end
