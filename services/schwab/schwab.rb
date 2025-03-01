@@ -11,10 +11,7 @@ require_relative "data_objects/order_preview"
 Dotenv.load
 
 module Schwab
-  @client = nil
-  @account_hash = nil
-
-  def self.client
+  def client
     return @client if @client
 
     token_path = ENV["TOKEN_PATH"]
@@ -26,19 +23,30 @@ module Schwab
     )
   end
 
-  def self.reset_client
+  def reset_client
     @client = nil
   end
 
-  def self.quote(symbol)
+  def quote(symbol)
     client.get_quote(symbol).then do |resp|
       JSON.parse(resp.body, symbolize_names: true)
     end.then do |data|
-      DataObjects::QuoteFactory.build(data)
+      _, quote_data = data.first
+      DataObjects::QuoteFactory.build(quote_data)
     end
   end
 
-  def self.option_chain(
+  def quotes(symbols)
+    client.get_quotes(symbols).then do |resp|
+      JSON.parse(resp.body, symbolize_names: true)
+    end.then do |quotes_data|
+      quotes_data.map do |symbol, data|
+        DataObjects::QuoteFactory.build(data)
+      end
+    end
+  end
+
+  def option_chain(
     symbol,
     contract_type: "ALL",
     strike_range: "OTM",
@@ -67,7 +75,7 @@ module Schwab
     end
   end
 
-  def self.account(fields: nil)
+  def account(fields: nil)
     client.get_account(account_hash, fields: fields).then do |resp|
       JSON.parse(resp.body, symbolize_names: true)
     end.then do |data|
@@ -75,7 +83,7 @@ module Schwab
     end
   end
 
-  def self.transactions(start_date: nil, end_date: nil, transaction_types: nil, symbol: nil)
+  def transactions(start_date: nil, end_date: nil, transaction_types: nil, symbol: nil)
     kwargs = {}
     kwargs[:start_date] = start_date if start_date
     kwargs[:end_date] = end_date if end_date
@@ -89,7 +97,7 @@ module Schwab
     end
   end
 
-  def self.account_orders(from_date, to_date, status)
+  def account_orders(from_date, to_date, status)
     client.get_account_orders(
       account_hash,
       from_entered_datetime: from_date,
@@ -102,7 +110,7 @@ module Schwab
     end
   end
 
-  def self.account_hash
+  def account_hash
     return @account_hash if @account_hash
 
     @account_hash = client.get_account_numbers.then do |resp|
@@ -110,7 +118,7 @@ module Schwab
     end
   end
 
-  def self.preview_order(order)
+  def preview_order(order)
     client.preview_order(account_hash, order).then do |resp|
       JSON.parse(resp.body, symbolize_names: true)
     end.then do |data|
@@ -118,7 +126,7 @@ module Schwab
     end
   end
 
-  def self.place_order(order)
+  def place_order(order)
     client.place_order(account_hash, order).then do |resp|
       JSON.parse(resp.body, symbolize_names: true)
     end.then do |data|
