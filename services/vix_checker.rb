@@ -19,14 +19,16 @@ class VIXChecker
     NORMAL="normal"
   end
 
+  VIX_SYMBOL = "$VIX"
+
   def initialize(cache: false)
     @cache = cache
   end
 
   def check
-    if quote.mark <= VIXThresholds::LOW
+    if vix_quote.mark <= VIXThresholds::LOW
       VIXStatusNames::LOW
-    elsif quote.mark >= VIXThresholds::HIGH
+    elsif vix_quote.mark >= VIXThresholds::HIGH
       VIXStatusNames::HIGH
     else
       VIXStatusNames::NORMAL
@@ -34,15 +36,15 @@ class VIXChecker
   end
 
   def reset
-    @quote = nil
+    @vix_quote = nil
   end
 
-  def quote
+  def vix_quote
     # REVIEW: the schwab mixin should return the data objects
     if cache
-      @quote ||= Schwab.quote("$VIX")
+      @vix_quote ||= quote(VIX_SYMBOL)
     else
-      Schwab.quote("$VIX")
+      quote(VIX_SYMBOL)
     end
   end
 end
