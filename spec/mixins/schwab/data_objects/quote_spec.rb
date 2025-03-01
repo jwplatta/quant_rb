@@ -1,5 +1,5 @@
 require 'rspec'
-require_relative '../../../../services/schwab/data_objects/quote'
+require_relative '../../../../mixins/schwab/data_objects/quote'
 
 RSpec.describe DataObjects::QuoteFactory do
   let(:option_quote_data) do

@@ -1,6 +1,6 @@
 require 'rspec'
 require 'pry'
-require_relative '../../../../services/schwab/data_objects/account'
+require_relative '../../../../mixins/schwab/data_objects/account'
 
 RSpec.describe DataObjects::Account do
   let(:raw_data) do

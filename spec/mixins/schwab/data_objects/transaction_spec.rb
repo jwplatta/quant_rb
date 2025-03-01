@@ -1,5 +1,5 @@
 require 'rspec'
-require_relative '../../../../services/schwab/data_objects/transaction'
+require_relative '../../../../mixins/schwab/data_objects/transaction'
 
 RSpec.describe DataObjects::Transaction do
   let(:raw_data) do

@@ -1,5 +1,5 @@
 require 'rspec'
-require_relative '../../../../services/schwab/data_objects/order'
+require_relative '../../../../mixins/schwab/data_objects/order'
 
 RSpec.describe DataObjects::Order do
   let(:raw_data) do
