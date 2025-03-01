@@ -1,9 +1,6 @@
 require_relative "trade"
-require_relative "../../mixins/schwab/schwab"
 
 class CallOption < Trade
-  include Schwab
-
   class << self
     def from_h(hash)
       expiration_date = hash[:expiration_date] ? Date.parse(hash[:expiration_date]) : nil
