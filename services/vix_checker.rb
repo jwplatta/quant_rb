@@ -1,6 +1,6 @@
 require "pry"
 require "json"
-require_relative "schwab/schwab"
+require_relative "../mixins/schwab/schwab"
 
 class VIXChecker
   include Schwab
