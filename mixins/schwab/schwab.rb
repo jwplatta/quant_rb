@@ -7,6 +7,7 @@ require_relative "data_objects/account"
 require_relative "data_objects/transaction"
 require_relative "data_objects/order"
 require_relative "data_objects/order_preview"
+require_relative "orders/order_factory"
 
 Dotenv.load
 
@@ -118,6 +119,26 @@ module Schwab
     end
   end
 
+  def build_and_preview_order(trade, quantity: 1)
+    build_order(trade, quantity: 1).then do |order|
+      preview_order(order)
+    end
+  end
+
+  def build_and_place_order(trade, quantity: 1)
+    build_order(trade, quantity: 1).then do |order|
+      place_order(order)
+    end
+  end
+
+  def build_order(trade, quantity: 1)
+    OrderFactory.build(
+      trade,
+      quantity: quantity,
+      account_number: ENV["SCHWAB_ACCOUNT_NUMBER"]
+    )
+  end
+
   def preview_order(order)
     client.preview_order(account_hash, order).then do |resp|
       JSON.parse(resp.body, symbolize_names: true)
@@ -126,11 +147,39 @@ module Schwab
     end
   end
 
-  def place_order(order)
-    client.place_order(account_hash, order).then do |resp|
+  def get_latest_order(from_entered_datetime: DateTime.now)
+    client.get_account_orders(
+      account_hash,
+      status: SchwabRb::Order::Statuses::PENDING_ACTIVATION,
+      from_entered_datetime: from_entered_datetime,
+      to_entered_datetime: DateTime.now + 1
+    ).then do |orders|
+      JSON.parse(orders.body, symbolize_names: true)
+    end.then do |orders|
+      DataObjects::Order.build(orders.first)
+    end
+  end
+
+  def get_order(order_id)
+    client.get_order(order_id, account_hash).then do |resp|
       JSON.parse(resp.body, symbolize_names: true)
     end.then do |data|
       DataObjects::Order.build(data)
+    end
+  end
+
+  def place_order(order)
+    start = DateTime.now
+    client.place_order(account_hash, order).then do |resp|
+      if resp.status == 201
+        get_latest_order(from_entered_datetime: start)
+      end
+    end
+  end
+
+  def cancel_order(order_id)
+    client.cancel_order(order_id, account_hash).then do |resp|
+      resp.status == 200
     end
   end
 end
