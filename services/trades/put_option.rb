@@ -1,6 +1,9 @@
-require_relative 'trade'
+require_relative "trade"
+require_relative "../../mixins/schwab/schwab"
 
 class PutOption < Trade
+  include Schwab
+
   class << self
     def from_h(hash)
       expiration_date = hash[:expiration_date] ? Date.parse(hash[:expiration_date]) : nil
@@ -15,12 +18,29 @@ class PutOption < Trade
         open_commission: hash.fetch(:open_commission, nil),
       )
     end
+
+    def from_quote(quote)
+      expiration_date = Date.new(
+        quote.expiration_year,
+        quote.expiration_month,
+        quote.expiration_day
+      )
+      PutOption.new(
+        quote.symbol,
+        quote.strike_price,
+        delta: quote.delta,
+        mark: quote.mark,
+        ask: quote.ask_price,
+        bid: quote.bid_price,
+        expiration_date: expiration_date
+      )
+    end
   end
 
   attr_reader :symbol, :strike, :delta, :mark, :ask, :bid, :expiration_date, :quantity
 
   def initialize(
-    symbol, strike, delta: nil, mark: nil, ask: nil, bid: nil, expiration_date: nil, quantity: nil,
+    symbol, strike, delta: 999, mark: nil, ask: nil, bid: nil, expiration_date: nil, quantity: nil,
     open_credit_debit: nil, open_date: nil, open_fees: nil, open_commission: nil,
     increment: 0.01, round: 2
   )
@@ -35,7 +55,7 @@ class PutOption < Trade
     @strategy = "SINGLE"
     @symbol = symbol
     @strike = strike
-    @delta = delta
+    @delta = delta.abs
     @mark = mark
     @ask = ask
     @bid = bid
@@ -43,8 +63,30 @@ class PutOption < Trade
     @quantity = quantity
   end
 
+  def risk_status
+    if delta.abs < 0.16
+      "GREEN"
+    elsif delta.abs < 0.3
+      "YELLOW"
+    else
+      "RED"
+    end
+  end
+
+  def tested?
+    risk_status == "YELLOW"
+  end
+
+  def danger?
+    risk_status == "RED"
+  end
+
   def credit_debit
-    mark.round(2)
+    nearest_increment(mark.round(2))
+  end
+
+  def net_credit_debit
+    credit_debit * 100 - open_fees - open_commission
   end
 
   def short?
@@ -64,6 +106,19 @@ class PutOption < Trade
       "SELL_TO_OPEN"
     elsif quantity > 0
       "BUY_TO_CLOSE"
+    end
+  end
+
+  ##################
+  ### Schwab API ###
+  ##################
+
+  def check_market
+    quote(symbol).then do |quote|
+      @delta = quote.delta.abs
+      @mark = quote.mark
+      @ask = quote.ask_price
+      @bid = quote.bid_price
     end
   end
 
