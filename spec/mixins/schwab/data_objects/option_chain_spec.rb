@@ -1,5 +1,5 @@
 require 'rspec'
-require_relative '../../../../services/schwab/data_objects/option_chain'
+require_relative '../../../../mixins/schwab/data_objects/option_chain'
 
 RSpec.describe DataObjects::OptionChain do
   let(:raw_data) do
