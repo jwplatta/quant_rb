@@ -1,10 +1,13 @@
+require_relative "../../mixins/schwab/schwab"
 require_relative "../trades/iron_condor"
 require_relative "call_spread_finder"
 require_relative "put_spread_finder"
 
 class IronCondorFinder
+  include Schwab
+
   attr_reader :symbol, :end_date, :short_delta, :max_spread,
-    :min_credit, :min_open_interest, :dist_from_strike, :option_chain,
+    :min_credit, :min_open_interest, :dist_from_strike,
     :call_spread, :put_spread
 
     def initialize(
@@ -14,14 +17,9 @@ class IronCondorFinder
       max_spread: 20.0,
       min_credit: 100.0,
       min_open_interest: 0,
-      dist_from_strike: 0.07,
-      option_chain: nil
+      dist_from_strike: 0.07
     )
-
     @symbol = symbol
-
-    raise "Option chain must be provided" unless option_chain
-
     @end_date = end_date
     @short_delta = short_delta
     @max_spread = max_spread
@@ -29,9 +27,9 @@ class IronCondorFinder
     @min_open_interest = min_open_interest
     @dist_from_strike = dist_from_strike
     @trades = []
-    @option_chain = option_chain
     @call_spread = nil
     @put_spread = nil
+    @opt_chain = nil
   end
 
   def credit_debit
@@ -53,6 +51,14 @@ class IronCondorFinder
     end
   end
 
+  def opt_chain
+    @opt_chain ||= option_chain(
+      symbol,
+      strike_range: "OTM",
+      to_date: end_date,
+    )
+  end
+
   def call_spread_finder
     @call_spread_finder ||= CallSpreadFinder.new(
       symbol: symbol,
@@ -62,7 +68,7 @@ class IronCondorFinder
       min_credit: min_credit,
       min_open_interest: min_open_interest,
       dist_from_strike: dist_from_strike,
-      option_chain: option_chain
+      opt_chain: opt_chain
     )
   end
 
@@ -75,7 +81,7 @@ class IronCondorFinder
       min_credit: min_credit,
       min_open_interest: min_open_interest,
       dist_from_strike: dist_from_strike,
-      option_chain: option_chain
+      opt_chain: opt_chain
     )
   end
 end
