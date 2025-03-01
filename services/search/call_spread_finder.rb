@@ -1,11 +1,13 @@
 require "pry"
-require "schwab_rb"
+require_relative "../../mixins/schwab/schwab"
 require_relative "../trades/call_option"
 require_relative "../trades/call_spread"
 
 class CallSpreadFinder
+  include Schwab
+
   attr_reader :symbol, :end_date, :short_delta, :max_spread,
-    :min_credit, :min_open_interest, :dist_from_strike, :trades, :short_legs, :option_chain,
+    :min_credit, :min_open_interest, :dist_from_strike, :trades, :short_legs,
     :expiration_date
 
   def initialize(
@@ -17,12 +19,9 @@ class CallSpreadFinder
     min_credit: 100.0,
     min_open_interest: 0,
     dist_from_strike: 0.07,
-    option_chain: nil
+    opt_chain: nil
   )
     @symbol = symbol
-
-    raise "Option chain must be provided" unless option_chain
-
     @end_date = end_date
     @expiration_date = expiration_date
     @short_delta = short_delta
@@ -32,11 +31,11 @@ class CallSpreadFinder
     @dist_from_strike = dist_from_strike
     @trades = []
     @short_legs = []
-    @option_chain = option_chain
+    @opt_chain = opt_chain
   end
 
   def search
-    @short_legs = option_chain.filter(
+    @short_legs = opt_chain.filter(
       put_call: :call,
       filters: short_filters
     )
@@ -52,7 +51,7 @@ class CallSpreadFinder
         expiration_date: short_raw.expiration_date,
         quantity: -1
       )
-      potential_longs = option_chain.filter(put_call: :call, filters: long_filters(short_leg))
+      potential_longs = opt_chain.filter(put_call: :call, filters: long_filters(short_leg))
 
       if potential_longs.any?
         best_long_raw = potential_longs.min_by(&:mark)
@@ -77,6 +76,19 @@ class CallSpreadFinder
     @trades.max_by(&:credit_debit)
   end
 
+  def opt_chain=(opt_chain)
+    @opt_chain = opt_chain
+  end
+
+  def opt_chain
+    @opt_chain ||= option_chain(
+      symbol,
+      contract_type: "CALL",
+      strike_range: "OTM",
+      to_date: end_date,
+    )
+  end
+
   def short_filters
     [
       [
@@ -87,7 +99,7 @@ class CallSpreadFinder
       [
         :strike,
         ->(strike) do
-          ((option_chain.underlying_price - strike) / option_chain.underlying_price).abs >= dist_from_strike
+          ((@opt_chain.underlying_price - strike) / @opt_chain.underlying_price).abs >= dist_from_strike
         end
       ],
       [
