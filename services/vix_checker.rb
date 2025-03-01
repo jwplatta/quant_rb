@@ -1,7 +1,6 @@
 require "pry"
 require "json"
 require_relative "schwab/schwab"
-require_relative "schwab/data_objects/quote"
 
 class VIXChecker
   include Schwab
