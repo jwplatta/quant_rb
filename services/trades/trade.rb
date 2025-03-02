@@ -4,7 +4,6 @@ require_relative "../../mixins/orderable"
 Order = Struct.new(:id, :status, :date)
 
 class Trade
-  include Schwab
   include Orderable
   # include Logger
   # include Adjustable
