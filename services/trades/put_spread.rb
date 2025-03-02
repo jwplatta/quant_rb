@@ -1,5 +1,5 @@
-require_relative 'trade'
-require_relative 'put_option'
+require_relative "trade"
+require_relative "put_option"
 
 class PutSpread < Trade
   class << self
@@ -22,17 +22,22 @@ class PutSpread < Trade
     long_leg: nil,
     expiration_date: nil,
     increment: 0.01,
-    round: 2
+    round: 2,
+    quantity: 1
   )
-    super(increment: increment, round: round)
+    super(increment: increment, round: round, quantity: quantity)
     @strategy = "VERTICAL"
     @short_leg = short_leg
     @long_leg = long_leg
     @expiration_date = expiration_date
   end
 
-  def complex?
-    true
+  def tested?
+    short_leg.tested?
+  end
+
+  def danger?
+    short_leg.danger?
   end
 
   def delta
@@ -41,6 +46,10 @@ class PutSpread < Trade
 
   def credit_debit
     nearest_increment(short_leg.mark - long_leg.mark).round(2)
+  end
+
+  def net_credit_debit
+    credit_debit * 100 - open_fees - open_commission
   end
 
   def credit_debit_raw
@@ -55,23 +64,18 @@ class PutSpread < Trade
     [short_leg.symbol, long_leg.symbol]
   end
 
-  def exitable?
-    progress >= @exit_threshold
-  end
+  ##################
+  ### Schwab API ###
+  ##################
 
-  def progress
-    1 - (exit_price * -1 / entry_price)
-  end
-
-  def exit_price
-    @exit_price ||= long_leg.market_value + short_leg.market_value
+  def check_market
+    short_leg.check_market
+    long_leg.check_market
   end
 
   def to_h
     {
       type: "PUT_SPREAD",
-      strategy: strategy,
-      symbols: symbols,
       expiration_date: expiration_date,
       open_credit_debit: open_credit_debit,
       open_date: open_date,
