@@ -8,7 +8,7 @@ class IronCondorFinder
 
   attr_reader :symbol, :end_date, :short_delta, :max_spread,
     :min_credit, :min_open_interest, :dist_from_strike,
-    :call_spread, :put_spread
+    :call_spread, :put_spread, :quantity
 
     def initialize(
       symbol:,
@@ -17,7 +17,8 @@ class IronCondorFinder
       max_spread: 20.0,
       min_credit: 100.0,
       min_open_interest: 0,
-      dist_from_strike: 0.07
+      dist_from_strike: 0.07,
+      quantity: 1
     )
     @symbol = symbol
     @end_date = end_date
@@ -30,6 +31,7 @@ class IronCondorFinder
     @call_spread = nil
     @put_spread = nil
     @opt_chain = nil
+    @quantity = quantity
   end
 
   def credit_debit
@@ -68,7 +70,8 @@ class IronCondorFinder
       min_credit: min_credit,
       min_open_interest: min_open_interest,
       dist_from_strike: dist_from_strike,
-      opt_chain: opt_chain
+      opt_chain: opt_chain,
+      quantity: quantity
     )
   end
 
@@ -81,7 +84,8 @@ class IronCondorFinder
       min_credit: min_credit,
       min_open_interest: min_open_interest,
       dist_from_strike: dist_from_strike,
-      opt_chain: opt_chain
+      opt_chain: opt_chain,
+      quantity: quantity
     )
   end
 end
