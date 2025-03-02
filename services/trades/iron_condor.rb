@@ -16,8 +16,8 @@ class IronCondor < Trade
 
   attr_reader :strategy, :call_spread, :put_spread, :expiration_date
 
-  def initialize(call_spread:, put_spread:, expiration_date:, increment: 0.01, round: 2)
-    super(increment: increment, round: round)
+  def initialize(call_spread:, put_spread:, expiration_date:, increment: 0.01, round: 2, quantity: 1)
+    super(increment: increment, round: round, quantity: quantity)
     @strategy = "IRON_CONDOR"
     @put_spread = put_spread
     @call_spread = call_spread
@@ -70,14 +70,9 @@ class IronCondor < Trade
     {
       type: "IRON_CONDOR",
       strategy: strategy,
-      symbols: symbols,
-      open_credit_debit: open_credit_debit,
-      open_date: open_date,
-      open_fees: open_fees,
-      open_commission: open_commission,
       expiration_date: expiration_date,
       call_spread: call_spread.to_h,
       put_spread: put_spread.to_h,
-    }
+    }.merge(orderable_h)
   end
 end
