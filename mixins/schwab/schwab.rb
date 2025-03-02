@@ -119,22 +119,23 @@ module Schwab
     end
   end
 
-  def build_and_preview_order(trade, quantity: 1)
-    build_order(trade, quantity: 1).then do |order|
+  def build_and_preview_order(trade, quantity: 1, position_type: :entry)
+    build_order(trade, quantity: quantity, position_type: position_type).then do |order|
       preview_order(order)
     end
   end
 
-  def build_and_place_order(trade, quantity: 1)
-    build_order(trade, quantity: 1).then do |order|
+  def build_and_place_order(trade, quantity: 1, position_type: :entry)
+    build_order(trade, quantity: quantity, position_type: position_type).then do |order|
       place_order(order)
     end
   end
 
-  def build_order(trade, quantity: 1)
+  def build_order(trade, quantity: 1, position_type: :entry)
     OrderFactory.build(
       trade,
       quantity: quantity,
+      position_type: position_type,
       account_number: ENV["SCHWAB_ACCOUNT_NUMBER"]
     )
   end
