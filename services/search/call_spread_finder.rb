@@ -8,7 +8,7 @@ class CallSpreadFinder
 
   attr_reader :symbol, :end_date, :short_delta, :max_spread,
     :min_credit, :min_open_interest, :dist_from_strike, :trades, :short_legs,
-    :expiration_date
+    :expiration_date, :quantity
 
   def initialize(
     symbol:,
@@ -19,7 +19,8 @@ class CallSpreadFinder
     min_credit: 100.0,
     min_open_interest: 0,
     dist_from_strike: 0.07,
-    opt_chain: nil
+    opt_chain: nil,
+    quantity: 1
   )
     @symbol = symbol
     @end_date = end_date
@@ -32,6 +33,7 @@ class CallSpreadFinder
     @trades = []
     @short_legs = []
     @opt_chain = opt_chain
+    @quantity = quantity
   end
 
   def search
@@ -43,13 +45,13 @@ class CallSpreadFinder
     short_legs.each do |short_raw|
       short_leg = CallOption.new(
         short_raw.symbol,
-        short_raw.strike,
+        strike: short_raw.strike,
         delta: short_raw.delta,
         mark: short_raw.mark,
         ask: short_raw.ask,
         bid: short_raw.bid,
         expiration_date: short_raw.expiration_date,
-        quantity: -1
+        quantity: quantity
       )
       potential_longs = opt_chain.filter(put_call: :call, filters: long_filters(short_leg))
 
@@ -57,13 +59,13 @@ class CallSpreadFinder
         best_long_raw = potential_longs.min_by(&:mark)
         long_leg = CallOption.new(
           best_long_raw.symbol,
-          best_long_raw.strike,
+          strike: best_long_raw.strike,
           delta: best_long_raw.delta,
           mark: best_long_raw.mark,
           ask: best_long_raw.ask,
           bid: best_long_raw.bid,
           expiration_date: best_long_raw.expiration_date,
-          quantity: 1
+          quantity: quantity
         )
 
         @trades << CallSpread.new(
