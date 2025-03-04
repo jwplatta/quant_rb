@@ -37,17 +37,12 @@ class CallOption < Trade
   attr_reader :symbol, :strike, :delta, :mark, :ask, :bid, :expiration_date
 
   def initialize(
-    symbol, strike: nil, delta: 999, mark: nil, ask: nil, bid: nil, expiration_date: nil, quantity: nil,
-    open_credit_debit: nil, open_date: nil, open_fees: nil, open_commission: nil,
-    increment: 0.01, round: 2
+    symbol, strike: nil, delta: 999, mark: nil, ask: nil, bid: nil,
+    expiration_date: nil, quantity: nil, increment: 0.01, round: 2
   )
     super(
       increment: increment,
       round: round,
-      open_credit_debit: open_credit_debit,
-      open_date: open_date,
-      open_fees: open_fees,
-      open_commission: open_commission,
       quantity: quantity
     )
     @strategy = "SINGLE"
