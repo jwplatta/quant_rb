@@ -26,24 +26,14 @@ class Trade
 
   def initialize(
     underlying_symbol: nil, increment: 0.01,
-    round: 2, open_credit_debit: nil, open_date: nil,
-    open_fees: 0.0, open_commission: 0.0,
-    exit_threshold: 0.75, max_loss: -3.0, quantity: 1
+    round: 2, exit_threshold: 0.75, max_loss: -3.0, quantity: 1
   )
     @underlying_symbol = underlying_symbol
     @increment = increment
     @round = round
-    @open_credit_debit = open_credit_debit
-    @open_date = open_date
-    @open_fees = open_fees
-    @open_commission = open_commission
     @exit_threshold = exit_threshold
     @max_loss = max_loss
     @quantity = quantity
-    @order_id = nil
-    @order_status = nil
-    @order_rejects = []
-    @transactions = []
   end
 
   def credit_debit
@@ -62,14 +52,6 @@ class Trade
     raise "Must be implemented in subclass"
   end
 
-  def order_id=(id)
-    @order_id = id
-  end
-
-  def add_transaction(transaction)
-    @transactions << transaction
-  end
-
   def exitable?
     progress >= exit_threshold || progress <= max_loss
   end
@@ -82,26 +64,6 @@ class Trade
 
   def net_open_credit_debit
     open_credit_debit * 100 - open_fees - open_commission
-  end
-
-  def order_id=(id)
-    @order_id = id
-  end
-
-  def open_credit_debit=(credit_debit)
-    @open_credit_debit = credit_debit
-  end
-
-  def open_date=(date)
-    @open_date = date
-  end
-
-  def open_fees=(fees)
-    @open_fees = fees
-  end
-
-  def open_commission=(commission)
-    @open_commission = commission
   end
 
   def nearest_increment(value)
