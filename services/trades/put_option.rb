@@ -9,11 +9,12 @@ class PutOption < Trade
         strike: hash[:strike],
         expiration_date: expiration_date,
         quantity: hash.fetch(:quantity, nil),
-        open_credit_debit: hash.fetch(:open_credit_debit, nil),
-        open_date: hash.fetch(:open_date, nil),
-        open_fees: hash.fetch(:open_fees, nil),
-        open_commission: hash.fetch(:open_commission, nil),
-      )
+      ).tap do |put_option|
+        put_option.open_credit_debit = hash.fetch(:open_credit_debit, nil)
+        put_option.open_date = hash.fetch(:open_date, nil)
+        put_option.open_fees = hash.fetch(:open_fees, nil)
+        put_option.open_commission = hash.fetch(:open_commission, nil)
+      end
     end
 
     def from_quote(quote)
@@ -37,17 +38,12 @@ class PutOption < Trade
   attr_reader :symbol, :strike, :delta, :mark, :ask, :bid, :expiration_date
 
   def initialize(
-    symbol, strike: nil, delta: 999, mark: nil, ask: nil, bid: nil, expiration_date: nil, quantity: nil,
-    open_credit_debit: nil, open_date: nil, open_fees: nil, open_commission: nil,
-    increment: 0.01, round: 2
+    symbol, strike: nil, delta: 999, mark: nil, ask: nil, bid: nil,
+    expiration_date: nil, quantity: nil, increment: 0.01, round: 2
   )
     super(
       increment: increment,
       round: round,
-      open_credit_debit: open_credit_debit,
-      open_date: open_date,
-      open_fees: open_fees,
-      open_commission: open_commission,
       quantity: quantity
     )
     @strategy = "SINGLE"
