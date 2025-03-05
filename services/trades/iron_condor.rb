@@ -66,6 +66,11 @@ class IronCondor < Trade
     put_spread.symbols + call_spread.symbols
   end
 
+  def check_market
+    call_spread.check_market
+    put_spread.check_market
+  end
+
   def to_h
     {
       type: "IRON_CONDOR",
