@@ -9,11 +9,12 @@ class CallOption < Trade
         strike: hash[:strike],
         expiration_date: expiration_date,
         quantity: hash.fetch(:quantity, nil),
-        open_credit_debit: hash.fetch(:open_credit_debit, nil),
-        open_date: hash.fetch(:open_date, nil),
-        open_fees: hash.fetch(:open_fees, nil),
-        open_commission: hash.fetch(:open_commission, nil),
-      )
+      ).tap do |call_option|
+        call_option.open_credit_debit = hash.fetch(:open_credit_debit, nil)
+        call_option.open_date = hash.fetch(:open_date, nil)
+        call_option.open_fees = hash.fetch(:open_fees, nil)
+        call_option.open_commission = hash.fetch(:open_commission, nil)
+      end
     end
 
     def from_quote(quote)
