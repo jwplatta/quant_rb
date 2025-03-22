@@ -1,7 +1,7 @@
 require "rspec"
 require "pry"
 require_relative "../../../services/search/call_spread_finder"
-require_relative "../../../services/schwab/data_objects/option_chain"
+require_relative "../../../mixins/schwab/data_objects/option_chain"
 
 RSpec.describe CallSpreadFinder do
   let(:acme_call_options) do
@@ -13,7 +13,7 @@ RSpec.describe CallSpreadFinder do
     it "returns a list of call spreads" do
       finder = CallSpreadFinder.new(
         symbol: "ACME",
-        option_chain: acme_call_options,
+        opt_chain: acme_call_options,
         end_date: Date.new(2025, 1, 17)
       )
       best_trade = finder.search
@@ -25,7 +25,7 @@ RSpec.describe CallSpreadFinder do
       it "returns a list of call spreads" do
         finder = CallSpreadFinder.new(
           symbol: "ACME",
-          option_chain: acme_call_options,
+          opt_chain: acme_call_options,
           min_credit: 50.0,
           expiration_date: Date.new(2025, 1, 16)
         )
