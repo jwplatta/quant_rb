@@ -49,7 +49,7 @@ RSpec.describe DataObjects::QuoteFactory do
     end
 
     it 'raises an error if the quote type is not recognized' do
-      invalid_data = { :"SYMBOL" => { assetMainType: "UNKNOWN" } }
+      invalid_data = { "SYMBOL" => { assetMainType: "UNKNOWN" } }
       expect { DataObjects::QuoteFactory.build(invalid_data) }.to raise_error("Unknown assetMainType: UNKNOWN")
     end
   end

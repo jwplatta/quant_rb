@@ -1,15 +1,20 @@
 module DataObjects
   class QuoteFactory
     def self.build(quote_data)
-      case quote_data[:assetMainType]
+      # Extract the data from nested structure (symbol is the key)
+      symbol = quote_data.keys.first
+      data = quote_data[symbol]
+      data[:symbol] ||= symbol
+
+      case data[:assetMainType]
       when "OPTION"
-        DataObjects::OptionQuote.new(quote_data)
+        DataObjects::OptionQuote.new(data)
       when "INDEX"
-        DataObjects::IndexQuote.new(quote_data)
+        DataObjects::IndexQuote.new(data)
       when "EQUITY"
-        DataObjects::EquityQuote.new(quote_data)
+        DataObjects::EquityQuote.new(data)
       else
-        raise "Unknown assetMainType: #{quote_data[:assetMainType]}"
+        raise "Unknown assetMainType: #{data[:assetMainType]}"
       end
     end
   end
