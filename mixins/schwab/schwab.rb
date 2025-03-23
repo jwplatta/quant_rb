@@ -30,19 +30,26 @@ module Schwab
 
   def quote(symbol)
     client.get_quote(symbol).then do |resp|
-      JSON.parse(resp.body, symbolize_names: true)
-    end.then do |data|
-      _, quote_data = data.first
-      DataObjects::QuoteFactory.build(quote_data)
+      parsed_data = JSON.parse(resp.body, symbolize_names: true)
+
+      # The QuoteFactory expects data in the format: { symbol => quote_data }
+      if parsed_data.is_a?(Hash) && parsed_data.size == 1 && parsed_data.values.first.is_a?(Hash)
+        DataObjects::QuoteFactory.build(parsed_data)
+      else
+        raise "Unexpected quote data format: #{parsed_data.inspect}"
+      end
     end
   end
 
   def quotes(symbols)
     client.get_quotes(symbols).then do |resp|
-      JSON.parse(resp.body, symbolize_names: true)
-    end.then do |quotes_data|
-      quotes_data.map do |symbol, data|
-        DataObjects::QuoteFactory.build(data)
+      parsed_data = JSON.parse(resp.body, symbolize_names: true)
+
+      # REVIEW: The QuoteFactory expects data in the format: { symbol => quote_data }
+      # and the Schwab API should return data in this format
+      parsed_data.map do |symbol, quote_data|
+        quote_hash = { symbol => quote_data }
+        DataObjects::QuoteFactory.build(quote_hash)
       end
     end
   end
