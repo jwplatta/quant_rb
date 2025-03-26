@@ -1,19 +1,16 @@
 default: &default
-  adapter: postgresql
-  encoding: unicode
+  adapter: sqlite3
   pool: 5
-  username: <%= ENV["DB_USERNAME"] %>
-  password: <%= ENV["DB_PASSWORD"] %>
-  host: localhost
+  timeout: 5000
 
 production:
   <<: *default
-  database: platypi_db
+  database: db/platypi.sqlite3
 
 development:
   <<: *default
-  database: platypi_db_dev
+  database: db/platypi_dev.sqlite3
 
 test:
   <<: *default
-  database: platypi_db_test
+  database: db/platypi_test.sqlite3
