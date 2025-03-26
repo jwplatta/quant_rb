@@ -24,10 +24,6 @@ class IronCondor < Trade
     @expiration_date = expiration_date
   end
 
-  def complex?
-    true
-  end
-
   def prob_of_profit
     @pop ||= (1 - put_spread.delta.abs) + (1 - call_spread.delta.abs) - 1
   end
@@ -74,7 +70,6 @@ class IronCondor < Trade
   def to_h
     {
       type: "IRON_CONDOR",
-      strategy: strategy,
       expiration_date: expiration_date,
       call_spread: call_spread.to_h,
       put_spread: put_spread.to_h,
