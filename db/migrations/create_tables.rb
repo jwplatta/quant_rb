@@ -1,8 +1,8 @@
-require "active_record"
 require "fileutils"
 require "yaml"
 require "erb"
 require "dotenv/load"
+require "active_record"
 
 # Ensure the db directory exists
 FileUtils.mkdir_p("db")
@@ -11,19 +11,20 @@ FileUtils.mkdir_p("db")
 ENV["RACK_ENV"] ||= "development"
 
 # Load database configuration from config/database.yml
-db_config_file = File.expand_path("../../config/database.yml", __FILE__)
+db_config_file = File.expand_path("../../../config/database.yml", __FILE__)
 db_config = YAML.load(ERB.new(File.read(db_config_file)).result, aliases: true)
 
 # Set up the database connection
 ActiveRecord::Base.establish_connection(db_config[ENV["RACK_ENV"]])
 
+# Define the migration
 ActiveRecord::Schema.define do
   create_table :trades, force: true do |t|
     t.string :underlying, null: false
     t.string :strategy, null: false
     t.date :open_date, null: false
     t.date :close_date
-
+    
     t.timestamps
   end
 
@@ -73,5 +74,6 @@ ActiveRecord::Schema.define do
     t.timestamps
   end
 end
+
 
 puts "✅ Database schema has been set up successfully!"

@@ -1,60 +1,37 @@
-require "dotenv"
-require "pry"
-require "active_record"
+require "fileutils"
 require "yaml"
+require "erb"
+require "dotenv/load"
 
-Dotenv.load
+ENV["RACK_ENV"] ||= "development"
 
-def establish_connection
-  ActiveRecord::Base.establish_connection(
-    adapter: "postgresql",
-    database: ENV["DATABASE_NAME"],
-    username: ENV["DATABASE_USER"],
-    password: ENV["DATABASE_PASSWORD"],
-    host: "localhost"
-  )
+def db_config
+  config_file = File.expand_path("../../../config/database.yml", __FILE__)
+  YAML.load(ERB.new(File.read(config_file)).result, aliases: true)[ENV["RACK_ENV"]]
 end
 
-def admin_connection
-  ActiveRecord::Base.establish_connection(
-    adapter:  'postgresql',
-    host:     'localhost',
-    database: 'postgres',
-  )
+def db_path
+  db_config["database"]
 end
 
 namespace :db do
   desc "Initialize the database"
   task :init do
-    admin_connection
+    FileUtils.mkdir_p(File.dirname(db_path))
 
-    db_user = ENV["DATABASE_USER"]
-    db_password = ENV["DATABASE_PASSWORD"]
-    db_name = ENV["DATABASE_NAME"]
-
-    ActiveRecord::Base.connection.execute(
-      "DO $$ BEGIN IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = '#{db_user}') THEN CREATE USER #{db_user} WITH PASSWORD '#{db_password}'; END IF; END $$;"
-    )
-    ActiveRecord::Base.connection.execute("ALTER USER #{db_user} WITH SUPERUSER;")
-
-    existing_db = ActiveRecord::Base.connection.exec_query("SELECT 1 FROM pg_database WHERE datname = '#{db_name}'").to_a
-
-    if existing_db.empty?
-      ActiveRecord::Base.connection.create_database(db_name)
-      puts "Database '#{db_name}' created successfully!"
+    unless File.exist?(db_path)
+      FileUtils.touch(db_path)
+      puts "Database file '#{db_path}' created successfully!"
     else
-      puts "Database '#{db_name}' already exists."
+      puts "Database file '#{db_path}' already exists."
     end
 
-    ActiveRecord::Base.connection.execute("ALTER DATABASE #{db_name} OWNER TO #{db_user};")
-    ActiveRecord::Base.connection.execute("GRANT ALL PRIVILEGES ON DATABASE #{db_name} TO #{db_user};")
-
-    puts "User '#{db_user}' now has full control over '#{db_name}'."
     puts "✅ Database initialized!"
   end
 
   desc "Run migrations"
   task :migrate do
+    require "active_record"
     system("bundle exec ruby db/migrations/create_tables.rb")
   end
 
@@ -63,10 +40,24 @@ namespace :db do
 
   desc "Drop the database"
   task :drop do
-    admin_connection
-    ActiveRecord::Base.connection.drop_database(ENV["DATABASE_NAME"])
-    db_user = ENV["DATABASE_USER"]
-    ActiveRecord::Base.connection.execute("DROP USER IF EXISTS #{db_user};")
-    puts "✅ Database dropped."
+    if File.exist?(db_path)
+      File.delete(db_path)
+      puts "✅ Database '#{db_path}' dropped."
+    else
+      puts "Database file does not exist, nothing to drop."
+    end
+  end
+
+  desc "Show current schema"
+  task :schema do
+    require "sqlite3"
+    db = SQLite3::Database.new(db_path)
+    result = db.execute("SELECT name, sql FROM sqlite_master WHERE type='table'")
+    result.each do |table|
+      puts "Table: #{table[0]}"
+      puts table[1]
+      puts
+    end
+    db.close
   end
 end
