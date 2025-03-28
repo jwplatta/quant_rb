@@ -4,3 +4,4 @@ schwab_token.json
 /env
 .tool-versions
 /data
+*.sqlite3
