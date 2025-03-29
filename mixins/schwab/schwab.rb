@@ -187,6 +187,15 @@ module Schwab
     end
   end
 
+  def replace_order(order_id, order)
+    start = DateTime.now
+    client.replace_order(account_hash, order_id, order).then do |resp|
+      if resp.status == 201
+        get_latest_order(from_entered_datetime: start)
+      end
+    end
+  end
+
   def cancel_order(order_id)
     client.cancel_order(order_id, account_hash).then do |resp|
       resp.status == 200
