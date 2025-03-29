@@ -98,7 +98,7 @@ module Schwab
     kwargs[:transaction_types] = transaction_types if transaction_types
     kwargs[:symbol] = symbol if symbol
 
-    client.get_transactions(account_hash, **kwargs).then do |resp|
+    client.get_transactions(account_hash, kwargs).then do |resp|
       JSON.parse(resp.body, symbolize_names: true)
     end.then do |transactions|
       transactions.map { |t| DataObjects::Transaction.build(t) }
@@ -149,6 +149,8 @@ module Schwab
 
   def preview_order(order)
     client.preview_order(account_hash, order).then do |resp|
+      File.open("order_preview.json", "w") { |f| f.write(resp.body) }
+
       JSON.parse(resp.body, symbolize_names: true)
     end.then do |data|
       DataObjects::OrderPreview.build(data)
