@@ -1,10 +1,10 @@
 require "active_record"
 
-module DB
+module Persistence
   class TradeLeg < ActiveRecord::Base
     self.table_name = 'trade_legs'
-    
-    belongs_to :trade, class_name: 'DB::Trade'
+
+    belongs_to :trade, class_name: 'Persistence::Trade'
 
     validates :put_call, presence: true
     validates :symbol, presence: true
