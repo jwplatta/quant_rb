@@ -3,7 +3,7 @@ require "pry"
 require_relative "../../../services/search/call_spread_finder"
 require_relative "../../../mixins/schwab/data_objects/option_chain"
 
-RSpec.describe CallSpreadFinder do
+RSpec.describe Services::Search::CallSpreadFinder do
   let(:acme_call_options) do
     JSON.parse(File.read("spec/fixtures/option_chains/ACME_calls.json"), symbolize_names: true).then do |data|
       DataObjects::OptionChain.build(data)
@@ -11,7 +11,7 @@ RSpec.describe CallSpreadFinder do
   end
   describe "#search" do
     it "returns a list of call spreads" do
-      finder = CallSpreadFinder.new(
+      finder = Services::Search::CallSpreadFinder.new(
         symbol: "ACME",
         opt_chain: acme_call_options,
         end_date: Date.new(2025, 1, 17)
@@ -23,7 +23,7 @@ RSpec.describe CallSpreadFinder do
     end
     context "when given an expiration date" do
       it "returns a list of call spreads" do
-        finder = CallSpreadFinder.new(
+        finder = Services::Search::CallSpreadFinder.new(
           symbol: "ACME",
           opt_chain: acme_call_options,
           min_credit: 50.0,
