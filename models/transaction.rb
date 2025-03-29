@@ -1,10 +1,10 @@
 require "active_record"
 
-module DB
+module Persistence
   class Transaction < ActiveRecord::Base
     self.table_name = 'transactions'
-    
-    belongs_to :order, class_name: 'DB::Order'
+
+    belongs_to :order, class_name: 'Persistence::Order'
 
     validates :symbol, presence: true
     validates :description, presence: true
