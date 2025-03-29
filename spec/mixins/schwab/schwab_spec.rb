@@ -134,23 +134,25 @@ RSpec.describe Schwab do
       )
     end
 
-    it 'fetches and returns transactions', skip: 'Fix argument mismatch' do
+    it 'fetches and returns transactions' do
       # Allow specific method call with empty hash
-      allow(mock_client).to receive(:get_transactions)
+      expect(mock_client).to receive(:get_transactions)
         .with('ABC123XYZ', {})
-        .and_return(transactions_response)
-
-      # For any other calls, also handle
-      allow(mock_client).to receive(:get_transactions)
-        .with('ABC123XYZ')
         .and_return(transactions_response)
 
       transactions = schwab_instance.transactions
       expect(transactions).to be_an_instance_of(Array)
+      expect(transactions.size).to eq(2)
       expect(transactions.first).to be_an_instance_of(DataObjects::Transaction)
+      expect(transactions.first.type).to eq("TRADE")
+      expect(transactions.first.order_id).to eq("1002613435352")
+      
+      # Verify the transfer items
+      expect(transactions.first.transfer_items).to be_an_instance_of(Array)
+      expect(transactions.first.transfer_items.first.instrument.symbol).to eq("MRVL  250321C00155000")
     end
 
-    it 'accepts optional parameters', skip: 'Fix Transaction.build method' do
+    it 'accepts optional parameters' do
       start_date = Date.new(2025, 1, 1)
       end_date = Date.new(2025, 1, 31)
 
@@ -172,6 +174,13 @@ RSpec.describe Schwab do
 
       expect(transactions).to be_an_instance_of(Array)
       expect(transactions.first).to be_an_instance_of(DataObjects::Transaction)
+      
+      # Verify that transfer items are processed correctly
+      expect(transactions.first.transfer_items.size).to be > 0
+      
+      # Check if fees are extracted correctly
+      fee_items = transactions.first.transfer_items.select { |item| item.fee_type }
+      expect(fee_items).not_to be_empty
     end
   end
 
@@ -205,14 +214,29 @@ RSpec.describe Schwab do
       )
     end
 
-    it 'previews an order and returns an order preview', skip: 'Fix nil error in OrderPreview' do
+    it 'previews an order and returns an order preview' do
       order_data = {
         orderType: 'NET_CREDIT',
         session: 'NORMAL',
         duration: 'DAY',
         orderStrategyType: 'SINGLE',
-        price: 1.25
-        # Additional order data would be here
+        price: 1.25,
+        orderLegs: [
+          {
+            instrument: {
+              symbol: "SPX  250317P04350000"
+            },
+            instruction: "SELL_TO_OPEN",
+            quantity: 1
+          },
+          {
+            instrument: {
+              symbol: "SPX  250317P04250000"
+            },
+            instruction: "BUY_TO_OPEN",
+            quantity: 1
+          }
+        ]
       }
 
       expect(mock_client).to receive(:preview_order)
@@ -221,19 +245,21 @@ RSpec.describe Schwab do
 
       preview = schwab_instance.preview_order(order_data)
       expect(preview).to be_an_instance_of(DataObjects::OrderPreview)
-      expect(preview.price).to eq(1.25)
+      expect(preview.accepted?).to be true
+      expect(preview.commission).to eq(1.3) # 0.65 * 2
+      expect(preview.fees).to eq(1.14) # 0.01*2 + 0.56*2
     end
   end
 
   describe '#get_order' do
     let(:order_response) do
-      # Extract the first order from the array
-      order_data = JSON.parse(File.read('spec/fixtures/orders.json')).first
+      # Extract the first order from the array as a hash
+      order_data = JSON.parse(File.read('spec/fixtures/orders.json'), symbolize_names: true).first
       instance_double('Response', body: order_data.to_json)
     end
 
-    it 'fetches a specific order by ID', skip: 'Fix JSON parsing error' do
-      order_id = 1002613435352
+    it 'fetches a specific order by ID' do
+      order_id = "1002613435352"
 
       expect(mock_client).to receive(:get_order)
         .with(order_id, 'ABC123XYZ')
@@ -241,7 +267,7 @@ RSpec.describe Schwab do
 
       order = schwab_instance.get_order(order_id)
       expect(order).to be_an_instance_of(DataObjects::Order)
-      expect(order.order_id).to eq(1002613435352)
+      expect(order.order_id.to_s).to eq("1002613435352")
     end
   end
 
