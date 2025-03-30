@@ -35,6 +35,23 @@ module DataObjects
       @multiplier = multiplier
       @future_type = future_type
     end
+
+    def to_h
+      {
+        assetType: @asset_type,
+        status: @status,
+        symbol: @symbol,
+        instrumentId: @instrument_id,
+        closingPrice: @closing_price,
+        type: @type,
+        description: @description,
+        activeContract: @active_contract,
+        expirationDate: @expiration_date,
+        lastTradingDate: @last_trading_date,
+        multiplier: @multiplier,
+        futureType: @future_type
+      }.compact
+    end
   end
 
   class OptionDeliverable
@@ -58,6 +75,17 @@ module DataObjects
       @deliverable_number = deliverable_number
       @strike_percent = strike_percent
       @deliverable = deliverable
+    end
+
+    def to_h
+      {
+        rootSymbol: @root_symbol,
+        symbol: @symbol,
+        strikePercent: @strike_percent,
+        deliverableNumber: @deliverable_number,
+        deliverableUnits: @deliverable_units,
+        deliverable: @deliverable&.to_h
+      }.compact
     end
   end
 
@@ -100,6 +128,23 @@ module DataObjects
 
     def option?
       asset_type == "OPTION"
+    end
+
+    def to_h
+      {
+        assetType: @asset_type,
+        symbol: @symbol,
+        description: @description,
+        cusip: @cusip,
+        netChange: @net_change,
+        type: @type,
+        putCall: @put_call,
+        underlyingSymbol: @underlying_symbol,
+        status: @status,
+        instrumentId: @instrument_id,
+        closingPrice: @closing_price,
+        optionDeliverables: @option_deliverables.map(&:to_h)
+      }.compact
     end
   end
 end
