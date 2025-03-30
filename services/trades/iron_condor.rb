@@ -24,6 +24,14 @@ class IronCondor < Trade
     @expiration_date = expiration_date
   end
 
+  def call_risk_status
+    call_spread.risk_status
+  end
+
+  def put_risk_status
+    put_spread.risk_status
+  end
+
   def prob_of_profit
     @pop ||= (1 - put_spread.delta.abs) + (1 - call_spread.delta.abs) - 1
   end
@@ -73,6 +81,6 @@ class IronCondor < Trade
       expiration_date: expiration_date,
       call_spread: call_spread.to_h,
       put_spread: put_spread.to_h,
-    }.merge(orderable_h)
+    }
   end
 end
