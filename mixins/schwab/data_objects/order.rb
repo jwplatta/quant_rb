@@ -24,6 +24,17 @@ module DataObjects
       @time = time
       @instrument_id = instrument_id
     end
+
+    def to_h
+      {
+        legId: @leg_id,
+        quantity: @quantity,
+        mismarkedQuantity: @mismarked_quantity,
+        price: @price,
+        time: @time,
+        instrumentId: @instrument_id
+      }
+    end
   end
 
   class OrderActivity
@@ -51,8 +62,15 @@ module DataObjects
       @execution_legs = execution_legs
     end
 
-    def remove_legs(leg_ids)
-      @execution_legs = execution_legs.reject { |leg| leg_ids.include?(leg.leg_id) }.flatten
+    def to_h
+      {
+        activityType: @activity_type,
+        activityId: @activity_id,
+        executionType: @execution_type,
+        quantity: @quantity,
+        orderRemainingQuantity: @order_remaining_quantity,
+        executionLegs: @execution_legs.map(&:to_h)
+      }
     end
   end
 
@@ -63,6 +81,10 @@ module DataObjects
 
     class << self
       def build(data)
+        # Parse datetime strings into DateTime objects
+        entered_time = parse_datetime(data[:enteredTime])
+        close_time = parse_datetime(data[:closeTime])
+
         new(
           duration: data[:duration],
           order_type: data[:orderType],
@@ -75,17 +97,30 @@ module DataObjects
           order_strategy_type: data[:orderStrategyType],
           order_id: data[:orderId],
           status: data[:status],
-          entered_time: data[:enteredTime],
-          close_time: data[:closeTime],
+          entered_time: entered_time,
+          close_time: close_time,
           order_activity_collection: data.fetch(:orderActivityCollection, []).map do |activity|
             OrderActivity.build(activity)
           end
         )
       end
+
+      private
+
+      def parse_datetime(datetime_str)
+        return nil if datetime_str.nil? || datetime_str.empty?
+
+        begin
+          DateTime.parse(datetime_str)
+        rescue ArgumentError
+          nil
+        end
+      end
     end
 
-    def initialize(duration:, order_type:, complex_order_strategy_type:, quantity:, filled_quantity:, remaining_quantity:,
-      price:, order_leg_collection: [], order_strategy_type:, order_id:, status:,
+    def initialize(
+      duration:, order_type:, complex_order_strategy_type:, quantity:, filled_quantity:,
+      remaining_quantity:, price:, order_leg_collection: [], order_strategy_type:, order_id:, status:,
       entered_time:, close_time:, order_activity_collection: []
     )
       @duration = duration
@@ -102,13 +137,6 @@ module DataObjects
       @entered_time = entered_time
       @close_time = close_time
       @order_activity_collection = order_activity_collection
-    end
-
-    def remove_legs(leg_ids)
-      @order_leg_collection = order_leg_collection.reject { |leg| leg_ids.include?(leg.leg_id) }
-      order_activity_collection.each do |activity|
-        activity.remove_legs(leg_ids)
-      end
     end
 
     def symbols
@@ -131,6 +159,25 @@ module DataObjects
 
     def open?
       order_leg_collection.all? { |leg| leg.position_effect == "OPENING" }
+    end
+
+    def to_h
+      {
+        duration: @duration,
+        orderType: @order_type,
+        complexOrderStrategyType: @complex_order_strategy_type,
+        quantity: @quantity,
+        filledQuantity: @filled_quantity,
+        remainingQuantity: @remaining_quantity,
+        price: @price,
+        orderLegCollection: @order_leg_collection.map(&:to_h),
+        orderStrategyType: @order_strategy_type,
+        orderId: @order_id,
+        status: @status,
+        enteredTime: @entered_time&.iso8601,
+        closeTime: @close_time&.iso8601,
+        orderActivityCollection: @order_activity_collection.map(&:to_h)
+      }
     end
   end
 end
