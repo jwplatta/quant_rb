@@ -52,6 +52,46 @@ RSpec.describe DataObjects::Instrument do
       expect(instrument.option_deliverables).to be_empty
     end
   end
+
+  describe '#to_h' do
+    it 'converts the option instrument object back to a hash with the same structure as the input data' do
+      instrument = DataObjects::Instrument.build(option_instrument_data)
+      instrument_hash = instrument.to_h
+
+      expect(instrument_hash[:assetType]).to eq(option_instrument_data[:assetType])
+      expect(instrument_hash[:symbol]).to eq(option_instrument_data[:symbol])
+      expect(instrument_hash[:description]).to eq(option_instrument_data[:description])
+      expect(instrument_hash[:cusip]).to eq(option_instrument_data[:cusip])
+      expect(instrument_hash[:netChange]).to eq(option_instrument_data[:netChange])
+      expect(instrument_hash[:type]).to eq(option_instrument_data[:type])
+      expect(instrument_hash[:putCall]).to eq(option_instrument_data[:putCall])
+      expect(instrument_hash[:underlyingSymbol]).to eq(option_instrument_data[:underlyingSymbol])
+      expect(instrument_hash[:status]).to eq(option_instrument_data[:status])
+      expect(instrument_hash[:instrumentId]).to eq(option_instrument_data[:instrumentId])
+      expect(instrument_hash[:closingPrice]).to eq(option_instrument_data[:closingPrice])
+
+      # Verify option deliverables
+      expect(instrument_hash[:optionDeliverables].length).to eq(option_instrument_data[:optionDeliverables].length)
+      expect(instrument_hash[:optionDeliverables][0][:symbol]).to eq(option_instrument_data[:optionDeliverables][0][:symbol])
+    end
+
+    it 'converts the equity instrument object back to a hash with the same structure as the input data' do
+      instrument = DataObjects::Instrument.build(equity_instrument_data)
+      instrument_hash = instrument.to_h
+
+      expect(instrument_hash[:assetType]).to eq(equity_instrument_data[:assetType])
+      expect(instrument_hash[:symbol]).to eq(equity_instrument_data[:symbol])
+      expect(instrument_hash[:description]).to eq(equity_instrument_data[:description])
+      expect(instrument_hash[:cusip]).to eq(equity_instrument_data[:cusip])
+      expect(instrument_hash[:netChange]).to eq(equity_instrument_data[:netChange])
+      expect(instrument_hash[:status]).to eq(equity_instrument_data[:status])
+      expect(instrument_hash[:instrumentId]).to eq(equity_instrument_data[:instrumentId])
+      expect(instrument_hash[:closingPrice]).to eq(equity_instrument_data[:closingPrice])
+
+      # Verify empty option deliverables array
+      expect(instrument_hash[:optionDeliverables]).to be_empty
+    end
+  end
 end
 
 RSpec.describe DataObjects::OptionDeliverable do
@@ -76,6 +116,20 @@ RSpec.describe DataObjects::OptionDeliverable do
       expect(deliverable.strike_percent).to eq(1.0)
       expect(deliverable.root_symbol).to eq('TSLA')
       expect(deliverable.deliverable).to be_nil
+    end
+  end
+
+  describe '#to_h' do
+    it 'converts the option deliverable object back to a hash with the same structure as the input data' do
+      deliverable = DataObjects::OptionDeliverable.build(option_deliverable_data)
+      deliverable_hash = deliverable.to_h
+
+      expect(deliverable_hash[:symbol]).to eq(option_deliverable_data[:symbol])
+      expect(deliverable_hash[:deliverableUnits]).to eq(option_deliverable_data[:deliverableUnits])
+      expect(deliverable_hash[:deliverableNumber]).to eq(option_deliverable_data[:deliverableNumber])
+      expect(deliverable_hash[:strikePercent]).to eq(option_deliverable_data[:strikePercent])
+      expect(deliverable_hash[:rootSymbol]).to eq(option_deliverable_data[:rootSymbol])
+      expect(deliverable_hash[:deliverable]).to be_nil
     end
   end
 end
@@ -115,6 +169,26 @@ RSpec.describe DataObjects::Asset do
       expect(asset.last_trading_date).to eq('2023-12-14')
       expect(asset.multiplier).to eq(50.0)
       expect(asset.future_type).to eq('EMINI')
+    end
+  end
+
+  describe '#to_h' do
+    it 'converts the asset object back to a hash with the same structure as the input data' do
+      asset = DataObjects::Asset.build(asset_data)
+      asset_hash = asset.to_h
+
+      expect(asset_hash[:assetType]).to eq(asset_data[:assetType])
+      expect(asset_hash[:status]).to eq(asset_data[:status])
+      expect(asset_hash[:symbol]).to eq(asset_data[:symbol])
+      expect(asset_hash[:instrumentId]).to eq(asset_data[:instrumentId])
+      expect(asset_hash[:closingPrice]).to eq(asset_data[:closingPrice])
+      expect(asset_hash[:type]).to eq(asset_data[:type])
+      expect(asset_hash[:description]).to eq(asset_data[:description])
+      expect(asset_hash[:activeContract]).to eq(asset_data[:activeContract])
+      expect(asset_hash[:expirationDate]).to eq(asset_data[:expirationDate])
+      expect(asset_hash[:lastTradingDate]).to eq(asset_data[:lastTradingDate])
+      expect(asset_hash[:multiplier]).to eq(asset_data[:multiplier])
+      expect(asset_hash[:futureType]).to eq(asset_data[:futureType])
     end
   end
 end
