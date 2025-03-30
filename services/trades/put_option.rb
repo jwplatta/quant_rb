@@ -61,7 +61,7 @@ module Services
       def risk_status
         if delta.abs < 0.16
           "GREEN"
-        elsif delta.abs < 0.3
+        elsif delta.abs < 0.28
           "YELLOW"
         else
           "RED"
@@ -109,16 +109,17 @@ module Services
       ##################
 
       def check_market
-        quote(symbol).then do |quote|
-          @delta = quote.delta.abs
-          @mark = quote.mark
-          @ask = quote.ask_price
-          @bid = quote.bid_price
-          @strike = quote.strike_price
+        # NOTE: from schwab mixin
+        quote(symbol).then do |q|
+          @delta = q.delta.abs
+          @mark = q.mark
+          @ask = q.ask_price
+          @bid = q.bid_price
+          @strike = q.strike_price
           @expiration_date = Date.new(
-            quote.expiration_year,
-            quote.expiration_month,
-            quote.expiration_day
+            q.expiration_year,
+            q.expiration_month,
+            q.expiration_day
           )
         end
       end
@@ -130,10 +131,6 @@ module Services
           strike: strike,
           quantity: quantity,
           expiration_date: expiration_date,
-          open_credit_debit: open_credit_debit,
-          open_date: open_date,
-          open_fees: open_fees,
-          open_commission: open_commission,
         }
       end
     end
