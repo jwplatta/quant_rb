@@ -34,12 +34,8 @@ module Services
         @expiration_date = expiration_date
       end
 
-      def tested?
-        short_leg.tested?
-      end
-
-      def danger?
-        short_leg.danger?
+      def risk_status
+        @short_leg.risk_status
       end
 
       def delta
@@ -79,10 +75,6 @@ module Services
         {
           type: "PUT_SPREAD",
           expiration_date: expiration_date,
-          open_credit_debit: open_credit_debit,
-          open_date: open_date,
-          open_fees: open_fees,
-          open_commission: open_commission,
           short_leg: short_leg.to_h,
           long_leg: long_leg.to_h,
         }
