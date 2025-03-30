@@ -49,5 +49,16 @@ module DataObjects
     def symbol
       instrument.symbol
     end
+
+    def to_h
+      {
+        legId: @leg_id,
+        orderLegType: @order_leg_type,
+        quantity: @quantity,
+        instrument: @instrument.to_h,
+        instruction: @instruction,
+        positionEffect: @position_effect
+      }
+    end
   end
 end
