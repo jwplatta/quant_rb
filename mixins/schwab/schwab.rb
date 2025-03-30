@@ -105,6 +105,14 @@ module Schwab
     end
   end
 
+  def transaction(order_id: nil)
+    client.get_transaction(account_hash, order_id).then do |resp|
+      JSON.parse(resp.body, symbolize_names: true)
+    end.then do |data|
+      DataObjects::Transaction.build(data)
+    end
+  end
+
   def account_orders(from_date, to_date, status)
     client.get_account_orders(
       account_hash,
@@ -126,23 +134,29 @@ module Schwab
     end
   end
 
-  def build_and_preview_order(trade, quantity: 1, position_type: :entry)
-    build_order(trade, quantity: quantity, position_type: position_type).then do |order|
+  def build_and_preview_order(trade, quantity: 1, order_instruction: :entry)
+    build_order(trade, quantity: quantity, order_instruction: order_instruction).then do |order|
       preview_order(order)
     end
   end
 
-  def build_and_place_order(trade, quantity: 1, position_type: :entry)
-    build_order(trade, quantity: quantity, position_type: position_type).then do |order|
+  def build_and_place_order(trade, quantity: 1, order_instruction: :entry)
+    build_order(trade, quantity: quantity, order_instruction: order_instruction).then do |order|
       place_order(order)
     end
   end
 
-  def build_order(trade, quantity: 1, position_type: :entry)
+  def build_and_replace_order(order_id, trade, quantity: 1, order_instruction: :entry)
+    build_order(trade, quantity: quantity, order_instruction: order_instruction).then do |order|
+      replace_order(order_id, order)
+    end
+  end
+
+  def build_order(trade, quantity: 1, order_instruction: :entry)
     OrderFactory.build(
       trade,
       quantity: quantity,
-      position_type: position_type,
+      order_instruction: order_instruction,
       account_number: ENV["SCHWAB_ACCOUNT_NUMBER"]
     )
   end
