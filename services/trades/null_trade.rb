@@ -1,6 +1,20 @@
-require_relative 'trade'
+class NullTrade
+  def symbol
+    nil
+  end
 
-class NullTrade < Trade
+  def expiration_date
+    nil
+  end
+
+  def call_spread
+    nil
+  end
+
+  def put_spread
+    nil
+  end
+
   def credit_debit
     nil
   end
