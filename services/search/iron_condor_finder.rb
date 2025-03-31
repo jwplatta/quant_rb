@@ -1,5 +1,6 @@
 require_relative "../../mixins/schwab/schwab"
 require_relative "../trades/iron_condor"
+require_relative "../trades/null_trade"
 require_relative "call_spread_finder"
 require_relative "put_spread_finder"
 
@@ -49,7 +50,7 @@ class IronCondorFinder
         expiration_date: end_date
       )
     else
-      nil
+      NullTrade.new
     end
   end
 
