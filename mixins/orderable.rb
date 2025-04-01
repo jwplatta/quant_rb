@@ -7,6 +7,7 @@ module Orderable
 
   def initialize_orderable
     @filled_order = nil
+    @order = nil
     @transactions = []
   end
 
@@ -105,6 +106,9 @@ module Orderable
         @order_id = order.order_id
         @order_status = order.status
         @order = order
+      else
+        @order_id = nil
+        @order_status = "REJECTED"
       end
     end
   end
