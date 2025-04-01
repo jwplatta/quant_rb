@@ -38,7 +38,7 @@ class MarketPoller
       queue.push(
         TradeEvent.new(
           action.downcase.to_sym,
-          { trade: trade, kwargs: kwargs }
+          { trade: trade }
         )
       )
     else
