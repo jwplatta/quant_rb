@@ -51,6 +51,14 @@ class BotBase
     trade_finder.search
   end
 
+  def trade_file
+    raise NotImplementedError, "Subclasses must implement a trade_file method"
+  end
+
+  def order_history_file
+    raise NotImplementedError, "Subclasses must implement an order_history_file method"
+  end
+
   def read_trade
     file_mutex.synchronize do
       begin
@@ -78,10 +86,13 @@ class BotBase
       File.open(trade_file, "w") do |file|
         file.write(trade.to_json)
       end
+    end
+  end
 
-      File.open(order_history_file, "w") do |file|
-        file.write(trade.order_history_to_h.to_json)
-      end
+  def delete_trade
+    file_mutex.synchronize do
+      File.delete(trade_file) if File.exist?(trade_file)
+      File.delete(order_history_file) if File.exist?(order_history_file)
     end
   end
 end
