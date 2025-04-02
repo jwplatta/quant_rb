@@ -33,11 +33,10 @@ class MarketPoller
     if trade.nil?
       queue.push(TradeEvent.new(:find_new_trade))
     elsif trade.filled?
-      trade.check_market
-      action, kwargs = bot.determine_action(trade)
+      action = bot.determine_action(trade)
       queue.push(
         TradeEvent.new(
-          action.downcase.to_sym,
+          action,
           { trade: trade }
         )
       )
