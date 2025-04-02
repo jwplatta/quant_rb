@@ -44,8 +44,8 @@ class EventHandler
       handle_exit_loss(event.payload[:trade])
     when :exit_profit
       handle_exit_profit(event.payload[:trade])
-    when :adjust
-      handle_adjustment(event.payload[:trade], event.payload[:kwargs])
+    # when :adjust
+    #   handle_adjustment(event.payload[:trade])
     when :hold
       handle_hold(event.payload[:trade])
     when :error
@@ -110,7 +110,7 @@ class EventHandler
     end
   end
 
-  def handle_adjustment(trade, kwargs)
+  def handle_adjustment(trade)
     puts "Trade tested (risk status: #{trade.risk_status})"
     puts "Tested side delta: #{trade.delta}"
 
@@ -119,10 +119,13 @@ class EventHandler
     if adjusted_trade.nil?
       puts "Unable to adjust trade, continuing to monitor"
     else
-      # Close existing trade
-      trade.close
+      until trade.filled?
+        puts "Waiting for trade to fill..."
+        sleep(10)
+        trade.check_order_status
+        trade.check_market
+      end
 
-      # Enter new adjusted trade
       adjusted_trade.preview(order_instruction: :entry)
       if adjusted_trade.order_status == "ACCEPTED"
         adjusted_trade.send(order_instruction: :entry)
@@ -130,82 +133,25 @@ class EventHandler
         puts "Adjusted trade placed"
 
         # Log the new trade details
-        puts "New iron condor:"
         puts "Call spread: #{adjusted_trade.call_spread.short_leg.strike}/#{adjusted_trade.call_spread.long_leg.strike}"
         puts "Put spread: #{adjusted_trade.put_spread.short_leg.strike}/#{adjusted_trade.put_spread.long_leg.strike}"
         puts "Credit: #{adjusted_trade.credit_debit}"
       else
         puts "Adjusted trade not accepted"
         puts adjusted_trade.order_rejects
-        bot.save_trade(trade) # Keep original trade
+        bot.save_trade(trade)
       end
     end
   end
 
+  def handle_close_trade(trade)
+    trade.preview(order_instruction: :exit)
 
-  def handle_adjust_put(trade)
-    puts "Put side is tested (risk status: #{trade.put_spread.risk_status})"
-    puts "Put side delta: #{trade.put_spread.delta}"
-    puts "Call side is untested (risk status: #{trade.call_spread.risk_status})"
-
-    adjusted_trade = bot.adjust_iron_condor(trade, "PUT_SPREAD")
-
-    if adjusted_trade.nil?
-      puts "Unable to adjust trade, continuing to monitor"
-    else
-      # Close existing trade
+    if trade.order_status == "ACCEPTED"
       trade.close
-
-      # Enter new adjusted trade
-      adjusted_trade.preview(order_instruction: :entry)
-      if adjusted_trade.order_status == "ACCEPTED"
-        adjusted_trade.send(order_instruction: :entry)
-        bot.save_trade(adjusted_trade)
-        puts "Adjusted trade placed"
-
-        # Log the new trade details
-        puts "New iron condor:"
-        puts "Call spread: #{adjusted_trade.call_spread.short_leg.strike}/#{adjusted_trade.call_spread.long_leg.strike}"
-        puts "Put spread: #{adjusted_trade.put_spread.short_leg.strike}/#{adjusted_trade.put_spread.long_leg.strike}"
-        puts "Credit: #{adjusted_trade.credit_debit}"
-      else
-        puts "Adjusted trade not accepted"
-        puts adjusted_trade.order_rejects
-        bot.save_trade(trade) # Keep original trade
-      end
-    end
-  end
-
-  def handle_adjust_call(trade)
-    puts "Call side is tested (risk status: #{trade.call_spread.risk_status})"
-    puts "Call side delta: #{trade.call_spread.delta}"
-    puts "Put side is untested (risk status: #{trade.put_spread.risk_status})"
-
-    adjusted_trade = bot.adjust_iron_condor(trade, "CALL_SPREAD")
-
-    if adjusted_trade.nil?
-      puts "Unable to adjust trade, continuing to monitor"
     else
-      # Close existing trade
-      trade.close
-
-      # Enter new adjusted trade
-      adjusted_trade.preview(order_instruction: :entry)
-      if adjusted_trade.order_status == "ACCEPTED"
-        adjusted_trade.send(order_instruction: :entry)
-        bot.save_trade(adjusted_trade)
-        puts "Adjusted trade placed"
-
-        # Log the new trade details
-        puts "New iron condor:"
-        puts "Call spread: #{adjusted_trade.call_spread.short_leg.strike}/#{adjusted_trade.call_spread.long_leg.strike}"
-        puts "Put spread: #{adjusted_trade.put_spread.short_leg.strike}/#{adjusted_trade.put_spread.long_leg.strike}"
-        puts "Credit: #{adjusted_trade.credit_debit}"
-      else
-        puts "Adjusted trade not accepted"
-        puts adjusted_trade.order_rejects
-        bot.save_trade(trade) # Keep original trade
-      end
+      puts trade.order_rejects
+      # TODO: need add a new event the queue to fix the trade and resend
     end
   end
 
