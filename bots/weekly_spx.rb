@@ -71,18 +71,20 @@ class WeeklySPX < BotBase
   end
 
   def determine_action(trade)
+    trade.check_market
     progress = trade.progress || 0
 
     if progress <= loss_threshold
-      "EXIT_LOSS", nil
+      :exit_loss
     elsif progress >= profit_threshold
-      "EXIT_PROFIT", nil
-    elsif trade.call_spread.risk_status == "RED"
-      "ADJUST", { tested_side: "CALL_SPREAD" }
-    elsif trade.put_spread.risk_status == "RED"
-      "ADJUST", { tested_side: "PUT_SPREAD" }
+      :exit_profit
+    # TODO:
+    # elsif trade.call_spread.risk_status == "RED"
+    #   "ADJUST", { tested_side: "CALL_SPREAD" }
+    # elsif trade.put_spread.risk_status == "RED"
+    #   "ADJUST", { tested_side: "PUT_SPREAD" }
     else
-      "HOLD", nil
+      :hold
     end
   end
 
@@ -93,15 +95,18 @@ class WeeklySPX < BotBase
     difference > 0.05
   end
 
-  def find_adjustment(trade, tested_side)
-    expiration_date = trade.expiration_date
+  def find_adjustment(trade)
+    trade.check_market
 
-    # Determine which side is tested and which is untested
-    tested_is_call = (tested_side == "CALL_SPREAD")
+    tested_is_call, tested_delta = if trade.call_risk_status == "RED"
+      [true, trade.call_spread.delta]
+    else
+      [false, trade.put_spread.delta]
+    end
 
     # Start with default parameters but allowing for more aggressive delta on the untested side
-    tested_delta = short_delta
-    untested_delta = short_delta * 1.5  # More aggressive on the untested side
+    expiration_date = trade.expiration_date
+    untested_delta = short_delta * 1.2  # More aggressive on the untested side
     current_credit = min_credit * 0.8   # Allow for slightly less credit initially
 
     puts "Searching for new iron condor with tested side delta <= #{tested_delta} and untested side delta <= #{untested_delta}"
