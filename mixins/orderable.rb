@@ -8,7 +8,7 @@ module Orderable
   def initialize_orderable
     @filled_order = nil
     @order = nil
-    @transactions = []
+    @transactions = nil
   end
 
   def order_id=(id)
@@ -49,6 +49,15 @@ module Orderable
 
   def filled_open_commission
     @filled_order&.respond_to?(:commission) ? @filled_order.commission : nil
+  end
+
+  def filled_order_transactions
+    @transactions ||= transactions(
+      start_date: filled_order_date,
+      transaction_types: ["TRADE"]
+    ).select do |t|
+      t.order_id == filled_order_id
+    end
   end
 
   def filled?
