@@ -91,8 +91,7 @@ class WeeklySPX < BotBase
   def market_conditions_changed?(trade)
     curr_credit_debit = trade.credit_debit
     trade.check_market
-    difference = (trade.credit_debit - curr_credit_debit).abs
-    difference > 0.05
+    trade.credit_debit != curr_credit_debit
   end
 
   def find_adjustment(trade)
