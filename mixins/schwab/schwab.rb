@@ -98,15 +98,15 @@ module Schwab
     kwargs[:transaction_types] = transaction_types if transaction_types
     kwargs[:symbol] = symbol if symbol
 
-    client.get_transactions(account_hash, kwargs).then do |resp|
+    client.get_transactions(account_hash, **kwargs).then do |resp|
       JSON.parse(resp.body, symbolize_names: true)
     end.then do |transactions|
       transactions.map { |t| DataObjects::Transaction.build(t) }
     end
   end
 
-  def transaction(order_id: nil)
-    client.get_transaction(account_hash, order_id).then do |resp|
+  def transaction(activity_id: nil)
+    client.get_transaction(account_hash, activity_id).then do |resp|
       JSON.parse(resp.body, symbolize_names: true)
     end.then do |data|
       DataObjects::Transaction.build(data)
