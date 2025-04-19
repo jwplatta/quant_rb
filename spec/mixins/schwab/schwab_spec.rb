@@ -137,7 +137,7 @@ RSpec.describe Schwab do
     it 'fetches and returns transactions' do
       # Allow specific method call with empty hash
       expect(mock_client).to receive(:get_transactions)
-        .with('ABC123XYZ', {})
+        .with('ABC123XYZ')
         .and_return(transactions_response)
 
       transactions = schwab_instance.transactions
@@ -146,7 +146,7 @@ RSpec.describe Schwab do
       expect(transactions.first).to be_an_instance_of(DataObjects::Transaction)
       expect(transactions.first.type).to eq("TRADE")
       expect(transactions.first.order_id).to eq("1002613435352")
-      
+
       # Verify the transfer items
       expect(transactions.first.transfer_items).to be_an_instance_of(Array)
       expect(transactions.first.transfer_items.first.instrument.symbol).to eq("MRVL  250321C00155000")
@@ -174,10 +174,10 @@ RSpec.describe Schwab do
 
       expect(transactions).to be_an_instance_of(Array)
       expect(transactions.first).to be_an_instance_of(DataObjects::Transaction)
-      
+
       # Verify that transfer items are processed correctly
       expect(transactions.first.transfer_items.size).to be > 0
-      
+
       # Check if fees are extracted correctly
       fee_items = transactions.first.transfer_items.select { |item| item.fee_type }
       expect(fee_items).not_to be_empty
