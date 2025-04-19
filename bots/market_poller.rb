@@ -47,7 +47,7 @@ class MarketPoller
         queue.push(TradeEvent.new(:order_filled, { trade: trade }))
       elsif trade.failed?
         queue.push(TradeEvent.new(:order_failed, { trade: trade }))
-      elsif trade.working? && bot.market_conditions_changed? trade
+      elsif trade.working? && bot.market_conditions_changed?(trade)
         queue.push(TradeEvent.new(:market_changed, { trade: trade }))
       end
     end
