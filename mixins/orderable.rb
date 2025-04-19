@@ -8,7 +8,7 @@ module Orderable
   def initialize_orderable
     @filled_order = nil
     @order = nil
-    @transactions = nil
+    @transactions = []
   end
 
   def order_id=(id)
@@ -52,7 +52,7 @@ module Orderable
   end
 
   def filled_order_transactions
-    @transactions ||= transactions(
+    @transactions = transactions(
       start_date: filled_order_date,
       transaction_types: ["TRADE"]
     ).select do |t|
