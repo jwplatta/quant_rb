@@ -209,5 +209,61 @@ module DataObjects
       @market_percent_change = data.dig(:regular, :regularMarketPercentChange)
       @market_trade_time = data.dig(:regular, :regularMarketTradeTime)
     end
+
+    def to_h
+      {
+        symbol: @symbol,
+        asset_main_type: @asset_main_type,
+        asset_sub_type: @asset_sub_type,
+        quote_type: @quote_type,
+        realtime: @realtime,
+        ssid: @ssid,
+        extended_ask_price: @extended_ask_price,
+        extended_ask_size: @extended_ask_size,
+        extended_bid_price: @extended_bid_price,
+        extended_bid_size: @extended_bid_size,
+        extended_last_price: @extended_last_price,
+        extended_last_size: @extended_last_size,
+        extended_mark: @extended_mark,
+        extended_quote_time: @extended_quote_time,
+        extended_total_volume: @extended_total_volume,
+        extended_trade_time: @extended_trade_time,
+        avg_10_days_volume: @avg_10_days_volume,
+        avg_1_year_volume: @avg_1_year_volume,
+        declaration_date: @declaration_date,
+        div_amount: @div_amount,
+        div_ex_date: @div_ex_date,
+        div_freq: @div_freq,
+        div_pay_amount: @div_pay_amount,
+        div_pay_date: @div_pay_date,
+        div_yield: @div_yield,
+        eps: @eps,
+        fund_leverage_factor: @fund_leverage_factor,
+        last_earnings_date: @last_earnings_date,
+        next_div_ex_date: @next_div_ex_date,
+        next_div_pay_date: @next_div_pay_date,
+        pe_ratio: @pe_ratio,
+        quote_52_week_high: @quote_52_week_high,
+        quote_52_week_low: @quote_52_week_low,
+        ask_mic_id: @ask_mic_id,
+        ask_price: @ask_price,
+        ask_size: @ask_size,
+        ask_time: @ask_time,
+        bid_mic_id: @bid_mic_id,
+        bid_price: @bid_price,
+        bid_size: @bid_size,
+        bid_time: @bid_time,
+        close_price: @close_price,
+        high_price: @high_price,
+        last_mic_id: @last_mic_id,
+        last_price: @last_price,
+        last_size: @last_size,
+        low_price: @low_price,
+      }
+    end
+
+    def to_s
+      "<EquityQuote symbol: #{@symbol}, last_price: #{@last_price}, mark: #{@mark}, market_last_price: #{@market_last_price}, extended_bid_price: #{@extended_bid_price}>"
+    end
   end
 end
