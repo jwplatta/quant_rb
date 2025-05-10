@@ -1,10 +1,12 @@
+# frozen_string_literal: true
+
 total_earned = 0
 
 1000.times do
   expected_reward = 2
   expected_risk = 1
 
-  result = [0,1].sample
+  result = [0, 1].sample
 
   if result == 1
     total_earned += expected_reward

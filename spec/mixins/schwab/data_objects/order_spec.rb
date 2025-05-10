@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require 'rspec'
 require 'date'
 require_relative '../../../../mixins/schwab/data_objects/order'
@@ -137,8 +139,8 @@ end
 RSpec.describe DataObjects::OrderActivity do
   let(:raw_data) do
     JSON.parse(File.read('spec/fixtures/orders.json'), symbolize_names: true)
-      .flat_map { |order| order[:orderActivityCollection] || [] }
-      .reject { |activity| activity.nil? }
+        .flat_map { |order| order[:orderActivityCollection] || [] }
+        .reject(&:nil?)
   end
 
   describe '#to_h' do
@@ -154,9 +156,7 @@ RSpec.describe DataObjects::OrderActivity do
         expect(activity_hash[:orderRemainingQuantity]).to eq(data[:orderRemainingQuantity])
 
         # Check execution legs
-        if data[:executionLegs]
-          expect(activity_hash[:executionLegs].length).to eq(data[:executionLegs].length)
-        end
+        expect(activity_hash[:executionLegs].length).to eq(data[:executionLegs].length) if data[:executionLegs]
       end
     end
   end
@@ -165,9 +165,9 @@ end
 RSpec.describe DataObjects::ExecutionLeg do
   let(:raw_data) do
     JSON.parse(File.read('spec/fixtures/orders.json'), symbolize_names: true)
-      .flat_map { |order| order[:orderActivityCollection] || [] }
-      .flat_map { |activity| activity[:executionLegs] || [] }
-      .reject { |leg| leg.nil? }
+        .flat_map { |order| order[:orderActivityCollection] || [] }
+        .flat_map { |activity| activity[:executionLegs] || [] }
+        .reject(&:nil?)
   end
 
   describe '#to_h' do

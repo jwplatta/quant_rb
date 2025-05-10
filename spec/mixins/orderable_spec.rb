@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require 'rspec'
 require_relative '../../mixins/orderable'
 require_relative '../../mixins/schwab/data_objects/order'
@@ -28,68 +30,67 @@ RSpec.describe Orderable do
     # Stub Schwab methods
     allow(orderable_instance).to receive(:build_and_preview_order).and_return(
       instance_double('OrderPreview',
-        accepted?: true,
-        fees: 1.14,
-        commission: 1.30,
-        order_strategy: instance_double('OrderStrategy', status: 'WORKING'),
-        order_validation_result: instance_double('ValidationResult', rejects: [])
-      )
+                      accepted?: true,
+                      fees: 1.14,
+                      commission: 1.30,
+                      order_strategy: instance_double('OrderStrategy', status: 'WORKING'),
+                      order_validation_result: instance_double('ValidationResult', rejects: []))
     )
 
     working_order = DataObjects::Order.build({
-      orderId: '123456',
-      status: 'WORKING',
-      price: 1.25,
-      enteredTime: test_time.iso8601,
-      duration: 'DAY',
-      orderType: 'LIMIT',
-      complexOrderStrategyType: 'NONE',
-      quantity: 1,
-      filledQuantity: 0,
-      remainingQuantity: 1,
-      orderStrategyType: 'SINGLE',
-      closeTime: nil,
-      orderLegCollection: [],
-      orderActivityCollection: []
-    })
+                                               orderId: '123456',
+                                               status: 'WORKING',
+                                               price: 1.25,
+                                               enteredTime: test_time.iso8601,
+                                               duration: 'DAY',
+                                               orderType: 'LIMIT',
+                                               complexOrderStrategyType: 'NONE',
+                                               quantity: 1,
+                                               filledQuantity: 0,
+                                               remainingQuantity: 1,
+                                               orderStrategyType: 'SINGLE',
+                                               closeTime: nil,
+                                               orderLegCollection: [],
+                                               orderActivityCollection: []
+                                             })
 
     replacement_order = DataObjects::Order.build({
-      orderId: '789012',
-      status: 'WORKING',
-      price: 1.35,
-      enteredTime: test_time.iso8601,
-      fees: 1.14,
-      commission: 1.30,
-      duration: 'DAY',
-      orderType: 'LIMIT',
-      complexOrderStrategyType: 'NONE',
-      quantity: 1,
-      filledQuantity: 0,
-      remainingQuantity: 1,
-      orderStrategyType: 'SINGLE',
-      closeTime: nil,
-      orderLegCollection: [],
-      orderActivityCollection: []
-    })
+                                                   orderId: '789012',
+                                                   status: 'WORKING',
+                                                   price: 1.35,
+                                                   enteredTime: test_time.iso8601,
+                                                   fees: 1.14,
+                                                   commission: 1.30,
+                                                   duration: 'DAY',
+                                                   orderType: 'LIMIT',
+                                                   complexOrderStrategyType: 'NONE',
+                                                   quantity: 1,
+                                                   filledQuantity: 0,
+                                                   remainingQuantity: 1,
+                                                   orderStrategyType: 'SINGLE',
+                                                   closeTime: nil,
+                                                   orderLegCollection: [],
+                                                   orderActivityCollection: []
+                                                 })
 
     filled_order = DataObjects::Order.build({
-      orderId: '123456',
-      status: 'FILLED',
-      price: 1.25,
-      enteredTime: test_time.iso8601,
-      fees: 1.14,
-      commission: 1.30,
-      duration: 'DAY',
-      orderType: 'LIMIT',
-      complexOrderStrategyType: 'NONE',
-      quantity: 1,
-      filledQuantity: 1,
-      remainingQuantity: 0,
-      orderStrategyType: 'SINGLE',
-      closeTime: nil,
-      orderLegCollection: [],
-      orderActivityCollection: []
-    })
+                                              orderId: '123456',
+                                              status: 'FILLED',
+                                              price: 1.25,
+                                              enteredTime: test_time.iso8601,
+                                              fees: 1.14,
+                                              commission: 1.30,
+                                              duration: 'DAY',
+                                              orderType: 'LIMIT',
+                                              complexOrderStrategyType: 'NONE',
+                                              quantity: 1,
+                                              filledQuantity: 1,
+                                              remainingQuantity: 0,
+                                              orderStrategyType: 'SINGLE',
+                                              closeTime: nil,
+                                              orderLegCollection: [],
+                                              orderActivityCollection: []
+                                            })
 
     allow(orderable_instance).to receive(:build_and_place_order).and_return(working_order)
     allow(orderable_instance).to receive(:build_and_replace_order).and_return(replacement_order)
@@ -167,21 +168,21 @@ RSpec.describe Orderable do
 
       # Override the get_order stub for this test
       rejected_order = DataObjects::Order.build({
-        orderId: '123456',
-        status: 'REJECTED',
-        price: nil,
-        enteredTime: nil,
-        duration: 'DAY',
-        orderType: 'LIMIT',
-        complexOrderStrategyType: 'NONE',
-        quantity: 1,
-        filledQuantity: 0,
-        remainingQuantity: 1,
-        orderStrategyType: 'SINGLE',
-        closeTime: nil,
-        orderLegCollection: [],
-        orderActivityCollection: []
-      })
+                                                  orderId: '123456',
+                                                  status: 'REJECTED',
+                                                  price: nil,
+                                                  enteredTime: nil,
+                                                  duration: 'DAY',
+                                                  orderType: 'LIMIT',
+                                                  complexOrderStrategyType: 'NONE',
+                                                  quantity: 1,
+                                                  filledQuantity: 0,
+                                                  remainingQuantity: 1,
+                                                  orderStrategyType: 'SINGLE',
+                                                  closeTime: nil,
+                                                  orderLegCollection: [],
+                                                  orderActivityCollection: []
+                                                })
       allow(orderable_instance).to receive(:get_order).and_return(rejected_order)
 
       # Check status
@@ -225,11 +226,11 @@ RSpec.describe Orderable do
 
     it 'returns true when filled_order status is FILLED' do
       filled_order = DataObjects::Order.build({
-        orderId: '123456',
-        status: 'FILLED',
-        price: 1.25,
-        enteredTime: DateTime.now.iso8601
-      })
+                                                orderId: '123456',
+                                                status: 'FILLED',
+                                                price: 1.25,
+                                                enteredTime: DateTime.now.iso8601
+                                              })
       orderable_instance.instance_variable_set(:@filled_order, filled_order)
       expect(orderable_instance.filled?).to be true
     end

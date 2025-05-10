@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require 'rspec'
 require 'pry'
 require 'json'
@@ -67,8 +69,7 @@ RSpec.describe Schwab do
   describe '#option_chain' do
     let(:option_chain_response) do
       instance_double('Response',
-        body: File.read('spec/fixtures/option_chains/ACME_calls.json')
-      )
+                      body: File.read('spec/fixtures/option_chains/ACME_calls.json'))
     end
 
     it 'fetches and returns an option chain for a symbol' do
@@ -77,10 +78,9 @@ RSpec.describe Schwab do
         .and_return(option_chain_response)
 
       chain = schwab_instance.option_chain('ACME',
-        contract_type: 'CALL',
-        strike_range: 'OTM',
-        to_date: Date.today + 30
-      )
+                                           contract_type: 'CALL',
+                                           strike_range: 'OTM',
+                                           to_date: Date.today + 30)
 
       expect(chain).to be_an_instance_of(DataObjects::OptionChain)
     end
@@ -91,10 +91,9 @@ RSpec.describe Schwab do
         .and_return(option_chain_response)
 
       chain = schwab_instance.option_chain('ACME',
-        contract_type: 'CALL',
-        strike_range: 'OTM',
-        days_to_expiration: 30
-      )
+                                           contract_type: 'CALL',
+                                           strike_range: 'OTM',
+                                           days_to_expiration: 30)
 
       expect(chain).to be_an_instance_of(DataObjects::OptionChain)
     end
@@ -103,8 +102,7 @@ RSpec.describe Schwab do
   describe '#account' do
     let(:account_response) do
       instance_double('Response',
-        body: File.read('spec/fixtures/account.json')
-      )
+                      body: File.read('spec/fixtures/account.json'))
     end
 
     it 'fetches and returns account information' do
@@ -130,8 +128,7 @@ RSpec.describe Schwab do
   describe '#transactions' do
     let(:transactions_response) do
       instance_double('Response',
-        body: File.read('spec/fixtures/transactions.json')
-      )
+                      body: File.read('spec/fixtures/transactions.json'))
     end
 
     it 'fetches and returns transactions' do
@@ -144,12 +141,12 @@ RSpec.describe Schwab do
       expect(transactions).to be_an_instance_of(Array)
       expect(transactions.size).to eq(2)
       expect(transactions.first).to be_an_instance_of(DataObjects::Transaction)
-      expect(transactions.first.type).to eq("TRADE")
-      expect(transactions.first.order_id).to eq("1002613435352")
+      expect(transactions.first.type).to eq('TRADE')
+      expect(transactions.first.order_id).to eq('1002613435352')
 
       # Verify the transfer items
       expect(transactions.first.transfer_items).to be_an_instance_of(Array)
-      expect(transactions.first.transfer_items.first.instrument.symbol).to eq("MRVL  250321C00155000")
+      expect(transactions.first.transfer_items.first.instrument.symbol).to eq('MRVL  250321C00155000')
     end
 
     it 'accepts optional parameters' do
@@ -158,11 +155,11 @@ RSpec.describe Schwab do
 
       expect(mock_client).to receive(:get_transactions)
         .with('ABC123XYZ', {
-          start_date: start_date,
-          end_date: end_date,
-          transaction_types: 'TRADE',
-          symbol: 'MRVL'
-        })
+                start_date: start_date,
+                end_date: end_date,
+                transaction_types: 'TRADE',
+                symbol: 'MRVL'
+              })
         .and_return(transactions_response)
 
       transactions = schwab_instance.transactions(
@@ -179,7 +176,7 @@ RSpec.describe Schwab do
       expect(transactions.first.transfer_items.size).to be > 0
 
       # Check if fees are extracted correctly
-      fee_items = transactions.first.transfer_items.select { |item| item.fee_type }
+      fee_items = transactions.first.transfer_items.select(&:fee_type)
       expect(fee_items).not_to be_empty
     end
   end
@@ -187,8 +184,7 @@ RSpec.describe Schwab do
   describe '#account_orders' do
     let(:orders_response) do
       instance_double('Response',
-        body: File.read('spec/fixtures/orders.json')
-      )
+                      body: File.read('spec/fixtures/orders.json'))
     end
 
     it 'fetches and returns orders for the account' do
@@ -210,8 +206,7 @@ RSpec.describe Schwab do
   describe '#preview_order' do
     let(:preview_response) do
       instance_double('Response',
-        body: File.read('spec/fixtures/order_preview.json')
-      )
+                      body: File.read('spec/fixtures/order_preview.json'))
     end
 
     it 'previews an order and returns an order preview' do
@@ -224,16 +219,16 @@ RSpec.describe Schwab do
         orderLegs: [
           {
             instrument: {
-              symbol: "SPX  250317P04350000"
+              symbol: 'SPX  250317P04350000'
             },
-            instruction: "SELL_TO_OPEN",
+            instruction: 'SELL_TO_OPEN',
             quantity: 1
           },
           {
             instrument: {
-              symbol: "SPX  250317P04250000"
+              symbol: 'SPX  250317P04250000'
             },
-            instruction: "BUY_TO_OPEN",
+            instruction: 'BUY_TO_OPEN',
             quantity: 1
           }
         ]
@@ -259,7 +254,7 @@ RSpec.describe Schwab do
     end
 
     it 'fetches a specific order by ID' do
-      order_id = "1002613435352"
+      order_id = '1002613435352'
 
       expect(mock_client).to receive(:get_order)
         .with(order_id, 'ABC123XYZ')
@@ -267,7 +262,7 @@ RSpec.describe Schwab do
 
       order = schwab_instance.get_order(order_id)
       expect(order).to be_an_instance_of(DataObjects::Order)
-      expect(order.order_id.to_s).to eq("1002613435352")
+      expect(order.order_id.to_s).to eq('1002613435352')
     end
   end
 
@@ -277,7 +272,7 @@ RSpec.describe Schwab do
     end
 
     it 'cancels an order and returns success status' do
-      order_id = 1002613435352
+      order_id = 1_002_613_435_352
 
       expect(mock_client).to receive(:cancel_order)
         .with(order_id, 'ABC123XYZ')

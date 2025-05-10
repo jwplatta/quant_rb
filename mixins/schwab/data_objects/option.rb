@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require 'json'
 require 'date'
 
@@ -7,7 +9,7 @@ module DataObjects
       def build(underyling_symbol, data)
         DataObjects::Option.new(
           symbol: data.fetch(:symbol),
-          underlying_symbol:  underyling_symbol,
+          underlying_symbol: underyling_symbol,
           description: data.fetch(:description),
           strike: data.fetch(:strikePrice),
           put_call: data.fetch(:putCall),
@@ -57,7 +59,7 @@ module DataObjects
           high_52_week: data.fetch(:high52Week, nil),
           low_52_week: data.fetch(:low52Week, nil),
           non_standard: data.fetch(:nonStandard, nil),
-          in_the_money: data.fetch(:inTheMoney, nil),
+          in_the_money: data.fetch(:inTheMoney, nil)
         )
       end
     end
@@ -72,7 +74,7 @@ module DataObjects
       theoretical_option_value:, theoretical_volatility:, option_deliverables_list:, strike_price:,
       expiration_date:, days_to_expiration:, expiration_type:, last_trading_day:, multiplier:,
       settlement_type:, deliverable_note:, percent_change:, mark_change:, mark_percent_change:, intrinsic_value:, extrinsic_value:, option_root:, exercise_type:, high_52_week:, low_52_week:, non_standard:, in_the_money:
-   )
+    )
       @symbol = symbol
       @underlying_symbol = underlying_symbol
       @description = description
@@ -128,16 +130,16 @@ module DataObjects
     end
 
     attr_reader :symbol, :underlying_symbol, :description, :strike, :put_call,
-      :exchange_name, :bid, :ask, :last, :mark, :bid_size, :ask_size,
-      :bid_ask_size, :last_size, :high_price, :low_price, :open_price,
-      :close_price, :total_volume, :trade_time_in_long, :quote_time_in_long,
-      :net_change, :volatility, :delta, :gamma, :theta, :vega, :rho,
-      :open_interest, :time_value, :theoretical_option_value,
-      :theoretical_volatility, :option_deliverables_list, :strike_price,
-      :expiration_date, :days_to_expiration, :expiration_type, :last_trading_day,
-      :multiplier, :settlement_type, :deliverable_note, :percent_change,
-      :mark_change, :mark_percent_change, :intrinsic_value, :extrinsic_value,
-      :option_root, :exercise_type, :high_52_week, :low_52_week, :non_standard,
-      :in_the_money
+                :exchange_name, :bid, :ask, :last, :mark, :bid_size, :ask_size,
+                :bid_ask_size, :last_size, :high_price, :low_price, :open_price,
+                :close_price, :total_volume, :trade_time_in_long, :quote_time_in_long,
+                :net_change, :volatility, :delta, :gamma, :theta, :vega, :rho,
+                :open_interest, :time_value, :theoretical_option_value,
+                :theoretical_volatility, :option_deliverables_list, :strike_price,
+                :expiration_date, :days_to_expiration, :expiration_type, :last_trading_day,
+                :multiplier, :settlement_type, :deliverable_note, :percent_change,
+                :mark_change, :mark_percent_change, :intrinsic_value, :extrinsic_value,
+                :option_root, :exercise_type, :high_52_week, :low_52_week, :non_standard,
+                :in_the_money
   end
 end

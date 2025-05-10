@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require 'json'
 require 'net/http'
 require 'uri'
@@ -21,8 +23,7 @@ class CompanyFacts
   end
 end
 
-central_index_key = "CIK0001611052"
-url = "https://data.sec.gov/api/xbrl/companyfacts/#{central_index_key}.json"
+central_index_key = 'CIK0001611052'
 filename = "#{central_index_key}.json"
 
 # NOTE: This is a sample script to get company facts from the SEC API.

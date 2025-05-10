@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module DataObjects
   class QuoteFactory
     def self.build(quote_data)
@@ -7,11 +9,11 @@ module DataObjects
       data[:symbol] ||= symbol
 
       case data[:assetMainType]
-      when "OPTION"
+      when 'OPTION'
         DataObjects::OptionQuote.new(data)
-      when "INDEX"
+      when 'INDEX'
         DataObjects::IndexQuote.new(data)
-      when "EQUITY"
+      when 'EQUITY'
         DataObjects::EquityQuote.new(data)
       else
         raise "Unknown assetMainType: #{data[:assetMainType]}"
@@ -20,7 +22,8 @@ module DataObjects
   end
 
   class OptionQuote
-    attr_reader :symbol, :asset_main_type, :realtime, :ssid, :quote_52_week_high, :quote_52_week_low, :ask_price, :ask_size, :bid_price, :bid_size, :close_price, :delta, :gamma, :high_price, :ind_ask_price, :ind_bid_price, :ind_time, :implied_yield, :last_price, :last_size, :low_price, :mark, :mark_change, :mark_percent_change, :money_intrinsic_value, :net_change, :net_percent_change, :open_interest, :open_price, :time, :rho, :security_status, :theoretical_option_value, :theta, :time_value, :total_volume, :trade_time, :underlying_price, :vega, :volatility, :contract_type, :days_to_expiration, :deliverables, :description, :exchange, :exchange_name, :exercise_type, :expiration_day, :expiration_month, :expiration_type, :expiration_year, :is_penny_pilot, :last_trading_day, :multiplier, :settlement_type, :strike_price, :underlying, :underlying_asset_type
+    attr_reader :symbol, :asset_main_type, :realtime, :ssid, :quote_52_week_high, :quote_52_week_low, :ask_price,
+                :ask_size, :bid_price, :bid_size, :close_price, :delta, :gamma, :high_price, :ind_ask_price, :ind_bid_price, :ind_time, :implied_yield, :last_price, :last_size, :low_price, :mark, :mark_change, :mark_percent_change, :money_intrinsic_value, :net_change, :net_percent_change, :open_interest, :open_price, :time, :rho, :security_status, :theoretical_option_value, :theta, :time_value, :total_volume, :trade_time, :underlying_price, :vega, :volatility, :contract_type, :days_to_expiration, :deliverables, :description, :exchange, :exchange_name, :exercise_type, :expiration_day, :expiration_month, :expiration_type, :expiration_year, :is_penny_pilot, :last_trading_day, :multiplier, :settlement_type, :strike_price, :underlying, :underlying_asset_type
 
     def initialize(data)
       @symbol = data[:symbol]
@@ -85,17 +88,18 @@ module DataObjects
 
     def zone
       if quote_delta.abs > 0.3
-        "DANGER"
+        'DANGER'
       elsif quote_delta.abs > 0.15
-        "AT_RISK"
+        'AT_RISK'
       else
-        "SAFE"
+        'SAFE'
       end
     end
   end
 
   class IndexQuote
-    attr_reader :symbol, :asset_main_type, :realtime, :ssid, :avg_10_days_volume, :avg_1_year_volume, :div_amount, :div_freq, :div_pay_amount, :div_yield, :eps, :fund_leverage_factor, :pe_ratio, :quote_52_week_high, :quote_52_week_low, :close_price, :high_price, :last_price, :low_price, :net_change, :net_percent_change, :open_price, :security_status, :total_volume, :trade_time, :description, :exchange, :exchange_name
+    attr_reader :symbol, :asset_main_type, :realtime, :ssid, :avg_10_days_volume, :avg_1_year_volume, :div_amount,
+                :div_freq, :div_pay_amount, :div_yield, :eps, :fund_leverage_factor, :pe_ratio, :quote_52_week_high, :quote_52_week_low, :close_price, :high_price, :last_price, :low_price, :net_change, :net_percent_change, :open_price, :security_status, :total_volume, :trade_time, :description, :exchange, :exchange_name
 
     def initialize(data)
       @symbol = data[:symbol]
@@ -134,7 +138,8 @@ module DataObjects
   end
 
   class EquityQuote
-    attr_reader :symbol, :asset_main_type, :asset_sub_type, :quote_type, :realtime, :ssid, :extended_ask_price, :extended_ask_size, :extended_bid_price, :extended_bid_size, :extended_last_price, :extended_last_size, :extended_mark, :extended_quote_time, :extended_total_volume, :extended_trade_time, :avg_10_days_volume, :avg_1_year_volume, :declaration_date, :div_amount, :div_ex_date, :div_freq, :div_pay_amount, :div_pay_date, :div_yield, :eps, :fund_leverage_factor, :last_earnings_date, :next_div_ex_date, :next_div_pay_date, :pe_ratio, :quote_52_week_high, :quote_52_week_low, :ask_mic_id, :ask_price, :ask_size, :ask_time, :bid_mic_id, :bid_price, :bid_size, :bid_time, :close_price, :high_price, :last_mic_id, :last_price, :last_size, :low_price, :mark, :mark_change, :mark_percent_change, :net_change, :net_percent_change, :open_price, :post_market_change, :post_market_percent_change, :time, :security_status, :total_volume, :trade_time, :cusip, :description, :exchange, :exchange_name, :is_hard_to_borrow, :is_shortable, :htb_rate, :market_last_price, :market_last_size, :market_net_change, :market_percent_change, :market_trade_time
+    attr_reader :symbol, :asset_main_type, :asset_sub_type, :quote_type, :realtime, :ssid, :extended_ask_price,
+                :extended_ask_size, :extended_bid_price, :extended_bid_size, :extended_last_price, :extended_last_size, :extended_mark, :extended_quote_time, :extended_total_volume, :extended_trade_time, :avg_10_days_volume, :avg_1_year_volume, :declaration_date, :div_amount, :div_ex_date, :div_freq, :div_pay_amount, :div_pay_date, :div_yield, :eps, :fund_leverage_factor, :last_earnings_date, :next_div_ex_date, :next_div_pay_date, :pe_ratio, :quote_52_week_high, :quote_52_week_low, :ask_mic_id, :ask_price, :ask_size, :ask_time, :bid_mic_id, :bid_price, :bid_size, :bid_time, :close_price, :high_price, :last_mic_id, :last_price, :last_size, :low_price, :mark, :mark_change, :mark_percent_change, :net_change, :net_percent_change, :open_price, :post_market_change, :post_market_percent_change, :time, :security_status, :total_volume, :trade_time, :cusip, :description, :exchange, :exchange_name, :is_hard_to_borrow, :is_shortable, :htb_rate, :market_last_price, :market_last_size, :market_net_change, :market_percent_change, :market_trade_time
 
     def initialize(data)
       @symbol = data[:symbol]
@@ -258,7 +263,7 @@ module DataObjects
         last_mic_id: @last_mic_id,
         last_price: @last_price,
         last_size: @last_size,
-        low_price: @low_price,
+        low_price: @low_price
       }
     end
 

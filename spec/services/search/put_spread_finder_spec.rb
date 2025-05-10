@@ -1,18 +1,20 @@
-require "rspec"
-require "pry"
-require_relative "../../../services/search/put_spread_finder"
-require_relative "../../../mixins/schwab/data_objects/option_chain"
+# frozen_string_literal: true
+
+require 'rspec'
+require 'pry'
+require_relative '../../../services/search/put_spread_finder'
+require_relative '../../../mixins/schwab/data_objects/option_chain'
 
 RSpec.describe Services::Search::PutSpreadFinder do
   let(:acme_put_options) do
-    JSON.parse(File.read("spec/fixtures/option_chains/ACME_puts.json"), symbolize_names: true).then do |data|
+    JSON.parse(File.read('spec/fixtures/option_chains/ACME_puts.json'), symbolize_names: true).then do |data|
       DataObjects::OptionChain.build(data)
     end
   end
-  describe "#search" do
-    it "returns a list of put spreads" do
+  describe '#search' do
+    it 'returns a list of put spreads' do
       finder = Services::Search::PutSpreadFinder.new(
-        symbol: "ACME",
+        symbol: 'ACME',
         opt_chain: acme_put_options,
         end_date: Date.new(2025, 1, 17)
       )

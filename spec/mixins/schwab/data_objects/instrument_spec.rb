@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require 'rspec'
 require 'json'
 require_relative '../../../../mixins/schwab/data_objects/instrument'
@@ -25,7 +27,7 @@ RSpec.describe DataObjects::Instrument do
       expect(instrument.put_call).to eq('PUT')
       expect(instrument.underlying_symbol).to eq('TSLA')
       expect(instrument.status).to eq('NORMAL')
-      expect(instrument.instrument_id).to eq(221175400)
+      expect(instrument.instrument_id).to eq(221_175_400)
       expect(instrument.closing_price).to eq(6.45)
       expect(instrument.option?).to be true
 
@@ -46,7 +48,7 @@ RSpec.describe DataObjects::Instrument do
       expect(instrument.cusip).to eq('88160R101')
       expect(instrument.net_change).to eq(2.56)
       expect(instrument.status).to eq('NORMAL')
-      expect(instrument.instrument_id).to eq(11181301)
+      expect(instrument.instrument_id).to eq(11_181_301)
       expect(instrument.closing_price).to eq(248.33)
       expect(instrument.option?).to be false
       expect(instrument.option_deliverables).to be_empty
@@ -140,7 +142,7 @@ RSpec.describe DataObjects::Asset do
       assetType: 'FUTURE',
       status: 'ACTIVE',
       symbol: 'ESZ3',
-      instrumentId: 12345678,
+      instrumentId: 12_345_678,
       closingPrice: 4350.25,
       type: 'FUTURE',
       description: 'E-mini S&P 500 Future December 2023',
@@ -160,7 +162,7 @@ RSpec.describe DataObjects::Asset do
       expect(asset.asset_type).to eq('FUTURE')
       expect(asset.status).to eq('ACTIVE')
       expect(asset.symbol).to eq('ESZ3')
-      expect(asset.instrument_id).to eq(12345678)
+      expect(asset.instrument_id).to eq(12_345_678)
       expect(asset.closing_price).to eq(4350.25)
       expect(asset.type).to eq('FUTURE')
       expect(asset.description).to eq('E-mini S&P 500 Future December 2023')

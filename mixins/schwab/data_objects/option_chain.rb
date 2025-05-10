@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require 'json'
 require 'date'
 require_relative 'option'
@@ -42,9 +44,9 @@ module DataObjects
         call_dates = []
         call_opts = []
         data.fetch(:callExpDateMap).each do |exp_date, options|
-          call_dates << Date.strptime(exp_date.to_s.split(":").first, "%Y-%m-%d")
+          call_dates << Date.strptime(exp_date.to_s.split(':').first, '%Y-%m-%d')
 
-          options.each do |_, option_data|
+          options.each_value do |option_data|
             call_opts << DataObjects::Option.build(underlying_symbol, option_data.first)
           end
         end
@@ -52,9 +54,9 @@ module DataObjects
         put_dates = []
         put_opts = []
         data.fetch(:putExpDateMap).each do |exp_date, options|
-          put_dates << Date.strptime(exp_date.to_s.split(":").first, "%Y-%m-%d")
+          put_dates << Date.strptime(exp_date.to_s.split(':').first, '%Y-%m-%d')
 
-          options.each do |_, option_data|
+          options.each_value do |option_data|
             put_opts << DataObjects::Option.build(underlying_symbol, option_data.first)
           end
         end
@@ -103,7 +105,8 @@ module DataObjects
       @put_opts = put_opts
     end
 
-    attr_reader :symbol, :status, :strategy, :interval, :is_delayed, :is_index, :interest_rate, :underlying_price, :volatility, :days_to_expiration, :asset_main_type, :asset_sub_type, :is_chain_truncated, :call_dates, :call_opts, :put_dates, :put_opts
+    attr_reader :symbol, :status, :strategy, :interval, :is_delayed, :is_index, :interest_rate, :underlying_price,
+                :volatility, :days_to_expiration, :asset_main_type, :asset_sub_type, :is_chain_truncated, :call_dates, :call_opts, :put_dates, :put_opts
 
     def filter(put_call: nil, filters: [])
       options = filter_by_type(put_call)
@@ -125,11 +128,13 @@ module DataObjects
       end
     end
 
-    def to_a(date = nil)
+    def to_a(_date = nil)
       call_opts.map do |copt|
-        [copt.expiration_date.strftime("%Y-%m-%d"), copt.put_call, copt.strike, copt.delta, copt.bid, copt.ask, copt.mark]
+        [copt.expiration_date.strftime('%Y-%m-%d'), copt.put_call, copt.strike, copt.delta, copt.bid, copt.ask,
+         copt.mark]
       end + put_opts.map do |popt|
-        [popt.expiration_date.strftime("%Y-%m-%d"), popt.put_call, popt.strike, popt.delta, popt.bid, popt.ask, popt.mark]
+        [popt.expiration_date.strftime('%Y-%m-%d'), popt.put_call, popt.strike, popt.delta, popt.bid, popt.ask,
+         popt.mark]
       end
     end
 
@@ -152,20 +157,20 @@ module DataObjects
           value: args.last
         )
       else
-        raise ArgumentError, "Invalid filter arguments"
+        raise ArgumentError, 'Invalid filter arguments'
       end
     end
 
     def validate_attr(attr)
-      unless %i[delta open_interest strike mark expiration_date].include?(attr)
-        raise ArgumentError, "Invalid filter attribute"
-      end
+      return if %i[delta open_interest strike mark expiration_date].include?(attr)
+
+      raise ArgumentError, 'Invalid filter attribute'
     end
 
     def validate_comparison(comparison_op)
-      unless %w[< > <= >= == !=].include?(comparison_op)
-        raise ArgumentError, "Invalid comparison operator"
-      end
+      return if %w[< > <= >= == !=].include?(comparison_op)
+
+      raise ArgumentError, 'Invalid comparison operator'
     end
   end
 end

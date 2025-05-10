@@ -1,13 +1,15 @@
-require "schwab_rb"
-require "dotenv"
-require "pry"
-require_relative "data_objects/quote"
-require_relative "data_objects/option_chain"
-require_relative "data_objects/account"
-require_relative "data_objects/transaction"
-require_relative "data_objects/order"
-require_relative "data_objects/order_preview"
-require_relative "orders/order_factory"
+# frozen_string_literal: true
+
+require 'schwab_rb'
+require 'dotenv'
+require 'pry'
+require_relative 'data_objects/quote'
+require_relative 'data_objects/option_chain'
+require_relative 'data_objects/account'
+require_relative 'data_objects/transaction'
+require_relative 'data_objects/order'
+require_relative 'data_objects/order_preview'
+require_relative 'orders/order_factory'
 
 Dotenv.load
 
@@ -15,11 +17,11 @@ module Schwab
   def client
     return @client if @client
 
-    token_path = ENV["TOKEN_PATH"]
+    token_path = ENV['TOKEN_PATH']
     @client = SchwabRb::Auth.init_client_easy(
-      ENV["SCHWAB_API_KEY"],
-      ENV["SCHWAB_APP_SECRET"],
-      ENV["APP_CALLBACK_URL"],
+      ENV['SCHWAB_API_KEY'],
+      ENV['SCHWAB_APP_SECRET'],
+      ENV['APP_CALLBACK_URL'],
       token_path
     )
   end
@@ -33,11 +35,11 @@ module Schwab
       parsed_data = JSON.parse(resp.body, symbolize_names: true)
 
       # The QuoteFactory expects data in the format: { symbol => quote_data }
-      if parsed_data.is_a?(Hash) && parsed_data.size == 1 && parsed_data.values.first.is_a?(Hash)
-        DataObjects::QuoteFactory.build(parsed_data)
-      else
+      unless parsed_data.is_a?(Hash) && parsed_data.size == 1 && parsed_data.values.first.is_a?(Hash)
         raise "Unexpected quote data format: #{parsed_data.inspect}"
       end
+
+      DataObjects::QuoteFactory.build(parsed_data)
     end
   end
 
@@ -56,8 +58,8 @@ module Schwab
 
   def option_chain(
     symbol,
-    contract_type: "ALL",
-    strike_range: "OTM",
+    contract_type: 'ALL',
+    strike_range: 'OTM',
     from_date: nil,
     to_date: nil,
     days_to_expiration: nil
@@ -157,13 +159,13 @@ module Schwab
       trade,
       quantity: quantity,
       order_instruction: order_instruction,
-      account_number: ENV["SCHWAB_ACCOUNT_NUMBER"]
+      account_number: ENV['SCHWAB_ACCOUNT_NUMBER']
     )
   end
 
   def preview_order(order)
     client.preview_order(account_hash, order).then do |resp|
-      File.open("order_preview.json", "w") { |f| f.write(resp.body) }
+      File.open('order_preview.json', 'w') { |f| f.write(resp.body) }
 
       JSON.parse(resp.body, symbolize_names: true)
     end.then do |data|
@@ -195,18 +197,14 @@ module Schwab
   def place_order(order)
     start = DateTime.now
     client.place_order(account_hash, order).then do |resp|
-      if resp.status == 201
-        get_latest_order(from_entered_datetime: start)
-      end
+      get_latest_order(from_entered_datetime: start) if resp.status == 201
     end
   end
 
   def replace_order(order_id, order)
     start = DateTime.now
     client.replace_order(account_hash, order_id, order).then do |resp|
-      if resp.status == 201
-        get_latest_order(from_entered_datetime: start)
-      end
+      get_latest_order(from_entered_datetime: start) if resp.status == 201
     end
   end
 

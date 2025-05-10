@@ -1,4 +1,6 @@
-require_relative "../config/environment"
+# frozen_string_literal: true
+
+require_relative '../config/environment'
 
 class Repository
   def self.save_trade(trade_data)

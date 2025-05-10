@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 class TradeEvent
   attr_reader :type, :payload
 

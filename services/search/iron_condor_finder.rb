@@ -1,8 +1,10 @@
-require_relative "../../mixins/schwab/schwab"
-require_relative "../trades/iron_condor"
-require_relative "../trades/null_trade"
-require_relative "call_spread_finder"
-require_relative "put_spread_finder"
+# frozen_string_literal: true
+
+require_relative '../../mixins/schwab/schwab'
+require_relative '../trades/iron_condor'
+require_relative '../trades/null_trade'
+require_relative 'call_spread_finder'
+require_relative 'put_spread_finder'
 
 module Services
   module Search
@@ -10,19 +12,19 @@ module Services
       include Schwab
 
       attr_reader :symbol, :end_date, :short_delta, :max_spread,
-        :min_credit, :min_open_interest, :dist_from_strike,
-        :call_spread, :put_spread, :quantity
+                  :min_credit, :min_open_interest, :dist_from_strike,
+                  :call_spread, :put_spread, :quantity
 
-        def initialize(
-          symbol:,
-          end_date: Date.today + 90,
-          short_delta: 0.15,
-          max_spread: 20.0,
-          min_credit: 100.0,
-          min_open_interest: 0,
-          dist_from_strike: 0.07,
-          quantity: 1
-        )
+      def initialize(
+        symbol:,
+        end_date: Date.today + 90,
+        short_delta: 0.15,
+        max_spread: 20.0,
+        min_credit: 100.0,
+        min_open_interest: 0,
+        dist_from_strike: 0.07,
+        quantity: 1
+      )
         @symbol = symbol
         @end_date = end_date
         @short_delta = short_delta
@@ -59,8 +61,8 @@ module Services
       def opt_chain
         @opt_chain ||= option_chain(
           symbol,
-          strike_range: "OTM",
-          to_date: end_date,
+          strike_range: 'OTM',
+          to_date: end_date
         )
       end
 

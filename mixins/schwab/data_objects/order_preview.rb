@@ -1,5 +1,7 @@
-require_relative "order_leg"
-require_relative "instrument"
+# frozen_string_literal: true
+
+require_relative 'order_leg'
+require_relative 'instrument'
 
 module DataObjects
   class OrderPreview
@@ -24,7 +26,7 @@ module DataObjects
     end
 
     def accepted?
-      order_strategy.status == "ACCEPTED"
+      order_strategy.status == 'ACCEPTED'
     end
 
     def commission

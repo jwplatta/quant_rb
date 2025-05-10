@@ -1,0 +1,42 @@
+AllCops:
+  NewCops: enable
+  TargetRubyVersion: 3.0
+
+Layout/EndAlignment:
+  EnforcedStyleAlignWith: variable
+
+Layout/ConditionPosition:
+  Enabled: true
+
+# Allow the basic style shown in your example
+Layout/MultilineAssignmentLayout:
+  EnforcedStyle: same_line
+
+Layout/IndentationWidth:
+  Width: 2
+
+# Set indentation for conditional branches to 2 spaces
+Layout/ElseAlignment:
+  Enabled: true
+
+# Don't enforce deep indentation in conditional branches
+Layout/IndentationConsistency:
+  EnforcedStyle: normal
+
+# This is important to allow the style in your first example
+Layout/MultilineOperationIndentation:
+  EnforcedStyle: indented
+
+# Disable cop that enforces the second style you showed
+Layout/BlockAlignment:
+  Enabled: true
+  EnforcedStyleAlignWith: start_of_block
+
+# Specifically disable the second style you don't want
+Layout/ArgumentAlignment:
+  Enabled: true
+  EnforcedStyle: with_first_argument
+
+Layout/BeginEndAlignment:
+  Enabled: true
+  EnforcedStyleAlignWith: start_of_line

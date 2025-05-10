@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require 'rspec'
 require_relative '../../../../mixins/schwab/data_objects/option_chain'
 
@@ -18,7 +20,7 @@ RSpec.describe DataObjects::OptionChain do
       option_chain = DataObjects::OptionChain.build(raw_data)
 
       filters = [
-        [:delta, "<=", 0.15],
+        [:delta, '<=', 0.15]
       ]
 
       filtered_puts = option_chain.filter(put_call: :put, filters: filters)
@@ -31,7 +33,7 @@ RSpec.describe DataObjects::OptionChain do
     it 'filters the options chain based on the open interest' do
       option_chain = DataObjects::OptionChain.build(raw_data)
       filters = [
-        [:open_interest, ">", 0]
+        [:open_interest, '>', 0]
       ]
 
       filtered_puts = option_chain.filter(put_call: :put, filters: filters)

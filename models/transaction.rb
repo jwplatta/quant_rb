@@ -1,4 +1,6 @@
-require "active_record"
+# frozen_string_literal: true
+
+require 'active_record'
 
 module Persistence
   class Transaction < ActiveRecord::Base

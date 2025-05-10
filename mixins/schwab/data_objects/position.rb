@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require_relative 'instrument'
 
 module DataObjects
@@ -53,7 +55,7 @@ module DataObjects
     end
 
     def symbol
-      instrument ? instrument.symbol : nil
+      instrument&.symbol
     end
 
     def underlying_symbol
@@ -70,11 +72,11 @@ module DataObjects
 
     def long_short
       if long?
-        "LONG"
+        'LONG'
       elsif short?
-        "SHORT"
+        'SHORT'
       else
-        "NONE"
+        'NONE'
       end
     end
 
@@ -89,7 +91,7 @@ module DataObjects
         average_price: average_price,
         market_value: market_value,
         put_call: put_call,
-        long_short: long_short,
+        long_short: long_short
       }
     end
   end

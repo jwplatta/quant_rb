@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require 'pry'
 require 'dotenv'
 require 'schwab_rb'
@@ -30,7 +32,7 @@ orders_resp = client.get_account_orders(
   account_hash,
   from_entered_datetime: Date.new(2025, 1, 1),
   to_entered_datetime: Date.new(2025, 1, 30),
-  status: "FILLED"
+  status: 'FILLED'
 )
 filled_orders = JSON.parse(orders_resp.body, symbolize_names: true).then do |orders|
   orders.map { |o| DataObjects::Order.build(o) }

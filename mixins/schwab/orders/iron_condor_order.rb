@@ -1,4 +1,6 @@
-require "schwab_rb"
+# frozen_string_literal: true
+
+require 'schwab_rb'
 
 class IronCondorOrder
   class << self
@@ -7,7 +9,7 @@ class IronCondorOrder
 
       schwab_order_builder.new.tap do |builder|
         builder.set_account_number(options[:account_number])
-        builder.set_order_strategy_type("SINGLE")
+        builder.set_order_strategy_type('SINGLE')
         builder.set_session(SchwabRb::Orders::Session::NORMAL)
         builder.set_duration(SchwabRb::Orders::Duration::DAY)
         builder.set_order_type(SchwabRb::Order::Types::NET_CREDIT)
