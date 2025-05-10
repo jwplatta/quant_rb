@@ -110,7 +110,6 @@ module DataObjects
 
     def filter(put_call: nil, filters: [])
       options = filter_by_type(put_call)
-
       return options if filters.empty?
 
       fltrs = filters.map { |f_args| build_filter(*f_args) }
