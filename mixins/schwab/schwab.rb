@@ -10,10 +10,17 @@ require_relative 'data_objects/transaction'
 require_relative 'data_objects/order'
 require_relative 'data_objects/order_preview'
 require_relative 'orders/order_factory'
+require_relative 'option_chain_cache'
 
 Dotenv.load
 
 module Schwab
+  include OptionChainCache
+
+  # When Schwab module is included in a class, also extend that class with the cache methods
+  def self.included(base)
+    base.extend(OptionChainCache::ClassMethods)
+  end
   def client
     return @client if @client
 
@@ -56,7 +63,7 @@ module Schwab
     end
   end
 
-  def option_chain(
+  def original_option_chain(
     symbol,
     contract_type: 'ALL',
     strike_range: 'OTM',
@@ -83,6 +90,28 @@ module Schwab
     end.then do |data|
       DataObjects::OptionChain.build(data)
     end
+  end
+
+  def option_chain(
+    symbol,
+    contract_type: 'ALL',
+    strike_range: 'OTM',
+    from_date: nil,
+    to_date: nil,
+    days_to_expiration: nil,
+    ttl: 60
+  )
+    options = {
+      contract_type: contract_type,
+      strike_range: strike_range,
+      ttl: ttl
+    }
+
+    options[:from_date] = from_date if from_date
+    options[:to_date] = to_date if to_date
+    options[:days_to_expiration] = days_to_expiration if days_to_expiration
+
+    cached_option_chain(symbol, **options)
   end
 
   def account(fields: nil)
