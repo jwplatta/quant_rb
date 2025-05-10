@@ -1,4 +1,6 @@
-require_relative "instrument"
+# frozen_string_literal: true
+
+require_relative 'instrument'
 
 module DataObjects
   class OrderLeg
@@ -27,19 +29,19 @@ module DataObjects
     end
 
     def call?
-      put_call == "CALL"
+      put_call == 'CALL'
     end
 
     def close?
-      position_effect == "CLOSING"
+      position_effect == 'CLOSING'
     end
 
     def open?
-      position_effect == "OPENING"
+      position_effect == 'OPENING'
     end
 
     def put?
-      put_call == "PUT"
+      put_call == 'PUT'
     end
 
     def put_call

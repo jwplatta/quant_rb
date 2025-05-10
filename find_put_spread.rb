@@ -1,20 +1,22 @@
-require "pry"
-require "dotenv"
-require "schwab_rb"
-require_relative "services/schwab/data_objects/option_chain"
-require_relative "services/search/spread_finder"
-require_relative "services/schwab/schwab"
+# frozen_string_literal: true
+
+require 'pry'
+require 'dotenv'
+require 'schwab_rb'
+require_relative 'mixins/schwab/data_objects/option_chain'
+require_relative 'services/search/spread_finder'
+require_relative 'mixins/schwab/schwab'
 
 Dotenv.load
 
-symbol = "$SPX"
+symbol = '$SPX'
 expiration_date = Date.today + 8
-contract_type = "PUT"
+contract_type = 'PUT'
 puts "Searching for #{contract_type} spread on #{symbol} expiring on #{expiration_date}"
 
 option_chain = Schwab.option_chain(
   symbol,
-  strike_range: "OTM",
+  strike_range: 'OTM',
   to_date: expiration_date
 )
 
@@ -30,5 +32,7 @@ finder = SpreadFinder.new(
   option_chain: option_chain
 )
 best_trade = finder.search
+
+best_trade.increment = 0.05
 
 binding.pry

@@ -1,4 +1,6 @@
-require_relative "trade"
+# frozen_string_literal: true
+
+require_relative 'trade'
 
 module Services
   module Trades
@@ -10,12 +12,19 @@ module Services
             hash[:symbol],
             strike: hash[:strike],
             expiration_date: expiration_date,
-            quantity: hash.fetch(:quantity, nil),
+            quantity: hash.fetch(:quantity, nil)
           ).tap do |put_option|
-            put_option.open_credit_debit = hash.fetch(:open_credit_debit, nil)
-            put_option.open_date = hash.fetch(:open_date, nil)
-            put_option.open_fees = hash.fetch(:open_fees, nil)
-            put_option.open_commission = hash.fetch(:open_commission, nil)
+            # Set the filled values
+            put_option.instance_variable_set(:@filled_open_credit_debit,
+                                             hash.fetch(:filled_open_credit_debit,
+                                                        nil) || hash.fetch(:open_credit_debit, nil))
+            put_option.instance_variable_set(:@filled_open_date,
+                                             hash.fetch(:filled_open_date, nil) || hash.fetch(:open_date, nil))
+            put_option.instance_variable_set(:@filled_open_fees,
+                                             hash.fetch(:filled_open_fees, nil) || hash.fetch(:open_fees, nil))
+            put_option.instance_variable_set(:@filled_open_commission,
+                                             hash.fetch(:filled_open_commission,
+                                                        nil) || hash.fetch(:open_commission, nil))
           end
         end
 
@@ -48,7 +57,7 @@ module Services
           round: round,
           quantity: quantity
         )
-        @strategy = "SINGLE"
+        @strategy = 'SINGLE'
         @symbol = symbol
         @strike = strike
         @delta = delta.abs
@@ -60,20 +69,20 @@ module Services
 
       def risk_status
         if delta.abs < 0.16
-          "GREEN"
+          'GREEN'
         elsif delta.abs < 0.28
-          "YELLOW"
+          'YELLOW'
         else
-          "RED"
+          'RED'
         end
       end
 
       def tested?
-        risk_status == "YELLOW"
+        risk_status == 'YELLOW'
       end
 
       def danger?
-        risk_status == "RED"
+        risk_status == 'RED'
       end
 
       def credit_debit
@@ -81,26 +90,24 @@ module Services
       end
 
       def net_credit_debit
-        credit_debit * 100 - open_fees - open_commission
+        credit_debit * 100 - filled_open_fees.to_f - filled_open_commission.to_f
       end
 
       def short?
-        quantity < 0
+        quantity.negative?
       end
 
       def long?
-        quantity > 0
+        quantity.positive?
       end
 
-      def quantity=(new_quantity)
-        @quantity = new_quantity
-      end
+      attr_writer :quantity
 
       def instruction
-        if quantity < 0
-          "SELL_TO_OPEN"
-        elsif quantity > 0
-          "BUY_TO_CLOSE"
+        if quantity.negative?
+          'SELL_TO_OPEN'
+        elsif quantity.positive?
+          'BUY_TO_CLOSE'
         end
       end
 
@@ -126,11 +133,11 @@ module Services
 
       def to_h
         {
-          type: "PUT",
+          type: 'PUT',
           symbol: symbol,
           strike: strike,
           quantity: quantity,
-          expiration_date: expiration_date,
+          expiration_date: expiration_date
         }
       end
     end

@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require_relative 'instrument'
 require_relative 'position'
 
@@ -255,8 +257,7 @@ module DataObjects
     end
 
     def initialize(type:, account_number:, round_trips:, is_day_trader:, is_closing_only_restricted:,
-      pfcb_flag:, positions: [], initial_balances:, current_balances:, projected_balances:
-    )
+                   pfcb_flag:, initial_balances:, current_balances:, projected_balances:, positions: [])
       @type = type
       @account_number = account_number
       @round_trips = round_trips
@@ -270,6 +271,6 @@ module DataObjects
     end
 
     attr_reader :type, :account_number, :round_trips, :is_day_trader, :is_closing_only_restricted,
-      :pfcb_flag, :positions, :initial_balances, :current_balances, :projected_balances
+                :pfcb_flag, :positions, :initial_balances, :current_balances, :projected_balances
   end
 end

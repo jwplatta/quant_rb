@@ -1,4 +1,6 @@
-require_relative "schwab/schwab"
+# frozen_string_literal: true
+
+require_relative 'schwab/schwab'
 
 module Orderable
   include Schwab
@@ -44,32 +46,32 @@ module Orderable
   end
 
   def filled_open_fees
-    @filled_order&.respond_to?(:fees) ? @filled_order.fees : nil
+    @filled_order.respond_to?(:fees) ? @filled_order.fees : nil
   end
 
   def filled_open_commission
-    @filled_order&.respond_to?(:commission) ? @filled_order.commission : nil
+    @filled_order.respond_to?(:commission) ? @filled_order.commission : nil
   end
 
   def filled_order_transactions
     @transactions = transactions(
       start_date: filled_order_date,
-      transaction_types: ["TRADE"]
+      transaction_types: ['TRADE']
     ).select do |t|
       t.order_id == filled_order_id
     end
   end
 
   def filled?
-    order_status == "FILLED" || @filled_order&.status == "FILLED"
+    order_status == 'FILLED' || @filled_order&.status == 'FILLED'
   end
 
   def working?
-    order_status == "WORKING"
+    order_status == 'WORKING'
   end
 
   def failed?
-    ["REJECTED", "EXPIRED", "CANCELED"].include?(order_status)
+    %w[REJECTED EXPIRED CANCELED].include?(order_status)
   end
 
   def preview(order_instruction: :entry)
@@ -78,21 +80,19 @@ module Orderable
       quantity: quantity,
       order_instruction: order_instruction
     ).then do |order_preview|
-      if order_preview.accepted?
-        @order_status = order_preview.order_strategy.status
-        @order_rejects = []
-      else
-        @order_status = order_preview.order_strategy.status
-        @order_rejects = order_preview.order_validation_result.rejects(&:activity_message)
-      end
+      @order_status = order_preview.order_strategy.status
+      @order_rejects = if order_preview.accepted?
+                         []
+                       else
+                         order_preview.order_validation_result.rejects(&:activity_message)
+                       end
     end
   end
 
   def replace(order_instruction: :entry)
     return nil unless order_id
 
-    build_and_replace_order(order_id, self, quantity: quantity, order_instruction: order_instruction
-    ).then do |order|
+    build_and_replace_order(order_id, self, quantity: quantity, order_instruction: order_instruction).then do |order|
       unless order.nil?
         @order_id = order.order_id
         @order_status = order.status
@@ -111,13 +111,13 @@ module Orderable
 
   def send(order_instruction: :entry)
     build_and_place_order(self, quantity: quantity, order_instruction: order_instruction).then do |order|
-      unless order.nil?
+      if order.nil?
+        @order_id = nil
+        @order_status = 'REJECTED'
+      else
         @order_id = order.order_id
         @order_status = order.status
         @order = order
-      else
-        @order_id = nil
-        @order_status = "REJECTED"
       end
     end
   end
@@ -129,17 +129,17 @@ module Orderable
       @order_status = order.status
       @order = order
 
-      if order.status == "FILLED"
+      if order.status == 'FILLED'
         # Store the filled order
         @filled_order = order
 
         # Keep the current order_id and status for reference
         @order_id = order.order_id
         @order_status = order.status
-      elsif ["REJECTED", "EXPIRED", "CANCELED"].include?(order.status)
+      elsif %w[REJECTED EXPIRED CANCELED].include?(order.status)
         @order_status = order.status
         @order_id = nil
-      elsif ["PENDING_ACTIVATION", "WORKING"].include?(order.status)
+      elsif %w[PENDING_ACTIVATION WORKING].include?(order.status)
         @order_status = order.status
       end
     end

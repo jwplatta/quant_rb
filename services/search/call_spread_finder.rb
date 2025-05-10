@@ -1,7 +1,9 @@
-require "pry"
-require_relative "../../mixins/schwab/schwab"
-require_relative "../trades/call_option"
-require_relative "../trades/call_spread"
+# frozen_string_literal: true
+
+require 'pry'
+require_relative '../../mixins/schwab/schwab'
+require_relative '../trades/call_option'
+require_relative '../trades/call_spread'
 
 module Services
   module Search
@@ -9,8 +11,8 @@ module Services
       include Schwab
 
       attr_reader :symbol, :end_date, :short_delta, :max_spread,
-        :min_credit, :min_open_interest, :dist_from_strike, :trades, :short_legs,
-        :expiration_date, :quantity
+                  :min_credit, :min_open_interest, :dist_from_strike, :trades, :short_legs,
+                  :expiration_date, :quantity
 
       def initialize(
         symbol:,
@@ -57,39 +59,37 @@ module Services
           )
           potential_longs = opt_chain.filter(put_call: :call, filters: long_filters(short_leg))
 
-          if potential_longs.any?
-            best_long_raw = potential_longs.min_by(&:mark)
-            long_leg = Services::Trades::CallOption.new(
-              best_long_raw.symbol,
-              strike: best_long_raw.strike,
-              delta: best_long_raw.delta,
-              mark: best_long_raw.mark,
-              ask: best_long_raw.ask,
-              bid: best_long_raw.bid,
-              expiration_date: best_long_raw.expiration_date,
-              quantity: quantity
-            )
+          next unless potential_longs.any?
 
-            @trades << Services::Trades::CallSpread.new(
-              short_leg: short_leg,
-              long_leg: long_leg
-            )
-          end
+          best_long_raw = potential_longs.min_by(&:mark)
+          long_leg = Services::Trades::CallOption.new(
+            best_long_raw.symbol,
+            strike: best_long_raw.strike,
+            delta: best_long_raw.delta,
+            mark: best_long_raw.mark,
+            ask: best_long_raw.ask,
+            bid: best_long_raw.bid,
+            expiration_date: best_long_raw.expiration_date,
+            quantity: quantity
+          )
+
+          @trades << Services::Trades::CallSpread.new(
+            short_leg: short_leg,
+            long_leg: long_leg
+          )
         end
 
         @trades.max_by(&:credit_debit)
       end
 
-      def opt_chain=(opt_chain)
-        @opt_chain = opt_chain
-      end
+      attr_writer :opt_chain
 
       def opt_chain
         @opt_chain ||= option_chain(
           symbol,
-          contract_type: "CALL",
-          strike_range: "OTM",
-          to_date: end_date,
+          contract_type: 'CALL',
+          strike_range: 'OTM',
+          to_date: end_date
         )
       end
 
@@ -99,10 +99,10 @@ module Services
             :delta,
             ->(delta) { delta.abs <= short_delta && delta.abs >= 0.00 }
           ],
-          [:open_interest, ">", min_open_interest],
+          [:open_interest, '>', min_open_interest],
           [
             :strike,
-            ->(strike) do
+            lambda do |strike|
               ((@opt_chain.underlying_price - strike) / @opt_chain.underlying_price).abs >= dist_from_strike
             end
           ],
@@ -111,11 +111,11 @@ module Services
             ->(mark) { mark * 100.0 >= min_credit }
           ]
         ].then do |filters|
-          unless expiration_date.nil?
-            filters << [:expiration_date, "==", expiration_date]
-          else
-            filters << [:expiration_date, "<=", end_date]
-          end
+          filters << if expiration_date.nil?
+                       [:expiration_date, '<=', end_date]
+                     else
+                       [:expiration_date, '==', expiration_date]
+                     end
         end
       end
 
@@ -125,13 +125,13 @@ module Services
             :strike,
             ->(strike) { (short.strike..(short.strike + max_spread.to_f)).cover? strike }
           ],
-          [:open_interest, ">", min_open_interest],
-          [:expiration_date, "==", short.expiration_date],
+          [:open_interest, '>', min_open_interest],
+          [:expiration_date, '==', short.expiration_date],
           [
             :mark,
             ->(mark) { (short.mark - mark) * 100.0 >= min_credit }
           ],
-          [:delta, ->(delta) { delta.abs >= 0.00 && delta.abs <= 1.0 }],
+          [:delta, ->(delta) { delta.abs >= 0.00 && delta.abs <= 1.0 }]
         ]
       end
     end

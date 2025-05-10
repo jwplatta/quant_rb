@@ -1,11 +1,12 @@
-require "dotenv"
-require 'thread'
+# frozen_string_literal: true
+
+require 'dotenv'
 
 Dotenv.load
 
 class BotBase
   CHECK_INTERVAL = 300
-  TRADE_DIR = "data/trades"
+  TRADE_DIR = 'data/trades'
 
   attr_reader :event_queue, :poller, :handler, :file_mutex
 
@@ -27,8 +28,8 @@ class BotBase
 
   def run
     puts "Starting #{self.class.name} bot..."
-    trap("INT") { stop }
-    trap("TERM") { stop }
+    trap('INT') { stop }
+    trap('TERM') { stop }
 
     poller.start
     handler.start
@@ -52,38 +53,36 @@ class BotBase
   end
 
   def trade_file
-    raise NotImplementedError, "Subclasses must implement a trade_file method"
+    raise NotImplementedError, 'Subclasses must implement a trade_file method'
   end
 
   def order_history_file
-    raise NotImplementedError, "Subclasses must implement an order_history_file method"
+    raise NotImplementedError, 'Subclasses must implement an order_history_file method'
   end
 
   def read_trade
     file_mutex.synchronize do
-      begin
-        trade = File.open(trade_file, "r") do |file|
-          JSON.parse(file.read, symbolize_names: true).then do |trade_hash|
-            trade_class.from_h(trade_hash)
-          end
+      trade = File.open(trade_file, 'r') do |file|
+        JSON.parse(file.read, symbolize_names: true).then do |trade_hash|
+          trade_class.from_h(trade_hash)
         end
-
-        File.open(order_history_file, "r") do |file|
-          JSON.parse(file.read, symbolize_names: true).then do |history|
-            trade.order_history_from_h(history)
-          end
-        end
-
-        trade
-      rescue Errno::ENOENT
-        nil
       end
+
+      File.open(order_history_file, 'r') do |file|
+        JSON.parse(file.read, symbolize_names: true).then do |history|
+          trade.order_history_from_h(history)
+        end
+      end
+
+      trade
+    rescue Errno::ENOENT
+      nil
     end
   end
 
   def save_trade(trade)
     file_mutex.synchronize do
-      File.open(trade_file, "w") do |file|
+      File.open(trade_file, 'w') do |file|
         file.write(trade.to_json)
       end
     end

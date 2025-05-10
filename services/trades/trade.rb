@@ -1,5 +1,7 @@
-require_relative "../../mixins/schwab/schwab"
-require_relative "../../mixins/orderable"
+# frozen_string_literal: true
+
+require_relative '../../mixins/schwab/schwab'
+require_relative '../../mixins/orderable'
 
 Order = Struct.new(:id, :status, :date)
 
@@ -9,7 +11,7 @@ module Services
       include Orderable
 
       attr_accessor :increment, :round, :exit_threshold, :max_loss, :quantity,
-        :underlying_symbol
+                    :underlying_symbol
 
       def initialize(
         underlying_symbol: nil, increment: 0.01,
@@ -25,19 +27,19 @@ module Services
       end
 
       def credit_debit
-        raise "Must be implemented in subclass"
+        raise 'Must be implemented in subclass'
       end
 
       def net_credit_debit
-        raise "Must be implemented in subclass"
+        raise 'Must be implemented in subclass'
       end
 
       def delta
-        raise "Must be implemented in subclass"
+        raise 'Must be implemented in subclass'
       end
 
       def check_market
-        raise "Must be implemented in subclass"
+        raise 'Must be implemented in subclass'
       end
 
       def exitable?
@@ -58,7 +60,7 @@ module Services
         (value / increment).floor * increment
       end
 
-      def to_json
+      def to_json(*_args)
         to_h.to_json
       end
     end

@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require 'date'
 require_relative 'trade_event'
 require_relative '../services/trades/null_trade'
@@ -23,7 +25,7 @@ class EventHandler
 
   def stop
     @running = false
-    @thread.exit if @thread && @thread.alive?
+    @thread.exit if @thread&.alive?
   end
 
   private
@@ -44,6 +46,7 @@ class EventHandler
       handle_exit_loss(event.payload[:trade])
     when :exit_profit
       handle_exit_profit(event.payload[:trade])
+    # TODO:
     # when :adjust
     #   handle_adjustment(event.payload[:trade])
     when :hold
@@ -59,25 +62,25 @@ class EventHandler
     trade = bot.find_trade(expiration_date)
 
     if trade.is_a?(NullTrade)
-      puts "No suitable trade found. Retrying in next poll cycle."
+      puts 'No suitable trade found. Retrying in next poll cycle.'
       return
     end
 
     trade.increment = 0.05
     trade.preview(order_instruction: :entry)
 
-    if trade.order_status == "ACCEPTED"
+    if trade.order_status == 'ACCEPTED'
       trade.open
       bot.save_trade(trade)
       puts "Entry order placed: #{trade.order_id}"
     else
-      puts "Trade not accepted"
+      puts 'Trade not accepted'
       puts trade.order_rejects
     end
   end
 
   def handle_order_filled(trade)
-    puts "Order filled"
+    puts 'Order filled'
     bot.save_trade(trade)
   end
 
@@ -89,13 +92,13 @@ class EventHandler
   end
 
   def handle_market_changed(trade)
-    puts "Market conditions changed, replacing order"
+    puts 'Market conditions changed, replacing order'
     trade.replace(order_instruction: :entry)
     bot.save_trade(trade)
   end
 
   def handle_exit_loss(trade)
-    puts "Exiting due to loss threshold"
+    puts 'Exiting due to loss threshold'
     trade.close
     bot.file_mutex.synchronize do
       File.delete(bot.class::TRADE_FILE) if File.exist?(bot.class::TRADE_FILE)
@@ -103,7 +106,7 @@ class EventHandler
   end
 
   def handle_exit_profit(trade)
-    puts "Exiting due to profit target"
+    puts 'Exiting due to profit target'
     trade.close
     bot.file_mutex.synchronize do
       File.delete(bot.class::TRADE_FILE) if File.exist?(bot.class::TRADE_FILE)
@@ -117,27 +120,27 @@ class EventHandler
     adjusted_trade = bot.find_adjustment(trade, kwargs)
 
     if adjusted_trade.nil?
-      puts "Unable to adjust trade, continuing to monitor"
+      puts 'Unable to adjust trade, continuing to monitor'
     else
       until trade.filled?
-        puts "Waiting for trade to fill..."
+        puts 'Waiting for trade to fill...'
         sleep(10)
         trade.check_order_status
         trade.check_market
       end
 
       adjusted_trade.preview(order_instruction: :entry)
-      if adjusted_trade.order_status == "ACCEPTED"
+      if adjusted_trade.order_status == 'ACCEPTED'
         adjusted_trade.send(order_instruction: :entry)
         bot.save_trade(adjusted_trade)
-        puts "Adjusted trade placed"
+        puts 'Adjusted trade placed'
 
         # Log the new trade details
         puts "Call spread: #{adjusted_trade.call_spread.short_leg.strike}/#{adjusted_trade.call_spread.long_leg.strike}"
         puts "Put spread: #{adjusted_trade.put_spread.short_leg.strike}/#{adjusted_trade.put_spread.long_leg.strike}"
         puts "Credit: #{adjusted_trade.credit_debit}"
       else
-        puts "Adjusted trade not accepted"
+        puts 'Adjusted trade not accepted'
         puts adjusted_trade.order_rejects
         bot.save_trade(trade)
       end
@@ -147,7 +150,7 @@ class EventHandler
   def handle_close_trade(trade)
     trade.preview(order_instruction: :exit)
 
-    if trade.order_status == "ACCEPTED"
+    if trade.order_status == 'ACCEPTED'
       trade.close
     else
       puts trade.order_rejects
@@ -155,8 +158,8 @@ class EventHandler
     end
   end
 
-  def handle_hold(trade)
-    puts "Holding trade"
+  def handle_hold(_trade)
+    puts 'Holding trade'
   end
 
   def handle_error(error)

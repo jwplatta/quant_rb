@@ -1,4 +1,6 @@
-require_relative "instrument"
+# frozen_string_literal: true
+
+require_relative 'instrument'
 
 module DataObjects
   class TransferItem
@@ -9,7 +11,7 @@ module DataObjects
           amount: data.fetch(:amount),
           cost: data.fetch(:cost),
           fee_type: data.fetch(:feeType, nil),
-          position_effect: data.fetch(:positionEffect, nil),
+          position_effect: data.fetch(:positionEffect, nil)
         )
       end
     end
@@ -22,15 +24,15 @@ module DataObjects
     end
 
     def symbol
-      option? ? instrument.symbol : ""
+      option? ? instrument.symbol : ''
     end
 
     def underlying_symbol
-      option? ? instrument.underlying_symbol : ""
+      option? ? instrument.underlying_symbol : ''
     end
 
     def description
-      option? ? instrument.description : ""
+      option? ? instrument.description : ''
     end
 
     def option?
@@ -42,11 +44,11 @@ module DataObjects
     end
 
     def fee?
-      ["OPT_REG_FEE", "TAF_FEE", "SEC_FEE"].include?(fee_type)
+      %w[OPT_REG_FEE TAF_FEE SEC_FEE].include?(fee_type)
     end
 
     def commission?
-      fee_type == "COMMISSION"
+      fee_type == 'COMMISSION'
     end
 
     attr_reader :instrument, :amount, :cost, :fee_type, :position_effect
@@ -70,7 +72,8 @@ module DataObjects
       end
     end
 
-    def initialize(activity_id:, time:, type:, status:, sub_account:, trade_date:, position_id:, order_id:, net_amount:, transfer_items: [])
+    def initialize(activity_id:, time:, type:, status:, sub_account:, trade_date:, position_id:, order_id:,
+                   net_amount:, transfer_items: [])
       @activity_id = activity_id
       @time = time
       @type = type
@@ -83,10 +86,11 @@ module DataObjects
       @transfer_items = transfer_items
     end
 
-    attr_reader :activity_id, :time, :type, :status, :sub_account, :trade_date, :position_id, :order_id, :net_amount, :transfer_items
+    attr_reader :activity_id, :time, :type, :status, :sub_account, :trade_date, :position_id, :order_id, :net_amount,
+                :transfer_items
 
     def trade?
-      type == "TRADE"
+      type == 'TRADE'
     end
 
     def symbols

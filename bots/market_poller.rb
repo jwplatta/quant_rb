@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require_relative 'trade_event'
 
 class MarketPoller
@@ -22,7 +24,7 @@ class MarketPoller
 
   def stop
     @running = false
-    @thread.exit if @thread && @thread.alive?
+    @thread.exit if @thread&.alive?
   end
 
   private
@@ -51,7 +53,7 @@ class MarketPoller
         queue.push(TradeEvent.new(:market_changed, { trade: trade }))
       end
     end
-  rescue => e
+  rescue StandardError => e
     queue.push(TradeEvent.new(:error, { error: e }))
   end
 end

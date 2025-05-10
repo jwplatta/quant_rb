@@ -1,22 +1,24 @@
-require "pry"
-require "json"
-require_relative "../mixins/schwab/schwab"
+# frozen_string_literal: true
+
+require 'pry'
+require 'json'
+require_relative '../mixins/schwab/schwab'
 
 class VIXChecker
   include Schwab
 
   module VIXThresholds
-    LOW=12.0
-    HIGH=20.0
+    LOW = 12.0
+    HIGH = 20.0
   end
 
   module VIXStatusNames
-    LOW="low"
-    HIGH="high"
-    NORMAL="normal"
+    LOW = 'low'
+    HIGH = 'high'
+    NORMAL = 'normal'
   end
 
-  VIX_SYMBOL = "$VIX"
+  VIX_SYMBOL = '$VIX'
 
   def check
     if vix_quote.mark <= VIXThresholds::LOW

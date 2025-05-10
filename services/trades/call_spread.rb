@@ -1,5 +1,7 @@
-require_relative "trade"
-require_relative "call_option"
+# frozen_string_literal: true
+
+require_relative 'trade'
+require_relative 'call_option'
 
 module Services
   module Trades
@@ -12,7 +14,7 @@ module Services
           Services::Trades::CallSpread.new(
             short_leg: short_leg,
             long_leg: long_leg,
-            expiration_date: expiration_date,
+            expiration_date: expiration_date
           )
         end
       end
@@ -28,7 +30,7 @@ module Services
         quantity: 1
       )
         super(increment: increment, round: round, quantity: quantity)
-        @strategy = "VERTICAL"
+        @strategy = 'VERTICAL'
         @short_leg = short_leg
         @long_leg = long_leg
         @expiration_date = expiration_date
@@ -73,10 +75,10 @@ module Services
 
       def to_h
         {
-          type: "CALL_SPREAD",
+          type: 'CALL_SPREAD',
           expiration_date: expiration_date,
           short_leg: short_leg.to_h,
-          long_leg: long_leg.to_h,
+          long_leg: long_leg.to_h
         }
       end
     end

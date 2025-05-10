@@ -1,17 +1,19 @@
-require "fileutils"
-require "yaml"
-require "erb"
-require "dotenv/load"
-require "active_record"
+# frozen_string_literal: true
 
-FileUtils.mkdir_p("db")
+require 'fileutils'
+require 'yaml'
+require 'erb'
+require 'dotenv/load'
+require 'active_record'
 
-ENV["RACK_ENV"] ||= "development"
+FileUtils.mkdir_p('db')
 
-db_config_file = File.expand_path("../../../config/database.yml", __FILE__)
+ENV['RACK_ENV'] ||= 'development'
+
+db_config_file = File.expand_path('../../config/database.yml', __dir__)
 db_config = YAML.load(ERB.new(File.read(db_config_file)).result, aliases: true)
 
-ActiveRecord::Base.establish_connection(db_config[ENV["RACK_ENV"]])
+ActiveRecord::Base.establish_connection(db_config[ENV['RACK_ENV']])
 
 ActiveRecord::Schema.define do
   create_table :trades, force: true do |t|
@@ -70,5 +72,4 @@ ActiveRecord::Schema.define do
   end
 end
 
-
-puts "✅ Database schema has been set up successfully!"
+puts '✅ Database schema has been set up successfully!'

@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require 'spec_helper'
 require_relative '../../bots/market_poller'
 require_relative '../../bots/trade_event'
@@ -25,13 +27,13 @@ RSpec.describe MarketPoller do
     it 'starts and stops the polling thread' do
       # Mock poll to prevent the real method from being called
       allow(poller).to receive(:poll)
-      
+
       # Test that the thread starts
       poller.start
       expect(poller.thread).to be_a(Thread)
       sleep(0.05) # Give thread time to start
       expect(poller.thread).to be_alive
-      
+
       # Test that the thread stops
       poller.stop
       sleep(0.05) # Give the thread time to stop
@@ -131,7 +133,7 @@ RSpec.describe MarketPoller do
 
     context 'when an error occurs' do
       it 'pushes error event to the queue' do
-        error = StandardError.new("Test error")
+        error = StandardError.new('Test error')
         allow(mock_bot).to receive(:read_trade).and_raise(error)
 
         poller.send(:poll)

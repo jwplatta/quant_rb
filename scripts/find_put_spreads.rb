@@ -1,8 +1,10 @@
+# frozen_string_literal: true
+
 require 'pry'
 require 'dotenv'
 require 'json'
 require 'csv'
-require_relative '../models/option_chain'
+require_relative '../data_objects/option_chain'
 
 # NOTE
 # less than the 15-delta
@@ -10,15 +12,12 @@ require_relative '../models/option_chain'
 # verify that the strikes are at least 7% away from the current underlying price
 # credit should be at least $100
 # should receive at least 12% on buying power (or capital required)
-tickers = File.open('../sp_500_tickers.txt', 'r') do |f|
+tickers = File.open('../data/sp_500_tickers.txt', 'r') do |f|
   f.read.split("\n")
 end
 
-trade_cnt = 0
-trades = []
-
 def load_option_chain(ticker)
-  path = "./data/#{ticker.gsub("/", "")}_option_chain.json"
+  path = "./data/#{ticker.gsub('/', '')}_option_chain.json"
   File.open(path, 'r') { |f| JSON.parse(f.read, symbolize_names: true) }.then do |data|
     OptionChain.build(data)
   end
@@ -32,14 +31,15 @@ trade_cnt = 0
 
 tickers.each do |ticker|
   option_chain = load_option_chain(ticker)
-  avail_puts = option_chain.put_opts
+  option_chain.put_opts
 
-  puts "=============================="
+  puts '============================================================'
   puts "Underlying Price: #{ticker} #{option_chain.underlying_price}"
+  puts '============================================================'
 
   short_filters = [
-    OptionFilter.new(attribute: :delta, comparison: "<=", value: 0.15),
-    OptionFilter.new(attribute: :open_interest, comparison: ">", value: 0),
+    OptionFilter.new(attribute: :delta, comparison: '<=', value: 0.15),
+    OptionFilter.new(attribute: :open_interest, comparison: '>', value: 0),
     OptionFilter.new(
       attribute: :strike,
       comparison: ->(strike) { ((option_chain.underlying_price - strike) / option_chain.underlying_price).abs >= 0.07 }
@@ -54,11 +54,11 @@ tickers.each do |ticker|
         comparison: ->(strike) { ((short_put.strike - 20.0)...short_put.strike).cover? strike }
       ),
       OptionFilter.new(
-        attribute: :open_interest, comparison: ">", value: 0
+        attribute: :open_interest, comparison: '>', value: 0
       ),
       OptionFilter.new(
         attribute: :expiration_date,
-        comparison: "==",
+        comparison: '==',
         value: short_put.expiration_date
       ),
       OptionFilter.new(
@@ -69,45 +69,46 @@ tickers.each do |ticker|
 
     potential_long_puts = option_chain.filter(put_call: :put, filters: long_filters)
 
-    if potential_long_puts.any?
-      best_long_put = potential_long_puts.min_by(&:mark)
-      trade_cnt += 1
+    next unless potential_long_puts.any?
 
-      trades << [
-        trade_cnt,
-        ticker,
-        option_chain.underlying_price.round(3),
-        short_put.expiration_date.strftime('%Y-%m-%d'),
-        short_put.days_to_expiration,
-        "SELL",
-        short_put.strike,
-        short_put.delta,
-        short_put.bid,
-        short_put.ask,
-        short_put.mark
-      ]
+    best_long_put = potential_long_puts.min_by(&:mark)
+    trade_cnt += 1
 
-      trades << [
-        trade_cnt,
-        "",
-        "",
-        "",
-        "",
-        "BUY",
-        best_long_put.strike,
-        best_long_put.delta,
-        best_long_put.bid,
-        best_long_put.ask,
-        best_long_put.mark
-      ]
-    end
+    trades << [
+      trade_cnt,
+      ticker,
+      option_chain.underlying_price.round(3),
+      short_put.expiration_date.strftime('%Y-%m-%d'),
+      short_put.days_to_expiration,
+      'SELL',
+      short_put.strike,
+      short_put.delta,
+      short_put.bid,
+      short_put.ask,
+      short_put.mark
+    ]
+
+    trades << [
+      trade_cnt,
+      '',
+      '',
+      '',
+      '',
+      'BUY',
+      best_long_put.strike,
+      best_long_put.delta,
+      best_long_put.bid,
+      best_long_put.ask,
+      best_long_put.mark
+    ]
   end
 end
 
 puts "Found #{trade_cnt} trades."
 
-headers = ["Trade", "Symbol", "Underlying Price", "Exp Date", "Days Left", "BUY/SELL", "Strike", "Delta", "Bid", "Ask", "Mid"]
-CSV.open("put_spreads.csv", "w", write_headers: true, headers: headers) do |csv|
+headers = ['Trade', 'Symbol', 'Underlying Price', 'Exp Date', 'Days Left', 'BUY/SELL', 'Strike', 'Delta', 'Bid', 'Ask',
+           'Mid']
+CSV.open('put_spreads.csv', 'w', write_headers: true, headers: headers) do |csv|
   trades.each do |trade|
     csv << trade
   end

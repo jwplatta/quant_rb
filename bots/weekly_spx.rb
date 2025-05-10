@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require_relative 'bot_base'
 require 'date'
 require 'json'
@@ -9,7 +11,7 @@ require_relative '../services/trades/iron_condor'
 require_relative '../services/trades/null_trade'
 
 class WeeklySPX < BotBase
-  UNDERLYING_SYMBOL = "$SPX"
+  UNDERLYING_SYMBOL = '$SPX'
   TRADE_FILE = "#{TRADE_DIR}/trade.json"
   ORDER_HISTORY_FILE = "#{TRADE_DIR}/order_history.json"
 
@@ -97,11 +99,11 @@ class WeeklySPX < BotBase
   def find_adjustment(trade)
     trade.check_market
 
-    tested_is_call, tested_delta = if trade.call_risk_status == "RED"
-      [true, trade.call_spread.delta]
-    else
-      [false, trade.put_spread.delta]
-    end
+    tested_is_call, tested_delta = if trade.call_risk_status == 'RED'
+                                     [true, trade.call_spread.delta]
+                                   else
+                                     [false, trade.put_spread.delta]
+                                   end
 
     # Start with default parameters but allowing for more aggressive delta on the untested side
     expiration_date = trade.expiration_date
@@ -120,7 +122,7 @@ class WeeklySPX < BotBase
       # Increase the delta we're willing to accept on the untested side (more aggressively)
       adjusted_untested_delta = untested_delta + (i * 0.04)
 
-      puts "Try #{i+1}: tested delta <= #{adjusted_tested_delta}, untested delta <= #{adjusted_untested_delta}"
+      puts "Try #{i + 1}: tested delta <= #{adjusted_tested_delta}, untested delta <= #{adjusted_untested_delta}"
 
       # Custom parameters for IronCondorFinder based on which side is tested
       finder_params = {
@@ -145,17 +147,15 @@ class WeeklySPX < BotBase
       # Search for a trade with these parameters
       candidate = IronCondorFinder.new(**finder_params).search
 
-      if !candidate.is_a?(NullTrade)
-        # Verify the new trade has sufficient credit and improves the tested side
-        if candidate.credit_debit >= min_credit * 0.7
-          old_tested_delta = tested_is_call ? trade.call_spread.delta.abs : trade.put_spread.delta.abs
-          new_tested_delta = tested_is_call ? candidate.call_spread.delta.abs : candidate.put_spread.delta.abs
+      # Verify the new trade has sufficient credit and improves the tested side
+      if !candidate.is_a?(NullTrade) && (candidate.credit_debit >= min_credit * 0.7)
+        old_tested_delta = tested_is_call ? trade.call_spread.delta.abs : trade.put_spread.delta.abs
+        new_tested_delta = tested_is_call ? candidate.call_spread.delta.abs : candidate.put_spread.delta.abs
 
-          if new_tested_delta < old_tested_delta
-            puts "Found suitable adjustment with credit: #{candidate.credit_debit}"
-            adjusted_trade = candidate
-            break
-          end
+        if new_tested_delta < old_tested_delta
+          puts "Found suitable adjustment with credit: #{candidate.credit_debit}"
+          adjusted_trade = candidate
+          break
         end
       end
 

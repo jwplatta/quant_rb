@@ -1,8 +1,11 @@
-require_relative "order_leg"
+# frozen_string_literal: true
+
+require_relative 'order_leg'
 
 module DataObjects
   class ExecutionLeg
     attr_reader :leg_id, :quantity, :mismarked_quantity, :price, :time, :instrument_id
+
     class << self
       def build(data)
         new(
@@ -76,8 +79,8 @@ module DataObjects
 
   class Order
     attr_reader :duration, :order_type, :complex_order_strategy_type, :quantity,
-      :filled_quantity, :remaining_quantity, :price, :order_leg_collection, :order_strategy_type,
-      :order_id, :status, :entered_time, :close_time, :order_activity_collection
+                :filled_quantity, :remaining_quantity, :price, :order_leg_collection, :order_strategy_type,
+                :order_id, :status, :entered_time, :close_time, :order_activity_collection
 
     class << self
       def build(data)
@@ -120,8 +123,7 @@ module DataObjects
 
     def initialize(
       duration:, order_type:, complex_order_strategy_type:, quantity:, filled_quantity:,
-      remaining_quantity:, price:, order_leg_collection: [], order_strategy_type:, order_id:, status:,
-      entered_time:, close_time:, order_activity_collection: []
+      remaining_quantity:, price:, order_strategy_type:, order_id:, status:, entered_time:, close_time:, order_leg_collection: [], order_activity_collection: []
     )
       @duration = duration
       @order_type = order_type
@@ -144,21 +146,21 @@ module DataObjects
     end
 
     def strategy
-      if ["VERTICAL", "CUSTOM"].include? complex_order_strategy_type and order_leg_collection.all?(&:call?)
-        "CALL_SPREAD"
-      elsif ["VERTICAL", "CUSTOM"].include? complex_order_strategy_type and order_leg_collection.all?(&:put?)
-        "PUT_SPREAD"
+      if %w[VERTICAL CUSTOM].include?(complex_order_strategy_type) && order_leg_collection.all?(&:call?)
+        'CALL_SPREAD'
+      elsif %w[VERTICAL CUSTOM].include?(complex_order_strategy_type) && order_leg_collection.all?(&:put?)
+        'PUT_SPREAD'
       else
         order_strategy_type
       end
     end
 
     def close?
-      order_leg_collection.all? { |leg| leg.position_effect == "CLOSING" }
+      order_leg_collection.all? { |leg| leg.position_effect == 'CLOSING' }
     end
 
     def open?
-      order_leg_collection.all? { |leg| leg.position_effect == "OPENING" }
+      order_leg_collection.all? { |leg| leg.position_effect == 'OPENING' }
     end
 
     def to_h

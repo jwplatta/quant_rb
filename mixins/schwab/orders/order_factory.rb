@@ -1,6 +1,8 @@
-require "schwab_rb"
-require_relative "iron_condor_order"
-require_relative "vertical_order"
+# frozen_string_literal: true
+
+require 'schwab_rb'
+require_relative 'iron_condor_order'
+require_relative 'vertical_order'
 
 class OrderFactory
   class << self
@@ -11,7 +13,7 @@ class OrderFactory
       when SchwabRb::Order::ComplexOrderStrategyTypes::VERTICAL
         VerticalOrder.build(trade, **options)
       else
-        raise "Unsupported trade strategy"
+        raise 'Unsupported trade strategy'
       end
     end
   end
