@@ -11,3 +11,4 @@ gem 'rspec'
 gem 'rubocop', require: false
 gem 'schwab_rb', git: 'https://github.com/jwplatta/schwab_rb.git', ref: '39306942b577a633c6a98cb28ab256f46ce91d0a'
 gem 'sqlite3', '~> 2.1'
+gem 'timecop'
