@@ -44,6 +44,10 @@ module Services
       end
 
       def search
+        # First, ensure we have the option chain loaded
+        ensure_option_chain
+
+        # Then pass it to both finders
         @call_spread = call_spread_finder.search
         @put_spread = put_spread_finder.search
 
@@ -59,6 +63,11 @@ module Services
       end
 
       def opt_chain
+        ensure_option_chain
+      end
+
+      # Fetch the option chain once and store it
+      def ensure_option_chain
         @opt_chain ||= option_chain(
           symbol,
           strike_range: 'OTM',
@@ -75,7 +84,7 @@ module Services
           min_credit: min_credit,
           min_open_interest: min_open_interest,
           dist_from_strike: dist_from_strike,
-          opt_chain: opt_chain,
+          opt_chain: ensure_option_chain,
           quantity: quantity
         )
       end
@@ -89,7 +98,7 @@ module Services
           min_credit: min_credit,
           min_open_interest: min_open_interest,
           dist_from_strike: dist_from_strike,
-          opt_chain: opt_chain,
+          opt_chain: ensure_option_chain,
           quantity: quantity
         )
       end
