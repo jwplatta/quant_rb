@@ -70,7 +70,7 @@ module Services
       def risk_status
         if delta < 0.16
           'GREEN'
-        elsif delta < 0.28
+        elsif delta < 0.26
           'YELLOW'
         else
           'RED'
