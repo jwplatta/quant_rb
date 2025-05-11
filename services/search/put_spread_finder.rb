@@ -10,7 +10,7 @@ module Services
 
       attr_reader :symbol, :end_date, :short_delta, :max_spread,
                   :min_credit, :min_open_interest, :dist_from_strike, :trades, :short_legs,
-                  :expiration_date, :quantity
+                  :expiration_date, :quantity, :opt_chain
 
       def initialize(
         symbol:,
@@ -78,17 +78,6 @@ module Services
         end
 
         @trades.max_by(&:credit_debit)
-      end
-
-      attr_writer :opt_chain
-
-      def opt_chain
-        @opt_chain ||= option_chain(
-          symbol,
-          contract_type: 'PUT',
-          strike_range: 'OTM',
-          to_date: end_date
-        )
       end
 
       def short_filters

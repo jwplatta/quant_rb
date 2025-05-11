@@ -13,7 +13,7 @@ module Services
 
       attr_reader :symbol, :end_date, :short_delta, :max_spread,
                   :min_credit, :min_open_interest, :dist_from_strike,
-                  :call_spread, :put_spread, :quantity
+                  :call_spread, :put_spread, :quantity, :opt_chain
 
       def initialize(
         symbol:,
@@ -23,7 +23,8 @@ module Services
         min_credit: 100.0,
         min_open_interest: 0,
         dist_from_strike: 0.07,
-        quantity: 1
+        quantity: 1,
+        opt_chain: nil
       )
         @symbol = symbol
         @end_date = end_date
@@ -35,7 +36,7 @@ module Services
         @trades = []
         @call_spread = nil
         @put_spread = nil
-        @opt_chain = nil
+        @opt_chain = opt_chain
         @quantity = quantity
       end
 
@@ -60,19 +61,6 @@ module Services
         else
           NullTrade.new
         end
-      end
-
-      def opt_chain
-        ensure_option_chain
-      end
-
-      # Fetch the option chain once and store it
-      def ensure_option_chain
-        @opt_chain ||= option_chain(
-          symbol,
-          strike_range: 'OTM',
-          to_date: end_date
-        )
       end
 
       def call_spread_finder
