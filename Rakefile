@@ -10,7 +10,6 @@ task :environment do
   require_relative 'config/environment'
 end
 
-# Add environment as dependency for DB tasks
 namespace :db do
   task init: :environment
   task migrate: :environment
