@@ -64,10 +64,6 @@ module Services
         [short_leg.symbol, long_leg.symbol]
       end
 
-      ##################
-      ### Schwab API ###
-      ##################
-
       def check_market
         short_leg.check_market
         long_leg.check_market
