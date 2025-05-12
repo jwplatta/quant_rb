@@ -63,7 +63,7 @@ module Schwab
     end
   end
 
-  def original_option_chain(
+  def option_chain(
     symbol,
     contract_type: 'ALL',
     strike_range: 'OTM',
@@ -80,6 +80,7 @@ module Schwab
       kwargs[:days_to_expiration] = days_to_expiration
     else
       kwargs[:to_date] = to_date
+      kwargs[:from_date] = from_date if from_date
     end
 
     client.get_option_chain(
@@ -92,27 +93,28 @@ module Schwab
     end
   end
 
-  def option_chain(
-    symbol,
-    contract_type: 'ALL',
-    strike_range: 'OTM',
-    from_date: nil,
-    to_date: nil,
-    days_to_expiration: nil,
-    ttl: 60
-  )
-    options = {
-      contract_type: contract_type,
-      strike_range: strike_range,
-      ttl: ttl
-    }
+  # TODO: delete
+  # def option_chain(
+  #   symbol,
+  #   contract_type: 'ALL',
+  #   strike_range: 'OTM',
+  #   from_date: nil,
+  #   to_date: nil,
+  #   days_to_expiration: nil,
+  #   ttl: 60
+  # )
+  #   options = {
+  #     contract_type: contract_type,
+  #     strike_range: strike_range,
+  #     ttl: ttl
+  #   }
 
-    options[:from_date] = from_date if from_date
-    options[:to_date] = to_date if to_date
-    options[:days_to_expiration] = days_to_expiration if days_to_expiration
+  #   options[:from_date] = from_date if from_date
+  #   options[:to_date] = to_date if to_date
+  #   options[:days_to_expiration] = days_to_expiration if days_to_expiration
 
-    cached_option_chain(symbol, **options)
-  end
+  #   cached_option_chain(symbol, **options)
+  # end
 
   def account(fields: nil)
     client.get_account(account_hash, fields: fields).then do |resp|
