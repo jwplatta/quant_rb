@@ -1,6 +1,5 @@
 # frozen_string_literal: true
 
-require_relative '../../mixins/schwab/schwab'
 require_relative '../trades/iron_condor'
 require_relative '../trades/null_trade'
 require_relative 'call_spread_finder'
@@ -9,8 +8,6 @@ require_relative 'put_spread_finder'
 module Services
   module Search
     class IronCondorFinder
-      include Schwab
-
       attr_reader :symbol, :end_date, :short_delta, :max_spread,
                   :min_credit, :min_open_interest, :dist_from_strike,
                   :call_spread, :put_spread, :quantity, :opt_chain
@@ -45,10 +42,6 @@ module Services
       end
 
       def search
-        # First, ensure we have the option chain loaded
-        ensure_option_chain
-
-        # Then pass it to both finders
         @call_spread = call_spread_finder.search
         @put_spread = put_spread_finder.search
 
@@ -72,7 +65,7 @@ module Services
           min_credit: min_credit,
           min_open_interest: min_open_interest,
           dist_from_strike: dist_from_strike,
-          opt_chain: ensure_option_chain,
+          opt_chain: opt_chain,
           quantity: quantity
         )
       end
@@ -86,7 +79,7 @@ module Services
           min_credit: min_credit,
           min_open_interest: min_open_interest,
           dist_from_strike: dist_from_strike,
-          opt_chain: ensure_option_chain,
+          opt_chain: opt_chain,
           quantity: quantity
         )
       end
