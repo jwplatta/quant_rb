@@ -54,8 +54,7 @@ module Services
             expiration_date: short_raw.expiration_date,
             quantity: quantity
           )
-          # TODO: just needs to meet the condition of not being
-          # too far away and the same expiration date
+
           potential_longs = short_legs.select do |long_raw|
             long_raw.expiration_date == short_leg.expiration_date &&
               (short_leg.mark * 100.0 - long_raw.mark * 100.0) >= min_credit &&
