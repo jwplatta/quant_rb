@@ -16,13 +16,7 @@ RSpec.describe Schwab do
   # Create a test class that includes the Schwab mixin
   let(:test_class) do
     Class.new do
-      extend Schwab::OptionChainCache::ClassMethods
       include Schwab
-
-      def original_option_chain(symbol, **options)
-        data = JSON.parse(File.read("spec/fixtures/option_chains/ACME_calls.json"), symbolize_names: true)
-        DataObjects::OptionChain.build(data)
-      end
     end
   end
 
@@ -76,8 +70,14 @@ RSpec.describe Schwab do
   end
 
   describe '#option_chain' do
+    let(:option_chain_response) do
+      instance_double('Response', body: File.read("spec/fixtures/option_chains/ACME_calls.json"))
+    end
+
     it 'fetches and returns an option chain for a symbol' do
-      # We're using our stubbed original_option_chain so we don't need to mock the client API call
+      expect(mock_client).to receive(:get_option_chain)
+        .with('ACME', {contract_type: 'CALL', strike_range: 'OTM', to_date: Date.today + 30})
+        .and_return(option_chain_response)
 
       chain = schwab_instance.option_chain('ACME',
                                          contract_type: 'CALL',
@@ -88,7 +88,9 @@ RSpec.describe Schwab do
     end
 
     it 'uses days_to_expiration when provided' do
-      # We're using our stubbed original_option_chain so we don't need to mock the client API call
+      expect(mock_client).to receive(:get_option_chain)
+        .with('ACME', {contract_type: 'CALL', strike_range: 'OTM', days_to_expiration: 30})
+        .and_return(option_chain_response)
 
       chain = schwab_instance.option_chain('ACME',
                                          contract_type: 'CALL',
@@ -98,46 +100,46 @@ RSpec.describe Schwab do
       expect(chain).to be_an_instance_of(DataObjects::OptionChain)
     end
 
-    it 'caches results between calls' do
-      # Create a spy to track calls to original_option_chain
-      allow(schwab_instance).to receive(:original_option_chain).and_call_original
+    it 'does not cache results between calls' do
+      expect(mock_client).to receive(:get_option_chain)
+        .twice
+        .with('ACME', {contract_type: 'CALL', strike_range: 'OTM', to_date: nil})
+        .and_return(option_chain_response)
 
-      # First call should hit the original method
+      # First call
       chain1 = schwab_instance.option_chain('ACME',
                                           contract_type: 'CALL',
                                           strike_range: 'OTM')
 
-      # Second call with same params should use cache
+      # Second call with same params should not use cache
       chain2 = schwab_instance.option_chain('ACME',
                                           contract_type: 'CALL',
                                           strike_range: 'OTM')
 
-      # Verify caching worked
-      expect(schwab_instance).to have_received(:original_option_chain).exactly(1).times
-      expect(chain1).to eq(chain2)
+      # Both should be option chains but they should be separate instances
+      expect(chain1).to be_an_instance_of(DataObjects::OptionChain)
+      expect(chain2).to be_an_instance_of(DataObjects::OptionChain)
     end
 
-    it 'invalidates cache when requested' do
-      # Create a spy to track calls to original_option_chain
-      allow(schwab_instance).to receive(:original_option_chain).and_call_original
+    it 'does not use caching at all' do
+      expect(mock_client).to receive(:get_option_chain)
+        .twice
+        .with('ACME', {contract_type: 'CALL', strike_range: 'OTM', to_date: nil})
+        .and_return(option_chain_response)
 
-      # First call should hit the original method
+      # First call
       chain1 = schwab_instance.option_chain('ACME',
                                           contract_type: 'CALL',
                                           strike_range: 'OTM')
 
-      # Invalidate the cache
-      schwab_instance.invalidate_option_chain('ACME',
-                                            contract_type: 'CALL',
-                                            strike_range: 'OTM')
-
-      # Next call should hit the original method again
+      # Second call should hit the API again
       chain2 = schwab_instance.option_chain('ACME',
                                           contract_type: 'CALL',
                                           strike_range: 'OTM')
 
-      # Verify cache was invalidated
-      expect(schwab_instance).to have_received(:original_option_chain).exactly(2).times
+      # Both should be option chains but they should be separate instances
+      expect(chain1).to be_an_instance_of(DataObjects::OptionChain)
+      expect(chain2).to be_an_instance_of(DataObjects::OptionChain)
     end
   end
 
