@@ -4,7 +4,6 @@ require 'pry'
 require 'dotenv'
 require 'json'
 require 'csv'
-require 'schwab_rb'
 require 'date'
 require_relative '../../mixins/schwab/data_objects/position'
 require_relative '../../mixins/schwab/data_objects/account'
@@ -50,19 +49,20 @@ namespace :schwab do
     underlying trade_type short_delta max_spread days_to_expiration
     min_credit min_open_interest dist_from_strike quantity
   ] => :environment do |t, args|
-    underlying = if args[:underlying]
-                   args[:underlying]
+    underlying = if args.underlying
+                   args.underlying
                  else
                    puts 'Please provide an underlying symbol'
                    exit
                  end
 
-    trade_type = if %W[iron_condor call_spread put_spread].include? args[:trade_type]
-                   args[:trade_type]
+    trade_type = if %W[iron_condor call_spread put_spread].include? args.trade_type
+                   args.trade_type
                  else
                    puts 'Please provide a valid trade type (iron_condor, call_spread, put_spread)'
                    exit
                  end
+
     short_delta = args.fetch(:short_delta, 0.15).to_f
     max_spread = args.fetch(:max_spread, 20.0).to_f
     end_date = Date.today + args.fetch(:days_to_expiration, 30).to_i
@@ -71,7 +71,31 @@ namespace :schwab do
     dist_from_strike = args.fetch(:dist_from_strike, 0.07).to_f
     quantity = args.fetch(:quantity, 1).to_i
 
+    contract_type = if trade_type == 'iron_condor'
+                      'ALL'
+    elsif trade_type == 'call_spread'
+      'CALL'
+    elsif trade_type == 'put_spread'
+      'PUT'
+    else
+      puts 'Invalid trade type'
+      exit
+    end
+
+    opt_chain = schwab_client.option_chain(
+      underlying,
+      contract_type: contract_type,
+      from_date: end_date,
+      to_date: end_date
+    )
+
+    if opt_chain.nil?
+      puts "No option chain found for #{underlying}"
+      exit
+    end
+
     finder = trade_finder(
+      opt_chain,
       trade_type,
       underlying,
       end_date,
@@ -86,6 +110,7 @@ namespace :schwab do
     trade = finder.search
     if trade
       puts "Trade found: #{trade}"
+      binding.pry
     else
       puts 'No trade found'
     end
@@ -162,7 +187,6 @@ namespace :schwab do
       start_date: Date.new(2025, 1, 1),
       transaction_types: ['TRADE']
     )
-    binding.pry
     # CSV.open('all_trades.csv', 'w', write_headers: true, headers: headers) do |csv|
     #   rows.each do |row|
     #     csv << row
@@ -171,41 +195,44 @@ namespace :schwab do
   end
 end
 
-def trade_finder(trade_type, underlying, end_date, short_delta, max_spread, min_credit, min_open_interest,
+def trade_finder(opt_chain, trade_type, underlying, end_date, short_delta, max_spread, min_credit, min_open_interest,
                  dist_from_strike, quantity)
   case trade_type
   when 'iron_condor'
     Services::Search::IronCondorFinder.new(
       symbol: underlying,
-      end_date: end_date,
+      expiration_date: end_date,
       short_delta: short_delta,
       max_spread: max_spread,
       min_credit: min_credit,
       min_open_interest: min_open_interest,
       dist_from_strike: dist_from_strike,
-      quantity: quantity
+      quantity: quantity,
+      opt_chain: opt_chain
     )
   when 'call_spread'
     Services::Search::CallSpreadFinder.new(
       symbol: underlying,
-      end_date: end_date,
+      expiration_date: end_date,
       short_delta: short_delta,
       max_spread: max_spread,
       min_credit: min_credit,
       min_open_interest: min_open_interest,
       dist_from_strike: dist_from_strike,
-      quantity: quantity
+      quantity: quantity,
+      opt_chain: opt_chain
     )
   when 'put_spread'
     Services::Search::PutSpreadFinder.new(
       symbol: underlying,
-      end_date: end_date,
+      expiration_date: end_date,
       short_delta: short_delta,
       max_spread: max_spread,
       min_credit: min_credit,
       min_open_interest: min_open_interest,
       dist_from_strike: dist_from_strike,
-      quantity: quantity
+      quantity: quantity,
+      opt_chain: opt_chain
     )
   else
     raise ArgumentError, "Invalid trade type: #{trade_type}"
