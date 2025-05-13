@@ -69,6 +69,28 @@ module Schwab
     strike_range: 'OTM',
     from_date: nil,
     to_date: nil,
+    days_to_expiration: nil,
+    ttl: 60
+  )
+    options = {
+      contract_type: contract_type,
+      strike_range: strike_range,
+      ttl: ttl
+    }
+
+    options[:from_date] = from_date if from_date
+    options[:to_date] = to_date if to_date
+    options[:days_to_expiration] = days_to_expiration if days_to_expiration
+
+    cached_option_chain(symbol, **options)
+  end
+
+  def original_option_chain(
+    symbol,
+    contract_type: 'ALL',
+    strike_range: 'OTM',
+    from_date: nil,
+    to_date: nil,
     days_to_expiration: nil
   )
     kwargs = {
@@ -92,29 +114,6 @@ module Schwab
       DataObjects::OptionChain.build(data)
     end
   end
-
-  # TODO: delete
-  # def option_chain(
-  #   symbol,
-  #   contract_type: 'ALL',
-  #   strike_range: 'OTM',
-  #   from_date: nil,
-  #   to_date: nil,
-  #   days_to_expiration: nil,
-  #   ttl: 60
-  # )
-  #   options = {
-  #     contract_type: contract_type,
-  #     strike_range: strike_range,
-  #     ttl: ttl
-  #   }
-
-  #   options[:from_date] = from_date if from_date
-  #   options[:to_date] = to_date if to_date
-  #   options[:days_to_expiration] = days_to_expiration if days_to_expiration
-
-  #   cached_option_chain(symbol, **options)
-  # end
 
   def account(fields: nil)
     client.get_account(account_hash, fields: fields).then do |resp|
