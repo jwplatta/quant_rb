@@ -55,16 +55,16 @@ module Services
             quantity: quantity
           )
 
-          potential_longs = short_legs.select do |long_raw|
+          candidate_longs = opt_chain.call_opts.select do |long_raw|
             long_raw.expiration_date == short_leg.expiration_date &&
               ((short_leg.mark - long_raw.mark) * 100.0) >= min_credit &&
               long_raw.strike > short_leg.strike &&
               (long_raw.strike - short_leg.strike).abs <= max_spread
           end
 
-          next unless potential_longs.any?
+          next unless candidate_longs.any?
 
-          best_long_raw = potential_longs.min_by(&:mark)
+          best_long_raw = candidate_longs.min_by(&:mark)
           long_leg = Services::Trades::CallOption.new(
             best_long_raw.symbol,
             strike: best_long_raw.strike,
