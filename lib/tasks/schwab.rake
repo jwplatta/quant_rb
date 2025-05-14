@@ -71,6 +71,12 @@ namespace :schwab do
     dist_from_strike = args.fetch(:dist_from_strike, 0.07).to_f
     quantity = args.fetch(:quantity, 1).to_i
 
+    puts "Finding #{trade_type} for #{underlying} on #{end_date} with short delta #{short_delta}, " \
+        "max spread #{max_spread}, " \
+        "expiration in #{args.days_to_expiration} days, min credit #{min_credit}, " \
+        "min open interest #{min_open_interest}, " \
+        "dist from strike #{dist_from_strike}, quantity #{quantity}"
+
     contract_type = if trade_type == 'iron_condor'
                       'ALL'
     elsif trade_type == 'call_spread'
