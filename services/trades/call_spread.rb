@@ -19,12 +19,11 @@ module Services
         end
       end
 
-      attr_reader :strategy, :short_leg, :long_leg, :expiration_date
+      attr_reader :strategy, :short_leg, :long_leg
 
       def initialize(
         short_leg: nil,
         long_leg: nil,
-        expiration_date: nil,
         increment: 0.01,
         round: 2,
         quantity: 1
@@ -33,7 +32,10 @@ module Services
         @strategy = 'VERTICAL'
         @short_leg = short_leg
         @long_leg = long_leg
-        @expiration_date = expiration_date
+      end
+
+      def expiration_date
+        @expiration_date ||= short_leg.expiration_date
       end
 
       def risk_status
