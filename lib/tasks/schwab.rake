@@ -45,9 +45,12 @@ namespace :schwab do
   end
 
   desc 'Find Options Trade'
-  task :find_option_trade, %i[
-    underlying trade_type short_delta max_spread days_to_expiration
-    min_credit min_open_interest dist_from_strike quantity
+  task :find_options_trade, %i[
+    underlying trade_type
+    short_delta max_spread
+    end_date min_credit
+    min_open_interest dist_from_strike
+    quantity
   ] => :environment do |t, args|
     underlying = if args.underlying
                    args.underlying
@@ -65,20 +68,20 @@ namespace :schwab do
 
     short_delta = args.fetch(:short_delta, 0.15).to_f
     max_spread = args.fetch(:max_spread, 20.0).to_f
-    end_date = Date.today + args.fetch(:days_to_expiration, 30).to_i
-    min_credit = args.fetch(:min_credit, 0.0).to_f
+    end_date = Date.parse(args.end_date) || Date.today + 30
+    min_credit = args.fetch(:min_credit, 50.0).to_f
     min_open_interest = args.fetch(:min_open_interest, 0).to_i
-    dist_from_strike = args.fetch(:dist_from_strike, 0.07).to_f
+    dist_from_strike = args.fetch(:dist_from_strike, 0.05).to_f
     quantity = args.fetch(:quantity, 1).to_i
 
     puts "Finding #{trade_type} for #{underlying} on #{end_date} with short delta #{short_delta}, " \
         "max spread #{max_spread}, " \
-        "expiration in #{args.days_to_expiration} days, min credit #{min_credit}, " \
+        "on date #{end_date}, min credit #{min_credit}, " \
         "min open interest #{min_open_interest}, " \
         "dist from strike #{dist_from_strike}, quantity #{quantity}"
 
     contract_type = if trade_type == 'iron_condor'
-                      'ALL'
+      'ALL'
     elsif trade_type == 'call_spread'
       'CALL'
     elsif trade_type == 'put_spread'
@@ -115,11 +118,35 @@ namespace :schwab do
 
     trade = finder.search
     if trade
-      puts "Trade found: #{trade}"
-      binding.pry
+      puts """
+      ###########
+      TRADE FOUND
+      ###########
+      short leg symbol: #{trade.short_leg.symbol}
+      short leg strike: #{trade.short_leg.strike}
+      long leg symbol: #{trade.long_leg.symbol}
+      long leg strike: #{trade.long_leg.strike}
+      expiration date: #{trade.expiration_date}
+      credit/debit: #{trade.credit_debit}
+      spread width: #{trade.spread_width}
+      delta: #{trade.delta}
+      open interest: #{trade.short_leg.open_interest}
+      """
     else
       puts 'No trade found'
     end
+  end
+
+  desc 'Preview Trade'
+  task :preview_call_spread_trade, %i[trade_type] => :environment do |_t, args|
+
+    binding.pry
+  end
+
+  desc 'Send Trade'
+  task :send_trade, %i[trade_type] => :environment do |_t, args|
+
+    binding.pry
   end
 
   desc 'Show Account'
@@ -134,7 +161,7 @@ namespace :schwab do
     """
     puts account_summary
     puts "\n-----------------------------------\n"
-    puts "\nPositions:"
+    puts "\nPOSITIONs:"
 
     account.positions.each do |position|
       if position.instrument.asset_type == 'EQUITY'
