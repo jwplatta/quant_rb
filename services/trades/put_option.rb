@@ -41,7 +41,8 @@ module Services
             mark: quote.mark,
             ask: quote.ask_price,
             bid: quote.bid_price,
-            expiration_date: expiration_date
+            expiration_date: expiration_date,
+            open_interest: quote.open_interest
           )
         end
       end
@@ -50,7 +51,8 @@ module Services
 
       def initialize(
         symbol, strike: nil, delta: 999, mark: nil, ask: nil, bid: nil,
-        expiration_date: nil, quantity: nil, increment: 0.01, round: 2
+        expiration_date: nil, quantity: nil, increment: 0.01, round: 2,
+        open_interest: nil
       )
         super(
           increment: increment,
@@ -65,6 +67,7 @@ module Services
         @ask = ask
         @bid = bid
         @expiration_date = expiration_date
+        @open_interest = open_interest
       end
 
       def risk_status

@@ -52,7 +52,8 @@ module Services
             ask: short_raw.ask,
             bid: short_raw.bid,
             expiration_date: short_raw.expiration_date,
-            quantity: quantity
+            quantity: quantity,
+            open_interest: short_raw.open_interest
           )
 
           candidate_longs = opt_chain.call_opts.select do |long_raw|
@@ -73,7 +74,8 @@ module Services
             ask: best_long_raw.ask,
             bid: best_long_raw.bid,
             expiration_date: best_long_raw.expiration_date,
-            quantity: quantity
+            quantity: quantity,
+            open_interest: best_long_raw.open_interest
           )
 
           @trades << Services::Trades::CallSpread.new(
