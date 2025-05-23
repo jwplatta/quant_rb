@@ -2,6 +2,8 @@
 
 require_relative '../../mixins/schwab/schwab'
 require_relative '../../mixins/orderable'
+require_relative '../../mixins/quoteable'
+require_relative '../../mixins/risk_assessable'
 
 Order = Struct.new(:id, :status, :date)
 
@@ -9,6 +11,8 @@ module Services
   module Trades
     class Trade
       include Orderable
+      include Quoteable
+      include RiskAssessable
 
       attr_accessor :increment, :round, :exit_threshold, :max_loss, :quantity,
                     :underlying_symbol
@@ -24,22 +28,6 @@ module Services
         @max_loss = max_loss
         @quantity = quantity
         initialize_orderable
-      end
-
-      def credit_debit
-        raise 'Must be implemented in subclass'
-      end
-
-      def net_credit_debit
-        raise 'Must be implemented in subclass'
-      end
-
-      def delta
-        raise 'Must be implemented in subclass'
-      end
-
-      def check_market
-        raise 'Must be implemented in subclass'
       end
 
       def exitable?
