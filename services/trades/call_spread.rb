@@ -6,19 +6,6 @@ require_relative 'call_option'
 module Services
   module Trades
     class CallSpread < Trade
-      class << self
-        def from_h(hash)
-          short_leg = Services::Trades::CallOption.from_h(hash[:short_leg])
-          long_leg = Services::Trades::CallOption.from_h(hash[:long_leg])
-          expiration_date = hash[:expiration_date] ? Date.parse(hash[:expiration_date]) : nil
-          Services::Trades::CallSpread.new(
-            short_leg: short_leg,
-            long_leg: long_leg,
-            expiration_date: expiration_date
-          )
-        end
-      end
-
       attr_reader :strategy, :short_leg, :long_leg
 
       def initialize(
@@ -69,15 +56,6 @@ module Services
       def check_market
         short_leg.check_market
         long_leg.check_market
-      end
-
-      def to_h
-        {
-          type: 'CALL_SPREAD',
-          expiration_date: expiration_date,
-          short_leg: short_leg.to_h,
-          long_leg: long_leg.to_h
-        }
       end
     end
   end
