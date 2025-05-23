@@ -4,20 +4,7 @@ require_relative 'trade'
 
 module Services
   module Trades
-    class IronCondor < Trade
-      class << self
-        def from_h(hash)
-          call_spread = CallSpread.from_h(hash[:call_spread])
-          put_spread = PutSpread.from_h(hash[:put_spread])
-          expiration_date = hash[:expiration_date] ? Date.parse(hash[:expiration_date]) : nil
-          IronCondor.new(
-            call_spread: call_spread,
-            put_spread: put_spread,
-            expiration_date: expiration_date
-          )
-        end
-      end
-
+    class IronCondor
       attr_reader :strategy, :call_spread, :put_spread, :expiration_date
 
       def initialize(call_spread:, put_spread:, expiration_date:, increment: 0.01, round: 2, quantity: 1)
@@ -28,12 +15,12 @@ module Services
         @expiration_date = expiration_date
       end
 
-      def call_risk_status
-        call_spread.risk_status
-      end
-
-      def put_risk_status
-        put_spread.risk_status
+      def delta
+        if put_spread.delta > call_spread.delta
+          put_spread.delta
+        else
+          call_spread.delta
+        end
       end
 
       def prob_of_profit
@@ -77,15 +64,6 @@ module Services
       def check_market
         call_spread.check_market
         put_spread.check_market
-      end
-
-      def to_h
-        {
-          type: 'IRON_CONDOR',
-          expiration_date: expiration_date,
-          call_spread: call_spread.to_h,
-          put_spread: put_spread.to_h
-        }
       end
     end
   end
