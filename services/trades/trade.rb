@@ -12,7 +12,7 @@ module Services
     class Trade
       include Orderable
       include Quoteable
-      include RiskAssessable
+      include PositionProgress
 
       attr_accessor :increment, :round, :exit_threshold, :max_loss, :quantity,
                     :underlying_symbol
