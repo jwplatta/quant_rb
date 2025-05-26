@@ -94,10 +94,10 @@ module Schwab
     end
   end
 
-  def transactions(start_date: nil, end_date: nil, transaction_types: nil, symbol: nil)
+  def transactions(from_date: nil, to_date: nil, transaction_types: nil, symbol: nil)
     kwargs = {}
-    kwargs[:start_date] = start_date if start_date
-    kwargs[:end_date] = end_date if end_date
+    kwargs[:start_date] = from_date if from_date
+    kwargs[:end_date] = to_date if to_date
     kwargs[:transaction_types] = transaction_types if transaction_types
     kwargs[:symbol] = symbol if symbol
 
@@ -116,7 +116,7 @@ module Schwab
     end
   end
 
-  def account_orders(from_date, to_date, status)
+  def account_orders(from_date: nil, to_date: Date.today, status: 'FILLED')
     client.get_account_orders(
       account_hash,
       from_entered_datetime: from_date,
@@ -196,6 +196,8 @@ module Schwab
   end
 
   def place_order(order)
+    # NOTE: Schwab API does not return the order id after placing the order.
+    # Instead, we need to fetch the latest order after placing it.
     start = DateTime.now
     client.place_order(account_hash, order).then do |resp|
       get_latest_order(from_entered_datetime: start) if resp.status == 201
