@@ -64,7 +64,12 @@ GEM
     fiber-local (1.1.0)
       fiber-storage
     fiber-storage (1.0.0)
+    gruff (0.27.0)
+      bigdecimal (>= 3.0)
+      histogram
+      rmagick (>= 5.5)
     hashie (5.0.0)
+    histogram (0.2.4.1)
     i18n (1.14.7)
       concurrent-ruby (~> 1.0)
     io-event (1.9.0)
@@ -92,11 +97,13 @@ GEM
       rack (>= 1.2, < 4)
       snaky_hash (~> 2.0)
       version_gem (~> 1.1)
+    observer (0.1.2)
     openssl (3.3.0)
     parallel (1.27.0)
     parser (3.3.8.0)
       ast (~> 2.4.1)
       racc
+    pkg-config (1.6.2)
     prism (1.4.0)
     pry (0.15.2)
       coderay (~> 1.1)
@@ -117,6 +124,9 @@ GEM
     rainbow (3.1.1)
     rake (13.2.1)
     regexp_parser (2.10.0)
+    rmagick (6.1.1)
+      observer (~> 0.1)
+      pkg-config (~> 1.4)
     rspec (3.13.0)
       rspec-core (~> 3.13.0)
       rspec-expectations (~> 3.13.0)
@@ -179,6 +189,7 @@ PLATFORMS
 DEPENDENCIES
   activerecord (~> 8.0, >= 8.0.1)
   dotenv
+  gruff
   pry
   rake
   rspec
