@@ -381,7 +381,7 @@ namespace :schwab do
   end
 
   desc 'Print Trades'
-  task :puts_trades, [:start_days, :end_days] => :environment do |_t, args|
+  task :print_trades, [:start_days, :end_days] => :environment do |_t, args|
     # TEST: March 2025 be rake "schwab:puts_trades[85,54]"
     from_date = Date.today - (args[:start_days] || 30).to_i
     to_date = Date.today - (args[:end_days] || 0).to_i
