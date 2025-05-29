@@ -5,11 +5,10 @@ require_relative 'trade'
 module Services
   module Trades
     class IronCondor
-      attr_reader :strategy, :call_spread, :put_spread, :expiration_date
+      attr_reader :call_spread, :put_spread, :expiration_date
 
       def initialize(call_spread:, put_spread:, expiration_date:, increment: 0.01, round: 2, quantity: 1)
         super(increment: increment, round: round, quantity: quantity)
-        @strategy = 'IRON_CONDOR'
         @put_spread = put_spread
         @call_spread = call_spread
         @expiration_date = expiration_date
@@ -25,10 +24,6 @@ module Services
 
       def prob_of_profit
         @prob_of_profit ||= (1 - put_spread.delta.abs) + (1 - call_spread.delta.abs) - 1
-      end
-
-      def max_loss
-        @max_loss ||= ([put_spread.spread_width, call_spread.spread_width].max - credit_debit) * 100.0
       end
 
       def credit_debit

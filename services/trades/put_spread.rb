@@ -6,7 +6,7 @@ require_relative 'put_option'
 module Services
   module Trades
     class PutSpread < Trade
-      attr_reader :strategy, :short_leg, :long_leg
+      attr_reader :short_leg, :long_leg
 
       def initialize(
         short_leg: nil,
@@ -16,7 +16,6 @@ module Services
         quantity: 1
       )
         super(increment: increment, round: round, quantity: quantity)
-        @strategy = 'VERTICAL'
         @short_leg = short_leg
         @long_leg = long_leg
       end

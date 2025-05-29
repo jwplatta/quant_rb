@@ -37,7 +37,6 @@ module Services
           round: round,
           quantity: quantity
         )
-        @strategy = 'SINGLE'
         @symbol = symbol
         @strike = strike
         @delta = delta.abs
