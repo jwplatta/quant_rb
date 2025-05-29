@@ -5,7 +5,6 @@ require_relative '../../mixins/orderable'
 require_relative '../../mixins/schwab/data_objects/order'
 
 RSpec.describe Orderable do
-  # Create a test class that includes the Orderable mixin
   let(:test_class) do
     Class.new do
       include Orderable
@@ -27,7 +26,6 @@ RSpec.describe Orderable do
   before do
     orderable_instance.initialize_orderable
 
-    # Stub Schwab methods
     allow(orderable_instance).to receive(:build_and_preview_order).and_return(
       instance_double('OrderPreview',
                       accepted?: true,
