@@ -16,12 +16,12 @@ class VerticalOrder
         builder.set_price(trade.credit_debit)
         builder.add_option_leg(
           SchwabRb::Orders::OptionInstructions::SELL_TO_OPEN,
-          trade.short_call.symbol,
+          trade.short_leg.symbol,
           options[:quantity]
         )
         builder.add_option_leg(
           SchwabRb::Orders::OptionInstructions::BUY_TO_OPEN,
-          trade.long_call.symbol,
+          trade.long_leg.symbol,
           options[:quantity]
         )
       end
