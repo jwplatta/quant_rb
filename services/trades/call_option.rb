@@ -6,21 +6,17 @@ module Services
   module Trades
     class CallOption < Trade
       class << self
-        def from_quote(quote)
-          expiration_date = Date.new(
-            quote.expiration_year,
-            quote.expiration_month,
-            quote.expiration_day
-          )
+        def from_schwab_option(option, quantity: 1)
           CallOption.new(
-            quote.symbol,
-            strike: quote.strike_price,
-            delta: quote.delta,
-            mark: quote.mark,
-            ask: quote.ask_price,
-            bid: quote.bid_price,
-            expiration_date: expiration_date,
-            open_interest: quote.open_interest
+            option.symbol,
+            strike: option.strike,
+            delta: option.delta,
+            mark: option.mark,
+            ask: option.ask,
+            bid: option.bid,
+            expiration_date: option.expiration_date,
+            open_interest: option.open_interest,
+            quantity: quantity
           )
         end
       end

@@ -53,17 +53,7 @@ module Services
         end
 
         short_legs.each do |short_raw|
-          short_leg = Services::Trades::CallOption.new(
-            short_raw.symbol,
-            strike: short_raw.strike,
-            delta: short_raw.delta,
-            mark: short_raw.mark,
-            ask: short_raw.ask,
-            bid: short_raw.bid,
-            expiration_date: short_raw.expiration_date,
-            quantity: quantity,
-            open_interest: short_raw.open_interest
-          )
+          short_leg = Services::Trades::CallOption.from_schwab_option(short_raw, quantity: quantity)
 
           # NOTE:
           # Filters the call options (`call_opts`) from the option chain to find potential long positions
@@ -84,17 +74,7 @@ module Services
           next unless candidate_longs.any?
 
           best_long_raw = candidate_longs.min_by(&:mark)
-          long_leg = Services::Trades::CallOption.new(
-            best_long_raw.symbol,
-            strike: best_long_raw.strike,
-            delta: best_long_raw.delta,
-            mark: best_long_raw.mark,
-            ask: best_long_raw.ask,
-            bid: best_long_raw.bid,
-            expiration_date: best_long_raw.expiration_date,
-            quantity: quantity,
-            open_interest: best_long_raw.open_interest
-          )
+          long_leg = Services::Trades::CallOption.from_schwab_option(best_long_raw, quantity: quantity)
 
           @trades << Services::Trades::CallSpread.new(
             short_leg: short_leg,
