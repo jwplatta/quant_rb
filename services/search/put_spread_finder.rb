@@ -44,16 +44,8 @@ module Services
         end
 
         short_legs.each do |short_raw|
-          short_leg = Services::Trades::PutOption.new(
-            short_raw.symbol,
-            strike: short_raw.strike,
-            delta: short_raw.delta,
-            mark: short_raw.mark,
-            ask: short_raw.ask,
-            bid: short_raw.bid,
-            expiration_date: short_raw.expiration_date,
-            quantity: quantity,
-            open_interest: short_raw.open_interest
+          short_leg = Services::Trades::PutOption.from_schwab_option(
+            short_raw, quantity: quantity,
           )
 
           potential_longs = short_legs.select do |long_raw|
@@ -66,16 +58,8 @@ module Services
           next unless potential_longs.any?
 
           best_long_raw = potential_longs.min_by(&:mark)
-          long_leg = Services::Trades::PutOption.new(
-            best_long_raw.symbol,
-            strike: best_long_raw.strike,
-            delta: best_long_raw.delta,
-            mark: best_long_raw.mark,
-            ask: best_long_raw.ask,
-            bid: best_long_raw.bid,
-            expiration_date: best_long_raw.expiration_date,
-            quantity: quantity,
-            open_interest: best_long_raw.open_interest
+          long_leg = Services::Trades::PutOption.from_schwab_option(
+            best_long_raw, quantity: quantity
           )
 
           @trades << Services::Trades::PutSpread.new(
