@@ -194,21 +194,21 @@ RSpec.describe Schwab do
     end
 
     it 'accepts optional parameters' do
-      start_date = Date.new(2025, 1, 1)
-      end_date = Date.new(2025, 1, 31)
+      from_date = Date.new(2025, 1, 1)
+      to_date = Date.new(2025, 1, 31)
 
       expect(mock_client).to receive(:get_transactions)
         .with('ABC123XYZ', {
-                start_date: start_date,
-                end_date: end_date,
+                start_date: from_date,
+                end_date: to_date,
                 transaction_types: 'TRADE',
                 symbol: 'MRVL'
               })
         .and_return(transactions_response)
 
       transactions = schwab_instance.transactions(
-        start_date: start_date,
-        end_date: end_date,
+        from_date: from_date,
+        to_date: to_date,
         transaction_types: 'TRADE',
         symbol: 'MRVL'
       )
@@ -240,7 +240,7 @@ RSpec.describe Schwab do
         .with('ABC123XYZ', from_entered_datetime: from_date, to_entered_datetime: to_date, status: status)
         .and_return(orders_response)
 
-      orders = schwab_instance.account_orders(from_date, to_date, status)
+      orders = schwab_instance.account_orders(from_date: from_date, to_date: to_date, status: status)
       expect(orders).to be_an_instance_of(Array)
       expect(orders.first).to be_an_instance_of(DataObjects::Order)
       expect(orders.first.status).to eq('FILLED')
