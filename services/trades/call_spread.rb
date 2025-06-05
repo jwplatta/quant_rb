@@ -36,10 +36,6 @@ module Services
         nearest_increment(short_leg.mark - long_leg.mark).round(2)
       end
 
-      def net_credit_debit
-        credit_debit * 100 - open_fees - open_commission
-      end
-
       def credit_debit_raw
         short_leg.mark - long_leg.mark
       end
