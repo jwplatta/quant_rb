@@ -5,18 +5,41 @@ require_relative 'schwab/schwab'
 module Quoteable
   include Schwab
 
+  def initialize_quoteable
+    @quote = nil
+  end
+
+  def strike
+    @quote&.strike_price
+  end
+
+  def delta
+    @quote&.delta&.abs
+  end
+
+  def mark
+    @quote&.mark
+  end
+
+  def ask
+    @quote&.ask_price
+  end
+
+  def bid
+    @quote&.bid_price
+  end
+
+  def expiration_date
+    @expiration_date || Date.new(
+      @quote&.expiration_year,
+      @quote&.expiration_month,
+      @quote&.expiration_day
+    )
+  end
+
   def check_market
-    quote(symbol).then do |q|
-      @delta = q.delta.abs
-      @mark = q.mark
-      @ask = q.ask_price
-      @bid = q.bid_price
-      @strike = q.strike_price
-      @expiration_date = Date.new(
-        q.expiration_year,
-        q.expiration_month,
-        q.expiration_day
-      )
-    end
+    @quote = quote(symbol)
+  catch StandardError => e
+    puts "Error fetching quote for #{symbol}: #{e.message}"
   end
 end
