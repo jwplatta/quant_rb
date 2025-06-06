@@ -1,5 +1,5 @@
-require "pry"
 require_relative "../trades/call_option"
+require_relative '../trades/null_trade'
 require_relative "../trades/call_spread"
 
 module Services
@@ -82,7 +82,11 @@ module Services
           )
         end
 
-        @trades.max_by(&:credit_debit)
+        if @trades.empty?
+          Services::Trades::NullTrade.new
+        else
+          @trades.max_by(&:credit_debit)
+        end
       end
     end
   end
