@@ -47,10 +47,6 @@ module Services
         nearest_increment(mark.round(2))
       end
 
-      def net_credit_debit
-        credit_debit * 100 - filled_open_fees.to_f - filled_open_commission.to_f
-      end
-
       def short?
         quantity.negative?
       end
