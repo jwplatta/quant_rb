@@ -25,10 +25,7 @@ module Services
 
         initialize_orderable
         init_progress
-      end
-
-      def net_filled_open_credit_debit
-        filled_open_credit_debit.to_f * 100 - filled_open_fees.to_f - filled_open_commission.to_f
+        initialize_quoteable
       end
 
       def nearest_increment(value)
