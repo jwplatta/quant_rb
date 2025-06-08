@@ -6,15 +6,16 @@ class IronCondorOrder
   class << self
     def build(trade, **options)
       order_instruction = options[:order_instruction] || :entry
+      quantity = options[:quantity] || 1
 
       schwab_order_builder.new.tap do |builder|
         builder.set_account_number(options[:account_number])
         builder.set_order_strategy_type('SINGLE')
         builder.set_session(SchwabRb::Orders::Session::NORMAL)
         builder.set_duration(SchwabRb::Orders::Duration::DAY)
-        builder.set_order_type(SchwabRb::Order::Types::NET_CREDIT)
+        builder.set_order_type(order_type(trade))
         builder.set_complex_order_strategy_type(SchwabRb::Order::ComplexOrderStrategyTypes::IRON_CONDOR)
-        builder.set_quantity(options[:quantity])
+        builder.set_quantity(quantity)
         builder.set_price(trade.credit_debit)
 
         instructions = leg_instructions_for_position(order_instruction)
@@ -22,23 +23,31 @@ class IronCondorOrder
         builder.add_option_leg(
           instructions[:put_short],
           trade.put_spread.short_leg.symbol,
-          options[:quantity]
+          quantity
         )
         builder.add_option_leg(
           instructions[:put_long],
           trade.put_spread.long_leg.symbol,
-          options[:quantity]
+          quantity
         )
         builder.add_option_leg(
           instructions[:call_short],
           trade.call_spread.short_leg.symbol,
-          options[:quantity]
+          quantity
         )
         builder.add_option_leg(
           instructions[:call_long],
           trade.call_spread.long_leg.symbol,
-          options[:quantity]
+          quantity
         )
+      end
+    end
+
+    def order_type(trade)
+      if trade.credit?
+        SchwabRb::Order::Types::NET_CREDIT
+      else
+        SchwabRb::Order::Types::NET_DEBIT
       end
     end
 
