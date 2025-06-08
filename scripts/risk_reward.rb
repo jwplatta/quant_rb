@@ -3,16 +3,19 @@
 total_earned = 0
 
 1000.times do
-  expected_reward = 2
-  expected_risk = 1
+  expected_reward = 100.0
+  cost = 5.0
 
-  result = [0, 1].sample
+  result = rand # Generates a random float between 0.0 and 1.0
 
-  if result == 1
+  total_earned -= cost
+
+  if result > 0.13
     total_earned += expected_reward
-  else
-    total_earned -= expected_risk
   end
 end
 
 puts "Total earned after 1000 trades: $#{total_earned}"
+
+
+# cost, reward, chance of success
