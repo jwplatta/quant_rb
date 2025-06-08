@@ -62,6 +62,10 @@ module Orderable
     end
   end
 
+  def accepted?
+    order_status == 'ACCEPTED' || @filled_order&.status == 'ACCEPTED'
+  end
+
   def filled?
     order_status == 'FILLED' || @filled_order&.status == 'FILLED'
   end
