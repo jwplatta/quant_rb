@@ -5,25 +5,52 @@ require 'schwab_rb'
 class VerticalOrder
   class << self
     def build(trade, **options)
+      order_instruction = options[:order_instruction] || :entry
+      quantity = options[:quantity] || 1
+
       schwab_order_builder.new.tap do |builder|
         builder.set_account_number(options[:account_number])
         builder.set_order_strategy_type('SINGLE')
         builder.set_session(SchwabRb::Orders::Session::NORMAL)
         builder.set_duration(SchwabRb::Orders::Duration::DAY)
-        builder.set_order_type(SchwabRb::Order::Types::NET_CREDIT)
+        builder.set_order_type(order_type(trade))
         builder.set_complex_order_strategy_type(SchwabRb::Order::ComplexOrderStrategyTypes::VERTICAL)
-        builder.set_quantity(options[:quantity])
+        builder.set_quantity(quantity)
         builder.set_price(trade.credit_debit)
         builder.add_option_leg(
-          SchwabRb::Orders::OptionInstructions::SELL_TO_OPEN,
+          short_leg_instruction(order_instruction),
           trade.short_leg.symbol,
-          options[:quantity]
+          quantity
         )
         builder.add_option_leg(
-          SchwabRb::Orders::OptionInstructions::BUY_TO_OPEN,
+          long_leg_instruction(order_instruction),
           trade.long_leg.symbol,
-          options[:quantity]
+          quantity
         )
+      end
+    end
+
+    def order_type(trade)
+      if trade.credit?
+        SchwabRb::Order::Types::NET_CREDIT
+      else
+        SchwabRb::Order::Types::NET_DEBIT
+      end
+    end
+
+    def short_leg_instruction(order_instruction)
+      if order_instruction == :entry
+        SchwabRb::Orders::OptionInstructions::SELL_TO_OPEN
+      else
+        SchwabRb::Orders::OptionInstructions::BUY_TO_CLOSE
+      end
+    end
+
+    def long_leg_instruction(order_instruction)
+      if order_instruction == :entry
+        SchwabRb::Orders::OptionInstructions::BUY_TO_OPEN
+      else
+        SchwabRb::Orders::OptionInstructions::SELL_TO_CLOSE
       end
     end
 
