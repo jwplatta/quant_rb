@@ -104,6 +104,7 @@ GEM
       ast (~> 2.4.1)
       racc
     pkg-config (1.6.2)
+    pqueue (2.1.0)
     prism (1.4.0)
     pry (0.15.2)
       coderay (~> 1.1)
@@ -190,6 +191,7 @@ DEPENDENCIES
   activerecord (~> 8.0, >= 8.0.1)
   dotenv
   gruff
+  pqueue
   pry
   rake
   rspec

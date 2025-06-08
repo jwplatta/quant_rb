@@ -13,3 +13,4 @@ gem 'schwab_rb', git: 'https://github.com/jwplatta/schwab_rb.git', ref: '3930694
 gem 'sqlite3', '~> 2.1'
 gem 'timecop'
 gem 'gruff'
+gem 'pqueue'
