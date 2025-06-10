@@ -25,6 +25,26 @@ module DataObjects
       @commission_and_fee = CommissionAndFee.new(commission_and_fee)
     end
 
+    def price
+      order_strategy.price
+    end
+
+    def order_value
+      order_strategy.order_value
+    end
+
+    def quantity
+      order_strategy.quantity
+    end
+
+    def status
+      order_strategy.status
+    end
+
+    def strategy_type
+      order_strategy.strategy
+    end
+
     def accepted?
       order_strategy.status == 'ACCEPTED'
     end
