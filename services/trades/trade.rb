@@ -11,7 +11,6 @@ module Services
   module Trades
     class Trade
       include Orderable
-      include Quoteable
       include PositionProgress
 
       attr_accessor :increment, :round, :exit_threshold, :max_loss, :quantity,
@@ -25,15 +24,14 @@ module Services
 
         initialize_orderable
         init_progress
-        initialize_quoteable
+      end
+
+      def type
+        self.class.name.split('::').last.downcase.to_sym
       end
 
       def nearest_increment(value)
-        (value / increment).floor * increment
-      end
-
-      def to_json(*_args)
-        to_h.to_json
+        ((value / increment).round * increment).round(round)
       end
     end
   end
