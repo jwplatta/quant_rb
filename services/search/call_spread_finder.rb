@@ -5,9 +5,9 @@ require_relative "../trades/call_spread"
 module Services
   module Search
     class CallSpreadFinder
-      attr_reader :symbol, :expiration_date, :short_delta, :max_spread,
+      attr_reader :symbol, :short_delta, :max_spread,
         :min_credit, :min_open_interest, :dist_from_strike, :trades, :short_legs,
-        :expiration_date, :quantity, :opt_chain
+        :expiration_date, :quantity
 
       def initialize(
         symbol:,
@@ -17,7 +17,6 @@ module Services
         min_credit: 100.0,
         min_open_interest: 0,
         dist_from_strike: 0.07,
-        opt_chain: nil,
         quantity: 1
       )
         @symbol = symbol
@@ -29,11 +28,10 @@ module Services
         @dist_from_strike = dist_from_strike
         @trades = []
         @short_legs = []
-        @opt_chain = opt_chain
         @quantity = quantity
       end
 
-      def search
+      def search(opt_chain)
         # NOTE:
         # Filters the call options in the option chain to identify potential short legs
         # for a call spread strategy. The selection criteria include:
@@ -66,6 +64,7 @@ module Services
           #   is less than or equal to the maximum spread (`max_spread`).
           candidate_longs = opt_chain.call_opts.select do |long_raw|
             long_raw.expiration_date == short_leg.expiration_date &&
+              long_raw.mark > 0.0 &&
               ((short_leg.mark - long_raw.mark) * 100.0) >= min_credit &&
               long_raw.strike > short_leg.strike &&
               (long_raw.strike - short_leg.strike).abs <= max_spread
@@ -85,7 +84,7 @@ module Services
         if @trades.empty?
           Services::Trades::NullTrade.new
         else
-          @trades.max_by(&:credit_debit)
+          @trades.max_by(&:credit)
         end
       end
     end
