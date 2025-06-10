@@ -28,8 +28,20 @@ module Services
         short_leg.delta
       end
 
-      def credit_debit
-        nearest_increment(short_leg.mark - long_leg.mark).round(2)
+      def credit
+        nearest_increment(short_leg.mark - long_leg.mark)
+      end
+
+      def debit
+        nearest_increment(long_leg.mark - short_leg.mark)
+      end
+
+      def credit?
+        credit_debit.positive?
+      end
+
+      def debit?
+        credit_debit.negative?
       end
 
       def credit_debit_raw
@@ -44,9 +56,15 @@ module Services
         [short_leg.symbol, long_leg.symbol]
       end
 
+      def strikes
+        [short_leg.strike, long_leg.strike]
+      end
+
       def check_market
-        short_leg.check_market
-        long_leg.check_market
+        threads = []
+        threads << Thread.new { short_leg.check_market }
+        threads << Thread.new { long_leg.check_market }
+        threads.each(&:join)
       end
     end
   end
