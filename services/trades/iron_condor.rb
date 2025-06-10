@@ -22,30 +22,22 @@ module Services
         end
       end
 
-      def prob_of_profit
-        @prob_of_profit ||= (1 - put_spread.delta.abs) + (1 - call_spread.delta.abs) - 1
+      def credit
+        credit_debit
+      end
+
+      def debit
+        credit_debit
       end
 
       def credit_debit
         nearest_increment(
           put_spread.credit_debit_raw + call_spread.credit_debit_raw
-        ).round(2)
+        )
       end
 
       def credit_debit_raw
         put_spread.credit_debit_raw + call_spread.credit_debit_raw
-      end
-
-      def credit_debit_with_fees
-        put_spread.credit_debit + call_spread.credit_debit - (fees + commission)
-      end
-
-      def debit?
-        credit_debit.negative?
-      end
-
-      def credit?
-        credit_debit.positive?
       end
 
       def expected_return
