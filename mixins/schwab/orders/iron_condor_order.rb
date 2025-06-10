@@ -5,7 +5,7 @@ require 'schwab_rb'
 class IronCondorOrder
   class << self
     def build(trade, **options)
-      order_instruction = options[:order_instruction] || :entry
+      order_instruction = options[:order_instruction] || :open
       quantity = options[:quantity] || 1
 
       schwab_order_builder.new.tap do |builder|
@@ -43,8 +43,8 @@ class IronCondorOrder
       end
     end
 
-    def order_type(trade)
-      if trade.credit?
+    def order_type(order_instruction)
+      if order_instruction == :open
         SchwabRb::Order::Types::NET_CREDIT
       else
         SchwabRb::Order::Types::NET_DEBIT
@@ -53,7 +53,7 @@ class IronCondorOrder
 
     def leg_instructions_for_position(order_instruction)
       case order_instruction
-      when :entry
+      when :open
         {
           put_short: SchwabRb::Orders::OptionInstructions::SELL_TO_OPEN,
           put_long: SchwabRb::Orders::OptionInstructions::BUY_TO_OPEN,
