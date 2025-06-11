@@ -47,6 +47,9 @@ module Schwab
     client.get_quotes(symbols).then do |resp|
       parsed_data = JSON.parse(resp.body, symbolize_names: true)
 
+      if parsed_data[:errors].any?
+        raise "Error fetching quotes: #{parsed_data[:errors]}"
+      end
       # REVIEW: The QuoteFactory expects data in the format: { symbol => quote_data }
       # and the Schwab API should return data in this format
       parsed_data.map do |symbol, quote_data|
@@ -137,25 +140,25 @@ module Schwab
     end
   end
 
-  def build_and_preview_order(trade, quantity: 1, order_instruction: :entry)
+  def build_and_preview_order(trade, quantity: 1, order_instruction: :open)
     build_order(trade, quantity: quantity, order_instruction: order_instruction).then do |order|
       preview_order(order)
     end
   end
 
-  def build_and_place_order(trade, quantity: 1, order_instruction: :entry)
+  def build_and_place_order(trade, quantity: 1, order_instruction: :open)
     build_order(trade, quantity: quantity, order_instruction: order_instruction).then do |order|
       place_order(order)
     end
   end
 
-  def build_and_replace_order(order_id, trade, quantity: 1, order_instruction: :entry)
+  def build_and_replace_order(order_id, trade, quantity: 1, order_instruction: :open)
     build_order(trade, quantity: quantity, order_instruction: order_instruction).then do |order|
       replace_order(order_id, order)
     end
   end
 
-  def build_order(trade, quantity: 1, order_instruction: :entry)
+  def build_order(trade, quantity: 1, order_instruction: :open)
     OrderFactory.build(
       trade,
       quantity: quantity,
