@@ -5,41 +5,41 @@ require_relative 'schwab/schwab'
 module Quoteable
   include Schwab
 
-  def initialize_quoteable
-    @quote = nil
-  end
+  attr_accessor :last_quote, :strike, :delta, :mark, :ask, :bid, :expiration_date, :open_interest
 
-  def strike
-    @quote&.strike_price
-  end
-
-  def delta
-    @quote&.delta&.abs
-  end
-
-  def mark
-    @quote&.mark
-  end
-
-  def ask
-    @quote&.ask_price
-  end
-
-  def bid
-    @quote&.bid_price
-  end
-
-  def expiration_date
-    @expiration_date || Date.new(
-      @quote&.expiration_year,
-      @quote&.expiration_month,
-      @quote&.expiration_day
-    )
+  def self.included(base)
+    base.class_eval do
+      def initialize(*args)
+        super(*args) if defined?(super)
+        @last_quote = nil
+        @strike = nil
+        @delta = 999
+        @mark = nil
+        @ask = nil
+        @bid = nil
+        @expiration_date = nil
+        @open_interest = nil
+      end
+    end
   end
 
   def check_market
-    @quote = quote(symbol)
-  catch StandardError => e
+    @last_quote = quote(symbol)
+
+    if @last_quote
+      @strike = @last_quote.strike_price
+      @delta = @last_quote.delta&.abs || 999
+      @mark = @last_quote.mark
+      @ask = @last_quote.ask_price
+      @bid = @last_quote.bid_price
+      @expiration_date = Date.new(
+        @last_quote.expiration_year,
+        @last_quote.expiration_month,
+        @last_quote.expiration_day
+      )
+      @open_interest = @last_quote.open_interest
+    end
+  rescue StandardError => e
     puts "Error fetching quote for #{symbol}: #{e.message}"
   end
 end
