@@ -7,7 +7,7 @@ module Services
     class CallSpreadFinder
       attr_reader :symbol, :short_delta, :max_spread,
         :min_credit, :min_open_interest, :dist_from_strike, :trades, :short_legs,
-        :expiration_date, :quantity, :expiration_type
+        :expiration_date, :quantity, :expiration_type, :settlement_type, :option_root
 
       def initialize(
         symbol:,
@@ -18,7 +18,9 @@ module Services
         min_open_interest: 0,
         dist_from_strike: 0.07,
         quantity: 1,
-        expiration_type: nil
+        expiration_type: nil,
+        settlement_type: nil,
+        option_root: nil
       )
         @symbol = symbol
         @expiration_date = expiration_date
@@ -30,7 +32,9 @@ module Services
         @trades = []
         @short_legs = []
         @quantity = quantity
-        @expiration_type = nil
+        @expiration_type = expiration_type
+        @settlement_type = settlement_type
+        @option_root = option_root
       end
 
       def search(opt_chain)
@@ -50,8 +54,12 @@ module Services
             option.delta.abs >= 0.00 &&
             option.open_interest >= min_open_interest &&
             ((opt_chain.underlying_price - option.strike) / opt_chain.underlying_price).abs >= dist_from_strike &&
-            (expiration_type.nil? || option.expiration_type == expiration_type)
+            (expiration_type.nil? || option.expiration_type == expiration_type) &&
+            (settlement_type.nil? || option.settlement_type == settlement_type) &&
+            (option_root.nil? || option.option_root == option_root)
         end
+
+        binding.pry
 
         short_legs.each do |short_raw|
           short_leg = Services::Trades::CallOption.from_schwab_option(short_raw, quantity: quantity)
@@ -71,7 +79,9 @@ module Services
               ((short_leg.mark - long_raw.mark) * 100.0) >= min_credit &&
               long_raw.strike > short_leg.strike &&
               (long_raw.strike - short_leg.strike).abs <= max_spread &&
-              (expiration_type.nil? || long_raw.expiration_type == expiration_type)
+              (expiration_type.nil? || long_raw.expiration_type == expiration_type) &&
+              (settlement_type.nil? || long_raw.settlement_type == settlement_type) &&
+              (option_root.nil? || long_raw.option_root == option_root)
           end
 
           next unless candidate_longs.any?
