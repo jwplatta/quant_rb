@@ -45,9 +45,10 @@ module DataObjects
         call_opts = []
         data.fetch(:callExpDateMap).each do |exp_date, options|
           call_dates << Date.strptime(exp_date.to_s.split(':').first, '%Y-%m-%d')
-
-          options.each_value do |option_data|
-            call_opts << DataObjects::Option.build(underlying_symbol, option_data.first)
+          options.each_value do |opts|
+            opts.each do |option_data|
+              call_opts << DataObjects::Option.build(underlying_symbol, option_data)
+            end
           end
         end
 
