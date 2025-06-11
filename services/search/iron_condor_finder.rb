@@ -10,7 +10,7 @@ module Services
     class IronCondorFinder
       attr_reader :symbol, :expiration_date, :short_delta, :max_spread,
                   :min_credit, :min_open_interest, :dist_from_strike,
-                  :call_spread, :put_spread, :quantity
+                  :call_spread, :put_spread, :quantity, :expiration_type
 
       def initialize(
         symbol:,
@@ -20,7 +20,8 @@ module Services
         min_credit: 100.0,
         min_open_interest: 0,
         dist_from_strike: 0.07,
-        quantity: 1
+        quantity: 1,
+        expiration_type: nil
       )
         @symbol = symbol
         @expiration_date = expiration_date
@@ -32,7 +33,8 @@ module Services
         @trades = []
         @call_spread = nil
         @put_spread = nil
-        @quantity = quantity
+        @quantity = quantity,
+        @expiration_type = expiration_type
       end
 
       def credit_debit
@@ -63,7 +65,8 @@ module Services
           min_credit: min_credit,
           min_open_interest: min_open_interest,
           dist_from_strike: dist_from_strike,
-          quantity: quantity
+          quantity: quantity,
+          expiration_type: expiration_type
         )
       end
 
@@ -76,7 +79,8 @@ module Services
           min_credit: min_credit,
           min_open_interest: min_open_interest,
           dist_from_strike: dist_from_strike,
-          quantity: quantity
+          quantity: quantity,
+          expiration_type: expiration_type
         )
       end
     end
