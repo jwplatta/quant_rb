@@ -46,7 +46,7 @@ module Services
             ((opt_chain.underlying_price - option.strike) / opt_chain.underlying_price).abs >= dist_from_strike &&
             (expiration_type.nil? || option.expiration_type == expiration_type) &&
             (settlement_type.nil? || option.settlement_type == settlement_type) &&
-            (option_root.nil? || option.root == option_root)
+            (option_root.nil? || option.option_root == option_root)
         end
 
         short_legs.each do |short_raw|
@@ -61,9 +61,9 @@ module Services
               ((short_leg.mark - long_raw.mark) * 100.0) >= min_credit &&
               long_raw.strike < short_leg.strike &&
               (long_raw.strike - short_leg.strike).abs <= max_spread &&
-              (expiration_type.nil? || option.expiration_type == expiration_type) &&
-              (settlement_type.nil? || option.settlement_type == settlement_type) &&
-              (option_root.nil? || option.root == option_root)
+              (expiration_type.nil? || long_raw.expiration_type == expiration_type) &&
+              (settlement_type.nil? || long_raw.settlement_type == settlement_type) &&
+              (option_root.nil? || long_raw.option_root == option_root)
           end
 
           next unless potential_longs.any?
