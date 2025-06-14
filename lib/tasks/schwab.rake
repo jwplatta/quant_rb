@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-require 'pry'
-require 'dotenv'
 require 'json'
 require 'csv'
 require 'date'
@@ -14,6 +12,7 @@ require_relative '../../mixins/schwab/data_objects/order'
 require_relative '../../mixins/schwab/data_objects/quote'
 require_relative '../../mixins/schwab/data_objects/option'
 require_relative '../../mixins/schwab/data_objects/option_chain'
+require_relative '../../mixins/position_progress'
 require_relative '../../services/search/iron_condor_finder'
 require_relative '../../services/search/call_spread_finder'
 require_relative '../../services/search/put_spread_finder'
@@ -45,7 +44,11 @@ namespace :schwab do
   task :get_quote, [:symbol] => :environment do |_t, args|
     symbol = args[:symbol]
     quote = schwab_client.quote(symbol)
-    puts quote
+
+    puts "\n########\nSymbol: #{quote.symbol}\n########\n"
+    puts "Description: #{quote.description}"
+    puts "Mark: #{quote.mark}"
+    puts "Delta: #{quote.delta}"
   end
 
   desc 'Find Options Trade'
@@ -54,7 +57,7 @@ namespace :schwab do
     short_delta max_spread
     end_date min_credit
     min_open_interest dist_from_strike
-    quantity
+    quantity settlement_type
   ] => :environment do |t, args|
     underlying = if args.underlying
                    args.underlying
@@ -77,12 +80,14 @@ namespace :schwab do
     min_open_interest = args.fetch(:min_open_interest, 0).to_i
     dist_from_strike = args.fetch(:dist_from_strike, 0.05).to_f
     quantity = args.fetch(:quantity, 1).to_i
+    settlement_type = args.fetch(:settlement_type, 'P')
 
     puts "Finding #{trade_type} for #{underlying} on #{end_date} with short delta #{short_delta}, " \
         "max spread #{max_spread}, " \
         "on date #{end_date}, min credit #{min_credit}, " \
         "min open interest #{min_open_interest}, " \
-        "dist from strike #{dist_from_strike}, quantity #{quantity}"
+        "dist from strike #{dist_from_strike}, quantity #{quantity}" \
+        " and settlement type #{settlement_type}"
 
     contract_type = if trade_type == 'iron_condor'
       'ALL'
@@ -108,7 +113,6 @@ namespace :schwab do
     end
 
     finder = trade_finder(
-      opt_chain,
       trade_type,
       underlying,
       end_date,
@@ -117,32 +121,35 @@ namespace :schwab do
       min_credit,
       min_open_interest,
       dist_from_strike,
-      quantity
+      quantity,
+      settlement_type
     )
 
-    trade = finder.search
-    if trade
+    trade = finder.search(opt_chain)
+
+    if trade.type == :putspread || trade.type == :callspread
       puts """
       ###########
-      TRADE FOUND
+      TRADE FOUND: #{trade.type}
       ###########
       short leg symbol: #{trade.short_leg.symbol}
       short leg strike: #{trade.short_leg.strike}
       long leg symbol: #{trade.long_leg.symbol}
       long leg strike: #{trade.long_leg.strike}
       expiration date: #{trade.expiration_date}
-      credit/debit: #{trade.credit_debit}
+      credit/debit: #{trade.credit}
       spread width: #{trade.spread_width}
       delta: #{trade.delta}
       open interest: #{trade.short_leg.open_interest}
       """
+    elsif trade.type == :ironcondor
     else
       puts 'No trade found'
     end
   end
 
   desc 'Show Account'
-  task :puts_account do
+  task :print_account do
     account = schwab_client.account(fields: 'positions')
     account_summary = """
     Account Summary:
@@ -200,7 +207,7 @@ namespace :schwab do
 
   task :puts_filled_orders do
     orders_resp = schwab_client.account_orders(
-      from_date: Date.today - 30,
+      from_date: Date.today - 5,
       status: 'FILLED'
     )
     File.open('data/orders/filled_orders.json', 'w') do |file|
@@ -217,7 +224,6 @@ namespace :schwab do
       to_date: Date.today,
       transaction_types: ['TRADE']
     )
-    binding.pry
     File.open('data/orders/transactions.json', 'w') do |file|
       file << JSON.pretty_generate({
         transactions: transactions.map(&:to_h)
@@ -380,9 +386,20 @@ namespace :schwab do
     end
   end
 
+  desc 'Print Open Orders'
+  task :print_open_orders => :environment do |_t, args|
+    orders = schwab_client.account_orders(
+      status: 'PENDING_ACTIVATION',
+      from_date: Date.today - 1,
+      to_date: Date.today + 1
+    )
+
+    binding.pry
+  end
+
   desc 'Print Trades'
   task :print_trades, [:start_days, :end_days] => :environment do |_t, args|
-    # TEST: March 2025 be rake "schwab:puts_trades[85,54]"
+    # TEST: March 2025 be rake "schwab:print_trades[85,54]"
     from_date = Date.today - (args[:start_days] || 30).to_i
     to_date = Date.today - (args[:end_days] || 0).to_i
     orders = schwab_client.account_orders(
@@ -424,6 +441,78 @@ namespace :schwab do
     total = amount_dtls.sum { |_, _, amount| amount }.round(2)
     puts "\n############\nTotal Amount: #{total}"
     binding.pry
+  end
+
+  desc 'Print Trade Status'
+  task :trade_statuses, [:order_id] => :environment do |_t, args|
+    order = schwab_client.get_order(args[:order_id])
+
+    if order.nil?
+      puts "Order with ID #{args[:order_id]} not found."
+      exit
+    end
+
+    from_date = order.close_time.change({ hour: 0, min: 0, sec: 0 })
+    to_date = order.close_time.change({ hour: 23, min: 59, sec: 59 })
+
+    transactions = schwab_client.transactions(
+      from_date: from_date,
+      to_date: to_date,
+      transaction_types: ['TRADE'],
+    )
+
+    order_legs = order.order_leg_collection.map do |leg|
+      {
+        instruction: leg.instruction,
+        put_call: leg.instrument.put_call,
+        symbol: leg.instrument.symbol,
+        underlying_symbol: leg.instrument.underlying_symbol,
+        description: leg.instrument.description,
+        position_effect: leg.position_effect,
+        quantity: leg.quantity,
+        debit_credit: 0.0
+      }
+    end
+
+    order_transactions = transactions.select { |t| t.order_id == order.order_id }
+    if order_transactions.empty?
+      puts "No transactions found for order ID #{order.order_id} on #{order.close_time.strftime('%m-%d-%Y')}"
+      exit
+    end
+
+    order_transactions.each do |ot|
+      opt_ti = ot.transfer_items.find { |ti| ti.instrument.asset_type == "OPTION" }
+      order_leg = order_legs.find { |ol| ol[:symbol] == opt_ti.instrument.symbol }
+      order_leg[:net_amount] = ot.net_amount
+    end
+
+    symbols = order_legs.select { |ol| ol[:position_effect] == "OPENING" }.map do |leg|
+      leg[:symbol]
+    end
+
+    quotes = schwab_client.quotes(symbols)
+
+    quotes.each do |quote|
+      order_leg = order_legs.find { |ol| ol[:symbol] == quote.symbol }
+
+      quantity = order_leg[:quantity]
+
+      if order_leg[:instruction] == "SELL_TO_OPEN"
+        order_leg[:mark] = quote.mark
+        order_leg[:debit_credit] = -quote.mark * quantity * 100
+      elsif order_leg[:instruction] == "BUY_TO_OPEN"
+        order_leg[:mark] = quote.mark
+        order_leg[:debit_credit] = quote.mark * quantity * 100
+      end
+    end
+
+    order_net_amount = order_legs.sum { |ol| ol[:net_amount] }
+    curr_credit_debit = order_legs.sum { |ol| ol[:debit_credit] }
+
+    puts "Order ID: #{order.order_id}"
+    puts "Order Net Amount: #{order_net_amount.round(2)}"
+    puts "Current Credit/Debit: #{curr_credit_debit.round(2)}"
+    puts "Position progress: #{exit_progress(order_net_amount, curr_credit_debit).round(2)}%"
   end
 end
 
@@ -498,8 +587,8 @@ def build_order_details(orders, transactions)
   end.to_h
 end
 
-def trade_finder(opt_chain, trade_type, underlying, end_date, short_delta, max_spread, min_credit, min_open_interest,
-                 dist_from_strike, quantity)
+def trade_finder(trade_type, underlying, end_date, short_delta, max_spread, min_credit, min_open_interest,
+                 dist_from_strike, quantity, settlement_type)
   case trade_type
   when 'iron_condor'
     Services::Search::IronCondorFinder.new(
@@ -511,7 +600,7 @@ def trade_finder(opt_chain, trade_type, underlying, end_date, short_delta, max_s
       min_open_interest: min_open_interest,
       dist_from_strike: dist_from_strike,
       quantity: quantity,
-      opt_chain: opt_chain
+      settlement_type: settlement_type
     )
   when 'call_spread'
     Services::Search::CallSpreadFinder.new(
@@ -523,7 +612,7 @@ def trade_finder(opt_chain, trade_type, underlying, end_date, short_delta, max_s
       min_open_interest: min_open_interest,
       dist_from_strike: dist_from_strike,
       quantity: quantity,
-      opt_chain: opt_chain
+      settlement_type: settlement_type
     )
   when 'put_spread'
     Services::Search::PutSpreadFinder.new(
@@ -535,7 +624,7 @@ def trade_finder(opt_chain, trade_type, underlying, end_date, short_delta, max_s
       min_open_interest: min_open_interest,
       dist_from_strike: dist_from_strike,
       quantity: quantity,
-      opt_chain: opt_chain
+      settlement_type: settlement_type
     )
   else
     raise ArgumentError, "Invalid trade type: #{trade_type}"
