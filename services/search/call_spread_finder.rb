@@ -59,8 +59,6 @@ module Services
             (option_root.nil? || option.option_root == option_root)
         end
 
-        binding.pry
-
         short_legs.each do |short_raw|
           short_leg = Services::Trades::CallOption.from_schwab_option(short_raw, quantity: quantity)
 
