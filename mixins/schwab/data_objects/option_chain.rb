@@ -57,8 +57,10 @@ module DataObjects
         data.fetch(:putExpDateMap).each do |exp_date, options|
           put_dates << Date.strptime(exp_date.to_s.split(':').first, '%Y-%m-%d')
 
-          options.each_value do |option_data|
-            put_opts << DataObjects::Option.build(underlying_symbol, option_data.first)
+          options.each_value do |opts|
+            opts.each do |option_data|
+              put_opts << DataObjects::Option.build(underlying_symbol, option_data)
+            end
           end
         end
 
