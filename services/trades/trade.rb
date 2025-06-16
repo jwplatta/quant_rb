@@ -5,19 +5,15 @@ require_relative '../../mixins/orderable'
 require_relative '../../mixins/quoteable'
 require_relative '../../mixins/position_progress'
 
-Order = Struct.new(:id, :status, :date)
-
 module Services
   module Trades
     class Trade
       include Orderable
       include PositionProgress
 
-      attr_accessor :increment, :round, :exit_threshold, :max_loss, :quantity,
-                    :underlying_symbol
+      attr_accessor :increment, :round, :quantity
 
-      def initialize(underlying_symbol: nil, increment: 0.01, round: 2, quantity: 1)
-        @underlying_symbol = underlying_symbol
+      def initialize(increment: 0.01, round: 2, quantity: 1)
         @increment = increment
         @round = round
         @quantity = quantity
