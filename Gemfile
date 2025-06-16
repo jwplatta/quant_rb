@@ -9,7 +9,7 @@ gem 'pry'
 gem 'rake'
 gem 'rspec'
 gem 'rubocop', require: false
-gem 'schwab_rb', git: 'https://github.com/jwplatta/schwab_rb.git', ref: '39306942b577a633c6a98cb28ab256f46ce91d0a'
+gem 'schwab_rb', git: 'https://github.com/jwplatta/schwab_rb.git', ref: 'e615acea01ec35dfd04321e97488bab401f35b91'
 gem 'sqlite3', '~> 2.1'
 gem 'timecop'
 gem 'gruff'
