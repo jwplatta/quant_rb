@@ -12,13 +12,12 @@ module Platypi
 
   # Then require strategy components
   require_relative "platypi/strategies/strategy_base"
-  require_relative "platypi/strategies/strategy_factory"
   require_relative "platypi/strategies/call_option"
   require_relative "platypi/strategies/put_option"
   require_relative "platypi/strategies/call_spread"
   require_relative "platypi/strategies/put_spread"
   require_relative "platypi/strategies/iron_condor"
-  require_relative "platypi/strategies/null_trade"
+  require_relative "platypi/strategies/null_strategy"
 
   # Finally require search components
   require_relative "platypi/search/call_spread_finder"
