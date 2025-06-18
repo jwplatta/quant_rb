@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 require 'schwab_rb'
-require 'dotenv'
 require_relative 'data_objects/quote'
 require_relative 'data_objects/option_chain'
 require_relative 'data_objects/account'
@@ -9,8 +8,6 @@ require_relative 'data_objects/transaction'
 require_relative 'data_objects/order'
 require_relative 'data_objects/order_preview'
 require_relative 'orders/order_factory'
-
-Dotenv.load
 
 module Platypi
   module Schwab

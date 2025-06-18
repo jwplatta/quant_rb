@@ -5,10 +5,7 @@ require 'csv'
 require 'date'
 require 'gruff'
 require 'fileutils'
-require 'dotenv'
 require_relative '../platypi'
-
-Dotenv.load
 
 Trade = Struct.new(
   :opening,
