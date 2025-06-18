@@ -3,42 +3,7 @@
 require 'spec_helper'
 require 'schwab_rb'
 
-RSpec.describe OrderFactory do
-  describe '.strategy_type' do
-    let(:iron_condor) { instance_double('Services::Trades::IronCondor', class: class_double('Services::Trades::IronCondor', name: 'Services::Trades::IronCondor')) }
-    let(:call_spread) { instance_double('Services::Trades::CallSpread', class: class_double('Services::Trades::CallSpread', name: 'Services::Trades::CallSpread')) }
-    let(:put_spread) { instance_double('Services::Trades::PutSpread', class: class_double('Services::Trades::PutSpread', name: 'Services::Trades::PutSpread')) }
-    let(:call_option) { instance_double('Services::Trades::CallOption', class: class_double('Services::Trades::CallOption', name: 'Services::Trades::CallOption')) }
-    let(:put_option) { instance_double('Services::Trades::PutOption', class: class_double('Services::Trades::PutOption', name: 'Services::Trades::PutOption')) }
-    let(:unknown_trade) { instance_double('UnknownTrade', class: class_double('UnknownTrade', name: 'UnknownTrade')) }
-
-    it 'returns IRON_CONDOR for iron condor trades' do
-      expect(described_class.strategy_type(iron_condor)).to eq('IRON_CONDOR')
-    end
-
-    it 'returns VERTICAL for call spread trades' do
-      expect(described_class.strategy_type(call_spread)).to eq('VERTICAL')
-    end
-
-    it 'returns VERTICAL for put spread trades' do
-      expect(described_class.strategy_type(put_spread)).to eq('VERTICAL')
-    end
-
-    it 'returns SINGLE for call option trades' do
-      expect(described_class.strategy_type(call_option)).to eq('SINGLE')
-    end
-
-    it 'returns SINGLE for put option trades' do
-      expect(described_class.strategy_type(put_option)).to eq('SINGLE')
-    end
-
-    it 'raises ArgumentError for unsupported trade types' do
-      expect {
-        described_class.strategy_type(unknown_trade)
-      }.to raise_error(ArgumentError, "Unsupported trade type: UnknownTrade")
-    end
-  end
-
+RSpec.describe Platypi::Schwab::Orders::OrderFactory do
   describe '.build' do
     let(:account_number) { '123456789' }
     let(:quantity) { 1 }
@@ -47,21 +12,21 @@ RSpec.describe OrderFactory do
     let(:order_builder) { instance_double(SchwabRb::Orders::Builder) }
 
     context 'with an iron condor trade' do
-      let(:put_short) { instance_double('Services::Trades::PutOption', symbol: 'SPY_P410') }
-      let(:put_long) { instance_double('Services::Trades::PutOption', symbol: 'SPY_P400') }
-      let(:call_short) { instance_double('Services::Trades::CallOption', symbol: 'SPY_C440') }
-      let(:call_long) { instance_double('Services::Trades::CallOption', symbol: 'SPY_C450') }
+      let(:put_short) { instance_double('Platypi::PutOption', symbol: 'SPY_P410') }
+      let(:put_long) { instance_double('Platypi::PutOption', symbol: 'SPY_P400') }
+      let(:call_short) { instance_double('Platypi::CallOption', symbol: 'SPY_C440') }
+      let(:call_long) { instance_double('Platypi::CallOption', symbol: 'SPY_C450') }
 
-      let(:put_spread) { instance_double('Services::Trades::PutSpread', short_leg: put_short, long_leg: put_long) }
-      let(:call_spread) { instance_double('Services::Trades::CallSpread', short_leg: call_short, long_leg: call_long) }
+      let(:put_spread) { instance_double('Platypi::PutSpread', short_leg: put_short, long_leg: put_long) }
+      let(:call_spread) { instance_double('Platypi::CallSpread', short_leg: call_short, long_leg: call_long) }
 
       let(:iron_condor) do
         instance_double(
-          'Services::Trades::IronCondor',
-          class: class_double('Services::Trades::IronCondor', name: 'Services::Trades::IronCondor'),
+          'Platypi::IronCondor',
+          class: class_double('Platypi::IronCondor', name: 'Platypi::IronCondor'),
           put_spread: put_spread,
           call_spread: call_spread,
-          credit_debit: 1.25
+          credit: 1.25
         )
       end
 
@@ -82,16 +47,16 @@ RSpec.describe OrderFactory do
     end
 
     context 'with a vertical spread trade' do
-      let(:short_leg) { instance_double('Services::Trades::CallOption', symbol: 'SPY_C440') }
-      let(:long_leg) { instance_double('Services::Trades::CallOption', symbol: 'SPY_C450') }
+      let(:short_leg) { instance_double('Platypi::CallOption', symbol: 'SPY_C440') }
+      let(:long_leg) { instance_double('Platypi::CallOption', symbol: 'SPY_C450') }
 
       let(:call_spread) do
         instance_double(
-          'Services::Trades::CallSpread',
-          class: class_double('Services::Trades::CallSpread', name: 'Services::Trades::CallSpread'),
+          'Platypi::CallSpread',
+          class: class_double('Platypi::CallSpread', name: 'Platypi::CallSpread'),
           short_leg: short_leg,
           long_leg: long_leg,
-          credit_debit: 0.75
+          credit: 0.75
         )
       end
 
@@ -114,8 +79,8 @@ RSpec.describe OrderFactory do
     context 'with an unsupported trade type' do
       let(:single_option) do
         instance_double(
-          'Services::Trades::CallOption',
-          class: class_double('Services::Trades::CallOption', name: 'Services::Trades::CallOption')
+          'Platypi::CallOption',
+          class: class_double('Platypi::CallOption', name: 'Platypi::CallOption')
         )
       end
 
