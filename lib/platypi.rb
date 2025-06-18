@@ -2,6 +2,16 @@
 
 require_relative "platypi/version"
 
+# Load environment variables globally for the gem
+begin
+  require 'dotenv'
+  Dotenv.load
+rescue LoadError
+  # dotenv not available, skip loading
+rescue Errno::ENOENT
+  # .env file not found, continue without it
+end
+
 module Platypi
   class Error < StandardError; end
 
