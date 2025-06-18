@@ -1,8 +1,6 @@
 # frozen_string_literal: true
 
 require 'rspec'
-require 'pry'
-require_relative '../../../../mixins/schwab/data_objects/account'
 
 RSpec.describe DataObjects::Account do
   let(:raw_data) do
