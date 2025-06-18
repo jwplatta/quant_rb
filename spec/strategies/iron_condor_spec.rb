@@ -1,0 +1,390 @@
+# frozen_string_literal: true
+
+require 'spec_helper'
+
+RSpec.describe Platypi::IronCondor do
+  let(:put_spread) do
+    double('PutSpread',
+      delta: -0.15,
+      credit: 1.25,
+      debit: -1.25,
+      symbols: ['SPY250620P00450000', 'SPY250620P00440000'],
+      strikes: [450.0, 440.0],
+      marks: [2.75, 1.50],
+      spread_width: 10.0,
+      market_change?: false,
+      check_market: nil,
+      instruments: [
+        { symbol: 'SPY250620P00450000', long_short: 'SHORT', put_call: 'PUT' },
+        { symbol: 'SPY250620P00440000', long_short: 'LONG', put_call: 'PUT' }
+      ]
+    )
+  end
+
+  let(:call_spread) do
+    double('CallSpread',
+      delta: 0.25,
+      credit: 1.50,
+      debit: -1.50,
+      symbols: ['SPY250620C00500000', 'SPY250620C00510000'],
+      strikes: [500.0, 510.0],
+      marks: [3.50, 2.00],
+      spread_width: 10.0,
+      market_change?: false,
+      check_market: nil,
+      instruments: [
+        { symbol: 'SPY250620C00500000', long_short: 'SHORT', put_call: 'CALL' },
+        { symbol: 'SPY250620C00510000', long_short: 'LONG', put_call: 'CALL' }
+      ]
+    )
+  end
+
+  let(:iron_condor) do
+    described_class.new(
+      underlying_symbol: 'SPY',
+      call_spread: call_spread,
+      put_spread: put_spread,
+      expiration_date: Date.new(2025, 6, 20),
+      quantity: 2
+    )
+  end
+
+  before do
+    allow(iron_condor).to receive(:initialize_orderable)
+  end
+
+  describe '#initialize' do
+    it 'sets all attributes' do
+      expect(iron_condor.underlying_symbol).to eq('SPY')
+      expect(iron_condor.call_spread).to eq(call_spread)
+      expect(iron_condor.put_spread).to eq(put_spread)
+      expect(iron_condor.expiration_date).to eq(Date.new(2025, 6, 20))
+      expect(iron_condor.quantity).to eq(2)
+    end
+
+    it 'uses default values' do
+      condor = described_class.new(
+        underlying_symbol: 'SPY',
+        call_spread: call_spread,
+        put_spread: put_spread,
+        expiration_date: Date.new(2025, 6, 20)
+      )
+      allow(condor).to receive(:initialize_orderable)
+
+      expect(condor.quantity).to eq(1)
+      expect(condor.increment).to eq(0.01)
+      expect(condor.round).to eq(2)
+    end
+
+    it 'accepts custom increment and round values' do
+      condor = described_class.new(
+        underlying_symbol: 'SPY',
+        call_spread: call_spread,
+        put_spread: put_spread,
+        expiration_date: Date.new(2025, 6, 20),
+        increment: 0.05,
+        round: 3
+      )
+      allow(condor).to receive(:initialize_orderable)
+
+      expect(condor.increment).to eq(0.05)
+      expect(condor.round).to eq(3)
+    end
+  end
+
+  describe '#delta' do
+    it 'returns the delta with higher absolute value' do
+      # call_spread.delta.abs (0.25) > put_spread.delta.abs (0.15)
+      expect(iron_condor.delta).to eq(0.25)
+    end
+
+    it 'returns put spread delta when it has higher absolute value' do
+      allow(put_spread).to receive(:delta).and_return(-0.35)
+      # put_spread.delta.abs (0.35) > call_spread.delta.abs (0.25)
+      expect(iron_condor.delta).to eq(-0.35)
+    end
+
+    it 'handles equal absolute deltas' do
+      allow(put_spread).to receive(:delta).and_return(-0.25)
+      allow(call_spread).to receive(:delta).and_return(0.25)
+      # When equal, it should return call_spread delta
+      expect(iron_condor.delta).to eq(0.25)
+    end
+  end
+
+  describe '#credit' do
+    it 'calculates total credit from both spreads' do
+      expect(iron_condor.credit).to eq(2.75) # 1.25 + 1.50
+    end
+
+    it 'rounds to nearest increment' do
+      allow(put_spread).to receive(:credit).and_return(1.23)
+      allow(call_spread).to receive(:credit).and_return(1.52)
+
+      expect(iron_condor.credit).to eq(2.75) # 1.23 + 1.52 = 2.75
+    end
+
+    it 'handles negative credits' do
+      allow(put_spread).to receive(:credit).and_return(-0.50)
+      allow(call_spread).to receive(:credit).and_return(2.00)
+
+      expect(iron_condor.credit).to eq(1.50) # -0.50 + 2.00
+    end
+  end
+
+  describe '#debit' do
+    it 'calculates total debit from both spreads' do
+      expect(iron_condor.debit).to eq(-2.75) # -1.25 + (-1.50)
+    end
+
+    it 'handles positive debits' do
+      allow(put_spread).to receive(:debit).and_return(0.50)
+      allow(call_spread).to receive(:debit).and_return(1.00)
+
+      expect(iron_condor.debit).to eq(1.50) # 0.50 + 1.00
+    end
+  end
+
+  describe '#symbols' do
+    it 'returns combined symbols from both spreads' do
+      expected = ['SPY250620P00450000', 'SPY250620P00440000',
+                  'SPY250620C00500000', 'SPY250620C00510000']
+      expect(iron_condor.symbols).to eq(expected)
+    end
+  end
+
+  describe '#strikes' do
+    it 'returns combined strikes from both spreads' do
+      expected = [450.0, 440.0, 500.0, 510.0]
+      expect(iron_condor.strikes).to eq(expected)
+    end
+  end
+
+  describe '#marks' do
+    it 'returns combined marks from both spreads' do
+      expected = [2.75, 1.50, 3.50, 2.00]
+      expect(iron_condor.marks).to eq(expected)
+    end
+  end
+
+  describe '#market_change?' do
+    it 'returns true if put spread has market change' do
+      allow(put_spread).to receive(:market_change?).and_return(true)
+      allow(call_spread).to receive(:market_change?).and_return(false)
+
+      expect(iron_condor.market_change?).to be true
+    end
+
+    it 'returns true if call spread has market change' do
+      allow(put_spread).to receive(:market_change?).and_return(false)
+      allow(call_spread).to receive(:market_change?).and_return(true)
+
+      expect(iron_condor.market_change?).to be true
+    end
+
+    it 'returns true if both spreads have market change' do
+      allow(put_spread).to receive(:market_change?).and_return(true)
+      allow(call_spread).to receive(:market_change?).and_return(true)
+
+      expect(iron_condor.market_change?).to be true
+    end
+
+    it 'returns false if neither spread has market change' do
+      allow(put_spread).to receive(:market_change?).and_return(false)
+      allow(call_spread).to receive(:market_change?).and_return(false)
+
+      expect(iron_condor.market_change?).to be false
+    end
+  end
+
+  describe '#spread_width' do
+    it 'returns combined spread width from both spreads' do
+      expect(iron_condor.spread_width).to eq(20.0) # 10.0 + 10.0
+    end
+
+    it 'handles different spread widths' do
+      allow(put_spread).to receive(:spread_width).and_return(5.0)
+      allow(call_spread).to receive(:spread_width).and_return(15.0)
+
+      expect(iron_condor.spread_width).to eq(20.0) # 5.0 + 15.0
+    end
+  end
+
+  describe '#max_profit' do
+    it 'returns the total credit as max profit' do
+      expect(iron_condor.max_profit).to eq(2.75)
+    end
+  end
+
+  describe '#max_loss' do
+    it 'calculates max loss as spread width minus credit' do
+      # spread_width (20.0) - credit (2.75) = 17.25
+      expect(iron_condor.max_loss).to eq(17.25)
+    end
+
+    it 'rounds to nearest increment' do
+      allow(iron_condor).to receive(:spread_width).and_return(20.0)
+      allow(iron_condor).to receive(:credit).and_return(2.73)
+
+      expect(iron_condor.max_loss).to eq(17.27) # 20.0 - 2.73
+    end
+  end
+
+  describe '#check_market' do
+    it 'calls check_market on both spreads using threads' do
+      expect(call_spread).to receive(:check_market)
+      expect(put_spread).to receive(:check_market)
+
+      iron_condor.check_market
+    end
+
+    it 'waits for both threads to complete' do
+      call_called = false
+      put_called = false
+
+      allow(call_spread).to receive(:check_market) do
+        sleep(0.01)
+        call_called = true
+      end
+
+      allow(put_spread).to receive(:check_market) do
+        sleep(0.01)
+        put_called = true
+      end
+
+      iron_condor.check_market
+
+      expect(call_called).to be true
+      expect(put_called).to be true
+    end
+  end
+
+  describe '#instruments' do
+    it 'returns combined instruments from both spreads' do
+      instruments = iron_condor.instruments
+
+      expected = [
+        { symbol: 'SPY250620P00450000', long_short: 'SHORT', put_call: 'PUT' },
+        { symbol: 'SPY250620P00440000', long_short: 'LONG', put_call: 'PUT' },
+        { symbol: 'SPY250620C00500000', long_short: 'SHORT', put_call: 'CALL' },
+        { symbol: 'SPY250620C00510000', long_short: 'LONG', put_call: 'CALL' }
+      ]
+
+      expect(instruments).to eq(expected)
+    end
+
+    it 'handles empty instruments gracefully' do
+      allow(put_spread).to receive(:instruments).and_return([])
+      allow(call_spread).to receive(:instruments).and_return([])
+
+      expect(iron_condor.instruments).to eq([])
+    end
+  end
+
+  describe '#to_event' do
+    before do
+      iron_condor.trade_id = 'iron_condor_123'
+      allow(iron_condor).to receive_messages(
+        order_id: 'order_789',
+        order_instruction: 'SELL_TO_OPEN',
+        order_price: 275.00,
+        order_fees: 4.00,
+        order_commission: 2.00
+      )
+    end
+
+    it 'returns event hash with iron condor data' do
+      event = iron_condor.to_event('OPEN')
+
+      expect(event[:trade_id]).to eq('iron_condor_123')
+      expect(event[:trade_event]).to eq('OPEN')
+      expect(event[:trade_type]).to eq('ironcondor')
+      expect(event[:underlying_symbol]).to eq('SPY')
+      expect(event[:order_id]).to eq('order_789')
+      expect(event[:order_instruction]).to eq('SELL_TO_OPEN')
+      expect(event[:price]).to eq(275.00)
+      expect(event[:fees]).to eq(4.00)
+      expect(event[:commission]).to eq(2.00)
+      expect(event[:expiration_date]).to eq(Date.new(2025, 6, 20))
+      expect(event[:quantity]).to eq(2)
+      expect(event[:instruments]).to be_an(Array)
+      expect(event[:instruments].length).to eq(4)
+      expect(event[:timestamp]).to be_a(Time)
+    end
+
+    context 'when preview is true' do
+      before do
+        allow(iron_condor).to receive_messages(
+          order_preview_id: 'preview_456',
+          order_preview_instruction: 'BUY_TO_CLOSE',
+          order_preview_price: 250.00,
+          order_preview_fees: 5.00,
+          order_preview_commission: 3.00
+        )
+      end
+
+      it 'uses preview values' do
+        event = iron_condor.to_event('CLOSE', preview: true)
+
+        expect(event[:order_id]).to eq('preview_456')
+        expect(event[:order_instruction]).to eq('BUY_TO_CLOSE')
+        expect(event[:price]).to eq(250.00)
+        expect(event[:fees]).to eq(5.00)
+        expect(event[:commission]).to eq(3.00)
+      end
+    end
+  end
+
+  describe '#to_s' do
+    it 'returns formatted string representation' do
+      expected = "<Platypi::IronCondor #{Date.new(2025, 6, 20)}, " \
+                 "PUT: 450.0/440.0, " \
+                 "CALL: 500.0/510.0, " \
+                 "Credit: 2.75>"
+
+      expect(iron_condor.to_s).to eq(expected)
+    end
+
+    it 'handles different strike configurations' do
+      allow(put_spread).to receive(:strikes).and_return([455.0, 445.0])
+      allow(call_spread).to receive(:strikes).and_return([505.0, 515.0])
+      allow(iron_condor).to receive(:credit).and_return(3.25)
+
+      expected = "<Platypi::IronCondor #{Date.new(2025, 6, 20)}, " \
+                 "PUT: 455.0/445.0, " \
+                 "CALL: 505.0/515.0, " \
+                 "Credit: 3.25>"
+
+      expect(iron_condor.to_s).to eq(expected)
+    end
+  end
+
+  describe 'inheritance' do
+    it 'inherits from StrategyBase' do
+      expect(iron_condor).to be_a(Platypi::StrategyBase)
+    end
+
+    it 'responds to StrategyBase methods' do
+      expect(iron_condor).to respond_to(:type)
+      expect(iron_condor).to respond_to(:nearest_increment)
+      expect(iron_condor).to respond_to(:increment)
+      expect(iron_condor).to respond_to(:round)
+    end
+  end
+
+  describe 'risk analysis' do
+    it 'has proper risk/reward characteristics' do
+      # Max profit should be the credit received
+      expect(iron_condor.max_profit).to eq(iron_condor.credit)
+
+      # Max loss should be spread width minus credit
+      expected_max_loss = iron_condor.spread_width - iron_condor.credit
+      expect(iron_condor.max_loss).to eq(expected_max_loss)
+
+      # Profit/loss ratio should be reasonable for iron condors
+      profit_loss_ratio = iron_condor.max_profit / iron_condor.max_loss
+      expect(profit_loss_ratio).to be > 0.05  # At least 5% return potential
+      expect(profit_loss_ratio).to be < 1.0   # Max loss should exceed max profit
+    end
+  end
+end
