@@ -2,7 +2,6 @@
 
 require 'schwab_rb'
 require 'dotenv'
-require 'pry'
 require_relative 'data_objects/quote'
 require_relative 'data_objects/option_chain'
 require_relative 'data_objects/account'
