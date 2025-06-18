@@ -24,12 +24,12 @@ module Services
       attr_reader :symbol
       attr_writer :quantity
 
-      def initialize(symbol, quantity: nil, increment: 0.01, round: 2)
+      def initialize(symbol, quantity: 1, increment: 0.01, round: 2)
         super(
           increment: increment,
           round: round,
-          quantity: quantity
         )
+        @quantity = quantity
         @symbol = symbol
       end
 
