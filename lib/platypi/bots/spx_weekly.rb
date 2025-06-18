@@ -99,7 +99,7 @@ class TradeHistory
   end
 end
 
-class SPXWeeklyTrade
+class SPXWeekly
   include Schwab
 
   TRADE_FILE = "../tmp/spx_weekly_trade.json"
@@ -249,5 +249,3 @@ class SPXWeeklyTrade
     end
   end
 end
-
-SPXWeeklyTrade.new.run
