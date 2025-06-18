@@ -2,7 +2,7 @@
 
 require 'rspec'
 
-RSpec.describe DataObjects::OrderLeg do
+RSpec.describe Platypi::Schwab::DataObjects::OrderLeg do
   let(:raw_data) do
     orders = JSON.parse(File.read('spec/fixtures/orders.json'), symbolize_names: true)
     orders.flat_map { |order| order[:orderLegCollection] || [] }.first
@@ -10,22 +10,22 @@ RSpec.describe DataObjects::OrderLeg do
 
   describe '.build' do
     it 'creates an order leg object from raw data' do
-      order_leg = DataObjects::OrderLeg.build(raw_data)
+      order_leg = Platypi::Schwab::DataObjects::OrderLeg.build(raw_data)
 
-      expect(order_leg).to be_an_instance_of(DataObjects::OrderLeg)
+      expect(order_leg).to be_an_instance_of(Platypi::Schwab::DataObjects::OrderLeg)
       expect(order_leg.leg_id).to eq(raw_data[:legId])
       expect(order_leg.order_leg_type).to eq(raw_data[:orderLegType])
       expect(order_leg.quantity).to eq(raw_data[:quantity])
       expect(order_leg.instruction).to eq(raw_data[:instruction])
       expect(order_leg.position_effect).to eq(raw_data[:positionEffect])
 
-      expect(order_leg.instrument).to be_an_instance_of(DataObjects::Instrument)
+      expect(order_leg.instrument).to be_an_instance_of(Platypi::Schwab::DataObjects::Instrument)
     end
   end
 
   describe '#to_h' do
     it 'converts the order leg object back to a hash with the same structure as the input data' do
-      order_leg = DataObjects::OrderLeg.build(raw_data)
+      order_leg = Platypi::Schwab::DataObjects::OrderLeg.build(raw_data)
       leg_hash = order_leg.to_h
 
       expect(leg_hash[:legId]).to eq(raw_data[:legId])

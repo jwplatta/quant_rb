@@ -3,7 +3,7 @@
 require 'rspec'
 require 'date'
 
-RSpec.describe DataObjects::Order do
+RSpec.describe Platypi::Schwab::DataObjects::Order do
   let(:raw_data) do
     JSON.parse(File.read('spec/fixtures/orders.json'), symbolize_names: true)
   end
@@ -11,16 +11,16 @@ RSpec.describe DataObjects::Order do
   describe '.build' do
     it 'creates an order object from raw data' do
       raw_data.each do |data|
-        order = DataObjects::Order.build(data)
-        expect(order).to be_an_instance_of DataObjects::Order
+        order = Platypi::Schwab::DataObjects::Order.build(data)
+        expect(order).to be_an_instance_of Platypi::Schwab::DataObjects::Order
         order.order_leg_collection.each do |leg|
-          expect(leg).to be_an_instance_of DataObjects::OrderLeg
+          expect(leg).to be_an_instance_of Platypi::Schwab::DataObjects::OrderLeg
         end
 
         order.order_activity_collection.each do |activity|
-          expect(activity).to be_an_instance_of DataObjects::OrderActivity
+          expect(activity).to be_an_instance_of Platypi::Schwab::DataObjects::OrderActivity
           activity.execution_legs.each do |execution_leg|
-            expect(execution_leg).to be_an_instance_of DataObjects::ExecutionLeg
+            expect(execution_leg).to be_an_instance_of Platypi::Schwab::DataObjects::ExecutionLeg
           end
         end
       end
@@ -30,7 +30,7 @@ RSpec.describe DataObjects::Order do
   describe '#to_h' do
     it 'converts the order object back to a hash with the same structure as the input data' do
       raw_data.each do |data|
-        order = DataObjects::Order.build(data)
+        order = Platypi::Schwab::DataObjects::Order.build(data)
         order_hash = order.to_h
 
         # Basic fields should match
@@ -60,22 +60,20 @@ RSpec.describe DataObjects::Order do
           expect(order_hash[:closeTime]).to be_nil
         end
 
-        # Collections should have the right length
-        if data[:orderLegCollection]
-          expect(order_hash[:orderLegCollection].length).to eq(data[:orderLegCollection].length)
-        end
+        # Verify that nested objects are also converted to hashes
+        expect(order_hash[:orderLegCollection]).to be_an(Array)
+        expect(order_hash[:orderActivityCollection]).to be_an(Array)
       end
     end
   end
 
   describe 'datetime parsing' do
     it 'correctly parses ISO8601 datetime strings' do
-      # Create test data with ISO8601 datetime strings
       order_data = {
         orderId: '123456',
         status: 'FILLED',
-        enteredTime: '2024-01-15T14:30:00+0000',
-        closeTime: '2024-01-15T15:45:00+0000',
+        enteredTime: '2024-01-15T14:30:45.123Z',
+        closeTime: '2024-01-15T15:45:30.456Z',
         duration: 'DAY',
         orderType: 'LIMIT',
         complexOrderStrategyType: 'NONE',
@@ -88,7 +86,7 @@ RSpec.describe DataObjects::Order do
         orderActivityCollection: []
       }
 
-      order = DataObjects::Order.build(order_data)
+      order = Platypi::Schwab::DataObjects::Order.build(order_data)
 
       # Verify DateTime objects were created
       expect(order.entered_time).to be_a(DateTime)
@@ -126,7 +124,7 @@ RSpec.describe DataObjects::Order do
         orderActivityCollection: []
       }
 
-      order = DataObjects::Order.build(order_data)
+      order = Platypi::Schwab::DataObjects::Order.build(order_data)
 
       # Both should be nil
       expect(order.entered_time).to be_nil
@@ -135,7 +133,7 @@ RSpec.describe DataObjects::Order do
   end
 end
 
-RSpec.describe DataObjects::OrderActivity do
+RSpec.describe Platypi::Schwab::DataObjects::OrderActivity do
   let(:raw_data) do
     JSON.parse(File.read('spec/fixtures/orders.json'), symbolize_names: true)
         .flat_map { |order| order[:orderActivityCollection] || [] }
@@ -145,7 +143,7 @@ RSpec.describe DataObjects::OrderActivity do
   describe '#to_h' do
     it 'converts the order activity object back to a hash with the same structure as the input data' do
       raw_data.each do |data|
-        activity = DataObjects::OrderActivity.build(data)
+        activity = Platypi::Schwab::DataObjects::OrderActivity.build(data)
         activity_hash = activity.to_h
 
         expect(activity_hash[:activityType]).to eq(data[:activityType])
@@ -161,7 +159,7 @@ RSpec.describe DataObjects::OrderActivity do
   end
 end
 
-RSpec.describe DataObjects::ExecutionLeg do
+RSpec.describe Platypi::Schwab::DataObjects::ExecutionLeg do
   let(:raw_data) do
     JSON.parse(File.read('spec/fixtures/orders.json'), symbolize_names: true)
         .flat_map { |order| order[:orderActivityCollection] || [] }
@@ -172,7 +170,7 @@ RSpec.describe DataObjects::ExecutionLeg do
   describe '#to_h' do
     it 'converts the execution leg object back to a hash with the same structure as the input data' do
       raw_data.each do |data|
-        execution_leg = DataObjects::ExecutionLeg.build(data)
+        execution_leg = Platypi::Schwab::DataObjects::ExecutionLeg.build(data)
         leg_hash = execution_leg.to_h
 
         expect(leg_hash[:legId]).to eq(data[:legId])

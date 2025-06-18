@@ -5,7 +5,19 @@ require_relative "platypi/version"
 module Platypi
   class Error < StandardError; end
 
-  # Require schwab modules first (needed by strategies)
+  # Require schwab data objects first
+  require_relative "platypi/schwab/data_objects/account"
+  require_relative "platypi/schwab/data_objects/instrument"
+  require_relative "platypi/schwab/data_objects/option"
+  require_relative "platypi/schwab/data_objects/option_chain"
+  require_relative "platypi/schwab/data_objects/order"
+  require_relative "platypi/schwab/data_objects/order_leg"
+  require_relative "platypi/schwab/data_objects/order_preview"
+  require_relative "platypi/schwab/data_objects/position"
+  require_relative "platypi/schwab/data_objects/quote"
+  require_relative "platypi/schwab/data_objects/transaction"
+
+  # Require schwab modules (needed by strategies)
   require_relative "platypi/schwab/orderable"
   require_relative "platypi/schwab/quoteable"
   require_relative "platypi/schwab/schwab"
