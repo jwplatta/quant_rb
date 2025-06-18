@@ -6,7 +6,6 @@ RSpec.describe Platypi::PutOption do
   let(:put_option) { described_class.new('SPY250620P00450000', quantity: 3) }
 
   before do
-    allow(put_option).to receive(:initialize_orderable)
     allow(put_option).to receive(:mark).and_return(1.75)
   end
 
@@ -18,14 +17,12 @@ RSpec.describe Platypi::PutOption do
 
     it 'uses default quantity of 1' do
       option = described_class.new('SPY250620P00450000')
-      allow(option).to receive(:initialize_orderable)
 
       expect(option.quantity).to eq(1)
     end
 
     it 'accepts custom increment and round values' do
       option = described_class.new('SPY250620P00450000', quantity: 2, increment: 0.05, round: 3)
-      allow(option).to receive(:initialize_orderable)
 
       expect(option.increment).to eq(0.05)
       expect(option.round).to eq(3)
@@ -47,8 +44,6 @@ RSpec.describe Platypi::PutOption do
     end
 
     it 'creates PutOption from schwab option data' do
-      allow_any_instance_of(described_class).to receive(:initialize_orderable)
-
       option = described_class.from_schwab_option(schwab_option, quantity: 2)
 
       expect(option.symbol).to eq('SPY250620P00450000')
@@ -63,8 +58,6 @@ RSpec.describe Platypi::PutOption do
     end
 
     it 'uses default quantity of 1' do
-      allow_any_instance_of(described_class).to receive(:initialize_orderable)
-
       option = described_class.from_schwab_option(schwab_option)
       expect(option.quantity).to eq(1)
     end
@@ -90,8 +83,6 @@ RSpec.describe Platypi::PutOption do
   describe '#short?' do
     it 'returns true when quantity is negative' do
       short_option = described_class.new('SPY250620P00450000', quantity: -3)
-      allow(short_option).to receive(:initialize_orderable)
-
       expect(short_option.short?).to be true
     end
 
@@ -107,8 +98,6 @@ RSpec.describe Platypi::PutOption do
 
     it 'returns false when quantity is negative' do
       short_option = described_class.new('SPY250620P00450000', quantity: -3)
-      allow(short_option).to receive(:initialize_orderable)
-
       expect(short_option.long?).to be false
     end
   end

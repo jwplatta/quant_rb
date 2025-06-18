@@ -77,23 +77,23 @@ module Platypi
       ]
     end
 
-    def to_event(event_name, preview: false)
-      {
-        trade_id: trade_id,
-        trade_event: event_name,  # OPEN, CLOSE
-        trade_type: type, # e.g., CALL_SPREAD, PUT_SPREAD
-        underlying_symbol: underlying_symbol,
-        order_id: preview ? order_preview_id : order_id,
-        order_instruction: preview ? order_preview_instruction : order_instruction,
-        price: preview ? order_preview_price : order_price,
-        fees: preview ? order_preview_fees : order_fees,
-        commission: preview ? order_preview_commission : order_commission,
-        expiration_date: expiration_date,
-        quantity: quantity,
-        instruments: instruments,
-        timestamp: Time.now.utc
-      }
-    end
+    # def to_event(event_name, preview: false)
+    #   {
+    #     trade_id: trade_id,
+    #     trade_event: event_name,  # OPEN, CLOSE
+    #     trade_type: type, # e.g., CALL_SPREAD, PUT_SPREAD
+    #     underlying_symbol: underlying_symbol,
+    #     order_id: preview ? order_preview_id : order_id,
+    #     order_instruction: preview ? order_preview_instruction : order_instruction,
+    #     price: preview ? order_preview_price : order_price,
+    #     fees: preview ? order_preview_fees : order_fees,
+    #     commission: preview ? order_preview_commission : order_commission,
+    #     expiration_date: expiration_date,
+    #     quantity: quantity,
+    #     instruments: instruments,
+    #     timestamp: Time.now.utc
+    #   }
+    # end
 
     def to_s
       "<#{self.class.name} #{expiration_date}, " \

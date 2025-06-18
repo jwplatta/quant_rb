@@ -36,10 +36,6 @@ RSpec.describe Platypi::CallSpread do
     )
   end
 
-  before do
-    allow(call_spread).to receive(:initialize_orderable)
-  end
-
   describe '#initialize' do
     it 'sets all attributes' do
       expect(call_spread.underlying_symbol).to eq('SPY')
@@ -50,8 +46,6 @@ RSpec.describe Platypi::CallSpread do
 
     it 'uses default values' do
       spread = described_class.new
-      allow(spread).to receive(:initialize_orderable)
-
       expect(spread.underlying_symbol).to be_nil
       expect(spread.short_leg).to be_nil
       expect(spread.long_leg).to be_nil
