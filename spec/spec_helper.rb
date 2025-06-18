@@ -15,8 +15,7 @@
 # it.
 #
 # See https://rubydoc.info/gems/rspec-core/RSpec/Core/Configuration
-require_relative '../mixins/schwab/data_objects/option_chain'
-require_relative '../mixins/schwab/data_objects/option'
+require_relative '../lib/platypi'
 
 RSpec.configure do |config|
   # rspec-expectations config goes here. You can use an alternate
