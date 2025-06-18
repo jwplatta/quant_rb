@@ -6,7 +6,7 @@ require_relative 'put_option'
 module Services
   module Trades
     class PutSpread < Trade
-      attr_reader :short_leg, :long_leg, :underlying_symbol
+      attr_reader :short_leg, :long_leg, :underlying_symbol, :quantity
 
       def initialize(
         underlying_symbol: nil,
@@ -16,18 +16,15 @@ module Services
         round: 2,
         quantity: 1
       )
-        super(increment: increment, round: round, quantity: quantity)
+        super(increment: increment, round: round)
         @underlying_symbol = underlying_symbol
+        @quantity = quantity
         @short_leg = short_leg
         @long_leg = long_leg
       end
 
       def expiration_date
         @expiration_date ||= short_leg.expiration_date
-      end
-
-      def risk_status
-        @short_leg.risk_status
       end
 
       def delta
