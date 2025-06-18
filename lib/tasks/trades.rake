@@ -2,7 +2,7 @@
 
 require 'dotenv'
 require_relative '../platypi'
-require_relative '../platypi/bots/spx_weekly_trade'
+require_relative '../platypi/bots/spx_weekly'
 
 Dotenv.load
 
@@ -12,7 +12,7 @@ namespace :trades do
     puts "Starting SPX Weekly Trade Bot..."
 
     begin
-      bot = SPXWeeklyTrade.new
+      bot = SPXWeekly.new
       bot.run
     rescue => e
       puts "Error running SPX Weekly Trade Bot: #{e.message}"
