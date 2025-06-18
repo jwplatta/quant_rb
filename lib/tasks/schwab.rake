@@ -5,17 +5,8 @@ require 'csv'
 require 'date'
 require 'gruff'
 require 'fileutils'
-require_relative '../../mixins/schwab/data_objects/position'
-require_relative '../../mixins/schwab/data_objects/account'
-require_relative '../../mixins/schwab/data_objects/transaction'
-require_relative '../../mixins/schwab/data_objects/order'
-require_relative '../../mixins/schwab/data_objects/quote'
-require_relative '../../mixins/schwab/data_objects/option'
-require_relative '../../mixins/schwab/data_objects/option_chain'
-require_relative '../../mixins/position_progress'
-require_relative '../../services/search/iron_condor_finder'
-require_relative '../../services/search/call_spread_finder'
-require_relative '../../services/search/put_spread_finder'
+require 'dotenv'
+require_relative '../platypi'
 
 Dotenv.load
 
@@ -25,7 +16,7 @@ Trade = Struct.new(
 )
 
 class SchwabClient
-  include Schwab
+  include Platypi::Schwab
 end
 
 schwab_client = SchwabClient.new
@@ -127,7 +118,7 @@ namespace :schwab do
 
     trade = finder.search(opt_chain)
 
-    if trade.type == :putspread || trade.type == :callspread
+    if trade.type == 'putspread' || trade.type == 'callspread'
       puts """
       ###########
       TRADE FOUND: #{trade.type}
@@ -512,7 +503,7 @@ namespace :schwab do
     puts "Order ID: #{order.order_id}"
     puts "Order Net Amount: #{order_net_amount.round(2)}"
     puts "Current Credit/Debit: #{curr_credit_debit.round(2)}"
-    puts "Position progress: #{exit_progress(order_net_amount, curr_credit_debit).round(2)}%"
+    # puts "Position progress: #{exit_progress(order_net_amount, curr_credit_debit).round(2)}%"
   end
 end
 
@@ -591,8 +582,8 @@ def trade_finder(trade_type, underlying, end_date, short_delta, max_spread, min_
                  dist_from_strike, quantity, settlement_type)
   case trade_type
   when 'iron_condor'
-    Services::Search::IronCondorFinder.new(
-      symbol: underlying,
+    Platypi::IronCondorFinder.new(
+      underlying_symbol: underlying,
       expiration_date: end_date,
       short_delta: short_delta,
       max_spread: max_spread,
@@ -603,8 +594,8 @@ def trade_finder(trade_type, underlying, end_date, short_delta, max_spread, min_
       settlement_type: settlement_type
     )
   when 'call_spread'
-    Services::Search::CallSpreadFinder.new(
-      symbol: underlying,
+    Platypi::CallSpreadFinder.new(
+      underlying_symbol: underlying,
       expiration_date: end_date,
       short_delta: short_delta,
       max_spread: max_spread,
@@ -615,8 +606,8 @@ def trade_finder(trade_type, underlying, end_date, short_delta, max_spread, min_
       settlement_type: settlement_type
     )
   when 'put_spread'
-    Services::Search::PutSpreadFinder.new(
-      symbol: underlying,
+    Platypi::PutSpreadFinder.new(
+      underlying_symbol: underlying,
       expiration_date: end_date,
       short_delta: short_delta,
       max_spread: max_spread,
