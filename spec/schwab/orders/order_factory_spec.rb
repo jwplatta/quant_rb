@@ -2,12 +2,6 @@
 
 require 'spec_helper'
 require 'schwab_rb'
-require_relative '../../../../mixins/schwab/orders/order_factory'
-require_relative '../../../../services/trades/iron_condor'
-require_relative '../../../../services/trades/call_spread'
-require_relative '../../../../services/trades/put_spread'
-require_relative '../../../../services/trades/call_option'
-require_relative '../../../../services/trades/put_option'
 
 RSpec.describe OrderFactory do
   describe '.strategy_type' do
