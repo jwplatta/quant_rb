@@ -17,11 +17,6 @@ RSpec.describe Platypi::StrategyBase do
       expect(strategy.increment).to eq(0.05)
       expect(strategy.round).to eq(2)
     end
-
-    it 'calls initialize_orderable' do
-      expect_any_instance_of(described_class).to receive(:initialize_orderable)
-      described_class.new
-    end
   end
 
   describe '#type' do

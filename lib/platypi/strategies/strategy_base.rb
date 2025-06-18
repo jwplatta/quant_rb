@@ -3,15 +3,11 @@
 module Platypi
   # Base class for all trading strategies
   class StrategyBase
-    include Orderable
-
     attr_accessor :increment, :round, :trade_id
 
     def initialize(increment: 0.01, round: 2)
       @increment = increment
       @round = round
-
-      initialize_orderable
     end
 
     def type

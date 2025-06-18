@@ -49,10 +49,6 @@ RSpec.describe Platypi::IronCondor do
     )
   end
 
-  before do
-    allow(iron_condor).to receive(:initialize_orderable)
-  end
-
   describe '#initialize' do
     it 'sets all attributes' do
       expect(iron_condor.underlying_symbol).to eq('SPY')
@@ -69,7 +65,6 @@ RSpec.describe Platypi::IronCondor do
         put_spread: put_spread,
         expiration_date: Date.new(2025, 6, 20)
       )
-      allow(condor).to receive(:initialize_orderable)
 
       expect(condor.quantity).to eq(1)
       expect(condor.increment).to eq(0.01)
@@ -85,7 +80,6 @@ RSpec.describe Platypi::IronCondor do
         increment: 0.05,
         round: 3
       )
-      allow(condor).to receive(:initialize_orderable)
 
       expect(condor.increment).to eq(0.05)
       expect(condor.round).to eq(3)
@@ -278,60 +272,6 @@ RSpec.describe Platypi::IronCondor do
       allow(call_spread).to receive(:instruments).and_return([])
 
       expect(iron_condor.instruments).to eq([])
-    end
-  end
-
-  describe '#to_event' do
-    before do
-      iron_condor.trade_id = 'iron_condor_123'
-      allow(iron_condor).to receive_messages(
-        order_id: 'order_789',
-        order_instruction: 'SELL_TO_OPEN',
-        order_price: 275.00,
-        order_fees: 4.00,
-        order_commission: 2.00
-      )
-    end
-
-    it 'returns event hash with iron condor data' do
-      event = iron_condor.to_event('OPEN')
-
-      expect(event[:trade_id]).to eq('iron_condor_123')
-      expect(event[:trade_event]).to eq('OPEN')
-      expect(event[:trade_type]).to eq('ironcondor')
-      expect(event[:underlying_symbol]).to eq('SPY')
-      expect(event[:order_id]).to eq('order_789')
-      expect(event[:order_instruction]).to eq('SELL_TO_OPEN')
-      expect(event[:price]).to eq(275.00)
-      expect(event[:fees]).to eq(4.00)
-      expect(event[:commission]).to eq(2.00)
-      expect(event[:expiration_date]).to eq(Date.new(2025, 6, 20))
-      expect(event[:quantity]).to eq(2)
-      expect(event[:instruments]).to be_an(Array)
-      expect(event[:instruments].length).to eq(4)
-      expect(event[:timestamp]).to be_a(Time)
-    end
-
-    context 'when preview is true' do
-      before do
-        allow(iron_condor).to receive_messages(
-          order_preview_id: 'preview_456',
-          order_preview_instruction: 'BUY_TO_CLOSE',
-          order_preview_price: 250.00,
-          order_preview_fees: 5.00,
-          order_preview_commission: 3.00
-        )
-      end
-
-      it 'uses preview values' do
-        event = iron_condor.to_event('CLOSE', preview: true)
-
-        expect(event[:order_id]).to eq('preview_456')
-        expect(event[:order_instruction]).to eq('BUY_TO_CLOSE')
-        expect(event[:price]).to eq(250.00)
-        expect(event[:fees]).to eq(5.00)
-        expect(event[:commission]).to eq(3.00)
-      end
     end
   end
 
