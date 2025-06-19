@@ -132,7 +132,7 @@ RSpec.describe Platypi::Orderable do
 
   describe '#preview' do
     it 'previews an order and sets preview attributes' do
-      orderable_instance.preview(orderable_instance)
+      orderable_instance.preview_order(orderable_instance)
 
       expect(orderable_instance.order_preview).not_to be_nil
       expect(orderable_instance.order_preview_id).to eq('preview123')
@@ -153,7 +153,7 @@ RSpec.describe Platypi::Orderable do
         quantiy: 1
       )
 
-      orderable_instance.preview(orderable_instance, order_instruction: :exit)
+      orderable_instance.preview_order(orderable_instance, order_instruction: :exit)
       expect(orderable_instance.order_preview_instruction).to eq(:exit)
     end
   end
@@ -398,7 +398,7 @@ RSpec.describe Platypi::Orderable do
 
   describe 'preview calculation methods' do
     before do
-      orderable_instance.preview(orderable_instance)
+      orderable_instance.preview_order(orderable_instance)
     end
 
     describe '#preview_credit_debit' do
