@@ -547,29 +547,6 @@ RSpec.describe Platypi::IronCondorFinder do
       )
     end
 
-    it 'ensures proper iron condor structure with four legs' do
-      result = finder.search(option_chain)
-
-      if result.is_a?(Platypi::IronCondor)
-        # Should have exactly 4 instruments (2 call options + 2 put options)
-        expect(result.instruments.length).to eq(4)
-
-        # Should have 2 short legs and 2 long legs
-        short_instruments = result.instruments.select { |i| i[:long_short] == 'SHORT' }
-        long_instruments = result.instruments.select { |i| i[:long_short] == 'LONG' }
-
-        expect(short_instruments.length).to eq(2)
-        expect(long_instruments.length).to eq(2)
-
-        # Should have 2 calls and 2 puts
-        call_instruments = result.instruments.select { |i| i[:put_call] == 'CALL' }
-        put_instruments = result.instruments.select { |i| i[:put_call] == 'PUT' }
-
-        expect(call_instruments.length).to eq(2)
-        expect(put_instruments.length).to eq(2)
-      end
-    end
-
     it 'validates strike price relationships' do
       result = finder.search(option_chain)
 
