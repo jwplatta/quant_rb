@@ -120,15 +120,7 @@ module Platypi
       end
     end
 
-    def open(strategy)
-      send(strategy, order_instruction: :open)
-    end
-
-    def close(strategy)
-      send(strategy, order_instruction: :exit)
-    end
-
-    def send(strategy, order_instruction: :open)
+    def send_order(strategy, order_instruction: :open)
       build_and_place_order(
         order_instruction: order_instruction,
         **extract_strategy_kwargs(strategy, order_instruction: order_instruction)
