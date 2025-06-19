@@ -10,7 +10,7 @@ RSpec.describe Platypi::IronCondorFinder do
     )
   end
 
-  let(:option_chain) { DataObjects::OptionChain.build(option_chain_data) }
+  let(:option_chain) { Platypi::Schwab::DataObjects::OptionChain.build(option_chain_data) }
   let(:expiration_date) { Date.new(2025, 5, 20) }
 
   describe '#initialize' do
@@ -328,7 +328,7 @@ RSpec.describe Platypi::IronCondorFinder do
       it 'handles option chain with no call options' do
         empty_call_chain_data = option_chain_data.dup
         empty_call_chain_data[:callExpDateMap] = {}
-        empty_call_chain = DataObjects::OptionChain.build(empty_call_chain_data)
+        empty_call_chain = Platypi::Schwab::DataObjects::OptionChain.build(empty_call_chain_data)
 
         result = finder.search(empty_call_chain)
         expect(result).to be_a(Platypi::NullStrategy)
@@ -337,7 +337,7 @@ RSpec.describe Platypi::IronCondorFinder do
       it 'handles option chain with no put options' do
         empty_put_chain_data = option_chain_data.dup
         empty_put_chain_data[:putExpDateMap] = {}
-        empty_put_chain = DataObjects::OptionChain.build(empty_put_chain_data)
+        empty_put_chain = Platypi::Schwab::DataObjects::OptionChain.build(empty_put_chain_data)
 
         result = finder.search(empty_put_chain)
         expect(result).to be_a(Platypi::NullStrategy)
