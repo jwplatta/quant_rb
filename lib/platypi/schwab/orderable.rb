@@ -103,7 +103,7 @@ module Platypi
       end
     end
 
-    def replace(strategy, order_instruction: :open)
+    def replace_order(strategy, order_instruction: :open)
       return nil unless order_id
 
       build_and_replace_order(
@@ -161,7 +161,7 @@ module Platypi
       end
     end
 
-    def cancel
+    def stop_order
       return nil unless order_id
 
       cancel_order(order_id).then do |success|

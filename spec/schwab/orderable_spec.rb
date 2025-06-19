@@ -182,14 +182,13 @@ RSpec.describe Platypi::Orderable do
     end
   end
 
-  describe '#replace' do
+  describe '#replace_order' do
     it 'replaces an order and updates order details' do
       # First place an order
       orderable_instance.send_order(orderable_instance)
       expect(orderable_instance.order_id).to eq('123456')
 
-      # Replace the order
-      orderable_instance.replace(orderable_instance)
+      orderable_instance.replace_order(orderable_instance)
 
       expect(orderable_instance.order_id).to eq('789012')
       expect(orderable_instance.order_status).to eq('WORKING')
@@ -198,7 +197,7 @@ RSpec.describe Platypi::Orderable do
 
     it 'returns nil if no order_id exists' do
       orderable_instance.order_id = nil
-      expect(orderable_instance.replace(orderable_instance)).to be_nil
+      expect(orderable_instance.replace_order(orderable_instance)).to be_nil
     end
   end
 
@@ -273,14 +272,14 @@ RSpec.describe Platypi::Orderable do
     end
   end
 
-  describe '#cancel' do
+  describe '#stop_order' do
     it 'cancels an order and clears order details' do
       # Place an order
       orderable_instance.send_order(orderable_instance)
       expect(orderable_instance.order_id).to eq('123456')
 
       # Cancel it
-      orderable_instance.cancel
+      orderable_instance.stop_order
 
       expect(orderable_instance.order_id).to be_nil
       expect(orderable_instance.order_status).to eq('UNKNOWN')  # order_status returns 'UNKNOWN' when @order_status is nil
@@ -290,7 +289,7 @@ RSpec.describe Platypi::Orderable do
 
     it 'returns nil if no order_id exists' do
       orderable_instance.order_id = nil
-      expect(orderable_instance.cancel).to be_nil
+      expect(orderable_instance.stop_order).to be_nil
     end
   end
 
