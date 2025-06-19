@@ -158,9 +158,9 @@ RSpec.describe Platypi::Orderable do
     end
   end
 
-  describe '#send' do
+  describe '#send_order' do
     it 'sends an order and updates order details' do
-      orderable_instance.send(orderable_instance)
+      orderable_instance.send_order(orderable_instance)
 
       expect(orderable_instance.order_id).to eq('123456')
       expect(orderable_instance.order_status).to eq('WORKING')
@@ -171,35 +171,21 @@ RSpec.describe Platypi::Orderable do
     it 'handles rejected orders' do
       allow(orderable_instance).to receive(:build_and_place_order).and_return(nil)
 
-      orderable_instance.send(orderable_instance)
+      orderable_instance.send_order(orderable_instance)
 
       expect(orderable_instance.order_status).to eq('REJECTED')
     end
 
     it 'accepts order_instruction parameter' do
-      orderable_instance.send(orderable_instance, order_instruction: :exit)
+      orderable_instance.send_order(orderable_instance, order_instruction: :exit)
       expect(orderable_instance.order_instruction).to eq(:exit)
-    end
-  end
-
-  describe '#open' do
-    it 'calls send with open instruction' do
-      expect(orderable_instance).to receive(:send).with(orderable_instance, order_instruction: :open)
-      orderable_instance.open(orderable_instance)
-    end
-  end
-
-  describe '#close' do
-    it 'calls send with exit instruction' do
-      expect(orderable_instance).to receive(:send).with(orderable_instance, order_instruction: :exit)
-      orderable_instance.close(orderable_instance)
     end
   end
 
   describe '#replace' do
     it 'replaces an order and updates order details' do
       # First place an order
-      orderable_instance.send(orderable_instance)
+      orderable_instance.send_order(orderable_instance)
       expect(orderable_instance.order_id).to eq('123456')
 
       # Replace the order
@@ -219,7 +205,7 @@ RSpec.describe Platypi::Orderable do
   describe '#check_order_status' do
     it 'updates the order status and sets filled_order when order is filled' do
       # First place an order
-      orderable_instance.send(orderable_instance)
+      orderable_instance.send_order(orderable_instance)
       expect(orderable_instance.order_id).to eq('123456')
       expect(orderable_instance.order_status).to eq('WORKING')
 
@@ -235,7 +221,7 @@ RSpec.describe Platypi::Orderable do
 
     it 'clears order_id when order is rejected' do
       # Place an order
-      orderable_instance.send(orderable_instance)
+      orderable_instance.send_order(orderable_instance)
       expect(orderable_instance.order_id).to eq('123456')
 
       # Override the get_order stub for this test
@@ -265,7 +251,7 @@ RSpec.describe Platypi::Orderable do
     end
 
     it 'handles PENDING_ACTIVATION status' do
-      orderable_instance.send(orderable_instance)
+      orderable_instance.send_order(orderable_instance)
 
       pending_order = Platypi::Schwab::DataObjects::Order.build({
                                                 orderId: '123456',
@@ -290,7 +276,7 @@ RSpec.describe Platypi::Orderable do
   describe '#cancel' do
     it 'cancels an order and clears order details' do
       # Place an order
-      orderable_instance.send(orderable_instance)
+      orderable_instance.send_order(orderable_instance)
       expect(orderable_instance.order_id).to eq('123456')
 
       # Cancel it
@@ -310,7 +296,7 @@ RSpec.describe Platypi::Orderable do
 
   describe '#order_status' do
     it 'returns order.status when order exists' do
-      orderable_instance.send(orderable_instance)
+      orderable_instance.send_order(orderable_instance)
       expect(orderable_instance.order_status).to eq('WORKING')
     end
 
