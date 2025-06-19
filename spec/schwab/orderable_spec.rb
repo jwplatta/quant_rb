@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require 'rspec'
+require 'ostruct'
 
 RSpec.describe Platypi::Orderable do
   let(:test_class) do
@@ -13,6 +14,22 @@ RSpec.describe Platypi::Orderable do
 
       def credit
         1.25
+      end
+
+      def type
+        'callspread'
+      end
+
+      def short_leg
+        OpenStruct.new(symbol: 'SPX251219C05900')
+      end
+
+      def long_leg
+        OpenStruct.new(symbol: 'SPX251219C06000')
+      end
+
+      def debit
+        -0.50
       end
     end
   end
@@ -115,7 +132,7 @@ RSpec.describe Platypi::Orderable do
 
   describe '#preview' do
     it 'previews an order and sets preview attributes' do
-      orderable_instance.preview
+      orderable_instance.preview(orderable_instance)
 
       expect(orderable_instance.order_preview).not_to be_nil
       expect(orderable_instance.order_preview_id).to eq('preview123')
@@ -128,19 +145,22 @@ RSpec.describe Platypi::Orderable do
 
     it 'accepts order_instruction parameter' do
       expect(orderable_instance).to receive(:build_and_preview_order).with(
-        orderable_instance,
-        quantity: 1,
-        order_instruction: :exit
+        order_instruction: :exit,
+        strategy_type: 'callspread',
+        short_leg_symbol: 'SPX251219C05900',
+        long_leg_symbol: 'SPX251219C06000',
+        price: 0.50,
+        quantiy: 1
       )
 
-      orderable_instance.preview(order_instruction: :exit)
+      orderable_instance.preview(orderable_instance, order_instruction: :exit)
       expect(orderable_instance.order_preview_instruction).to eq(:exit)
     end
   end
 
   describe '#send' do
     it 'sends an order and updates order details' do
-      orderable_instance.send
+      orderable_instance.send(orderable_instance)
 
       expect(orderable_instance.order_id).to eq('123456')
       expect(orderable_instance.order_status).to eq('WORKING')
@@ -151,39 +171,39 @@ RSpec.describe Platypi::Orderable do
     it 'handles rejected orders' do
       allow(orderable_instance).to receive(:build_and_place_order).and_return(nil)
 
-      orderable_instance.send
+      orderable_instance.send(orderable_instance)
 
       expect(orderable_instance.order_status).to eq('REJECTED')
     end
 
     it 'accepts order_instruction parameter' do
-      orderable_instance.send(order_instruction: :exit)
+      orderable_instance.send(orderable_instance, order_instruction: :exit)
       expect(orderable_instance.order_instruction).to eq(:exit)
     end
   end
 
   describe '#open' do
     it 'calls send with open instruction' do
-      expect(orderable_instance).to receive(:send).with(order_instruction: :open)
-      orderable_instance.open
+      expect(orderable_instance).to receive(:send).with(orderable_instance, order_instruction: :open)
+      orderable_instance.open(orderable_instance)
     end
   end
 
   describe '#close' do
     it 'calls send with exit instruction' do
-      expect(orderable_instance).to receive(:send).with(order_instruction: :exit)
-      orderable_instance.close
+      expect(orderable_instance).to receive(:send).with(orderable_instance, order_instruction: :exit)
+      orderable_instance.close(orderable_instance)
     end
   end
 
   describe '#replace' do
     it 'replaces an order and updates order details' do
       # First place an order
-      orderable_instance.send
+      orderable_instance.send(orderable_instance)
       expect(orderable_instance.order_id).to eq('123456')
 
       # Replace the order
-      orderable_instance.replace
+      orderable_instance.replace(orderable_instance)
 
       expect(orderable_instance.order_id).to eq('789012')
       expect(orderable_instance.order_status).to eq('WORKING')
@@ -192,14 +212,14 @@ RSpec.describe Platypi::Orderable do
 
     it 'returns nil if no order_id exists' do
       orderable_instance.order_id = nil
-      expect(orderable_instance.replace).to be_nil
+      expect(orderable_instance.replace(orderable_instance)).to be_nil
     end
   end
 
   describe '#check_order_status' do
     it 'updates the order status and sets filled_order when order is filled' do
       # First place an order
-      orderable_instance.send
+      orderable_instance.send(orderable_instance)
       expect(orderable_instance.order_id).to eq('123456')
       expect(orderable_instance.order_status).to eq('WORKING')
 
@@ -215,7 +235,7 @@ RSpec.describe Platypi::Orderable do
 
     it 'clears order_id when order is rejected' do
       # Place an order
-      orderable_instance.send
+      orderable_instance.send(orderable_instance)
       expect(orderable_instance.order_id).to eq('123456')
 
       # Override the get_order stub for this test
@@ -245,7 +265,7 @@ RSpec.describe Platypi::Orderable do
     end
 
     it 'handles PENDING_ACTIVATION status' do
-      orderable_instance.send
+      orderable_instance.send(orderable_instance)
 
       pending_order = Platypi::Schwab::DataObjects::Order.build({
                                                 orderId: '123456',
@@ -270,7 +290,7 @@ RSpec.describe Platypi::Orderable do
   describe '#cancel' do
     it 'cancels an order and clears order details' do
       # Place an order
-      orderable_instance.send
+      orderable_instance.send(orderable_instance)
       expect(orderable_instance.order_id).to eq('123456')
 
       # Cancel it
@@ -290,7 +310,7 @@ RSpec.describe Platypi::Orderable do
 
   describe '#order_status' do
     it 'returns order.status when order exists' do
-      orderable_instance.send
+      orderable_instance.send(orderable_instance)
       expect(orderable_instance.order_status).to eq('WORKING')
     end
 
@@ -392,7 +412,7 @@ RSpec.describe Platypi::Orderable do
 
   describe 'preview calculation methods' do
     before do
-      orderable_instance.preview
+      orderable_instance.preview(orderable_instance)
     end
 
     describe '#preview_credit_debit' do

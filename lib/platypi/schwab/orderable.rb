@@ -82,11 +82,10 @@ module Platypi
       %w[REJECTED EXPIRED CANCELED].include?(order_status)
     end
 
-    def preview(order_instruction: :open)
+    def preview(strategy, order_instruction: :open)
       build_and_preview_order(
-        self,
-        quantity: quantity,
-        order_instruction: order_instruction
+        order_instruction: order_instruction,
+        **extract_strategy_kwargs(strategy, order_instruction: order_instruction)
       ).then do |order_preview|
         @order_preview = order_preview
         @order_preview_id = order_preview.order_id
@@ -104,10 +103,14 @@ module Platypi
       end
     end
 
-    def replace(order_instruction: :open)
+    def replace(strategy, order_instruction: :open)
       return nil unless order_id
 
-      build_and_replace_order(order_id, self, quantity: quantity, order_instruction: order_instruction).then do |order|
+      build_and_replace_order(
+        order_id,
+        order_instruction: order_instruction,
+        **extract_strategy_kwargs(strategy, order_instruction: order_instruction)
+      ).then do |order|
         unless order.nil?
           @order_id = order.order_id
           @order_status = order.status
@@ -117,17 +120,19 @@ module Platypi
       end
     end
 
-    def open
-      send(order_instruction: :open)
+    def open(strategy)
+      send(strategy, order_instruction: :open)
     end
 
-    def close
-      send(order_instruction: :exit)
+    def close(strategy)
+      send(strategy, order_instruction: :exit)
     end
 
-    def send(order_instruction: :open)
-      # REVIEW: self and quantity comes from the class that mixes in Orderable
-      build_and_place_order(self, quantity: quantity, order_instruction: order_instruction).then do |order|
+    def send(strategy, order_instruction: :open)
+      build_and_place_order(
+        order_instruction: order_instruction,
+        **extract_strategy_kwargs(strategy, order_instruction: order_instruction)
+      ).then do |order|
         @order_instruction = order_instruction
 
         if order.nil?
@@ -175,6 +180,43 @@ module Platypi
           @order_instruction = nil
           @transactions = nil
         end
+      end
+    end
+
+    private
+
+    def extract_strategy_kwargs(strategy, order_instruction: :open)
+      case strategy.type
+      when 'callspread', 'putspread'
+        {
+          strategy_type: strategy.type,
+          short_leg_symbol: strategy.short_leg.symbol,
+          long_leg_symbol: strategy.long_leg.symbol,
+          price: strategy_price(strategy, order_instruction),
+          quantiy: strategy.quantity
+        }
+      when 'ironcondor'
+        {
+          strategy_type: strategy.type,
+          put_short_symbol: strategy.put_spread.short_leg.symbol,
+          put_long_symbol: strategy.put_spread.long_leg.symbol,
+          call_short_symbol: strategy.call_spread.short_leg.symbol,
+          call_long_symbol: strategy.call_spread.long_leg.symbol,
+          price: strategy_price(strategy, order_instruction),
+          quantity: strategy.quantity
+        }
+      else
+        raise "Unsupported strategy type: #{strategy.type}"
+      end
+    end
+
+    def strategy_price(strategy, order_instruction)
+      if order_instruction == :open
+        strategy.credit
+      elsif order_instruction == :exit
+        strategy.debit.abs
+      else
+        raise "Unsupported order instruction: #{order_instruction}"
       end
     end
   end
