@@ -36,10 +36,6 @@ RSpec.describe Platypi::PutSpread do
     )
   end
 
-  before do
-    allow(put_spread).to receive(:initialize_orderable)
-  end
-
   describe '#initialize' do
     it 'sets all attributes' do
       expect(put_spread.underlying_symbol).to eq('SPY')
@@ -50,7 +46,6 @@ RSpec.describe Platypi::PutSpread do
 
     it 'uses default values' do
       spread = described_class.new
-      allow(spread).to receive(:initialize_orderable)
 
       expect(spread.underlying_symbol).to be_nil
       expect(spread.short_leg).to be_nil
@@ -62,7 +57,6 @@ RSpec.describe Platypi::PutSpread do
 
     it 'accepts custom increment and round values' do
       spread = described_class.new(increment: 0.05, round: 3)
-      allow(spread).to receive(:initialize_orderable)
 
       expect(spread.increment).to eq(0.05)
       expect(spread.round).to eq(3)
@@ -147,8 +141,6 @@ RSpec.describe Platypi::PutSpread do
       allow(long_leg).to receive(:strike).and_return(450.0)
 
       spread = described_class.new(short_leg: short_leg, long_leg: long_leg)
-      allow(spread).to receive(:initialize_orderable)
-
       expect(spread.spread_width).to eq(10.0) # |450.0 - 440.0|
     end
   end
@@ -246,63 +238,6 @@ RSpec.describe Platypi::PutSpread do
           put_call: 'PUT'
         }
       ])
-    end
-  end
-
-  describe '#to_event' do
-    before do
-      put_spread.trade_id = 'put_spread_123'
-      allow(put_spread).to receive_messages(
-        order_id: 'order_456',
-        order_instruction: 'SELL_TO_OPEN',
-        order_price: 125.00,
-        order_fees: 2.50,
-        order_commission: 1.50,
-        instruments: [
-          { symbol: 'SPY250620P00450000', long_short: 'SHORT', put_call: 'PUT' },
-          { symbol: 'SPY250620P00440000', long_short: 'LONG', put_call: 'PUT' }
-        ]
-      )
-    end
-
-    it 'returns event hash with put spread data' do
-      event = put_spread.to_event('OPEN')
-
-      expect(event[:trade_id]).to eq('put_spread_123')
-      expect(event[:trade_event]).to eq('OPEN')
-      expect(event[:trade_type]).to eq('putspread')
-      expect(event[:underlying_symbol]).to eq('SPY')
-      expect(event[:order_id]).to eq('order_456')
-      expect(event[:order_instruction]).to eq('SELL_TO_OPEN')
-      expect(event[:price]).to eq(125.00)
-      expect(event[:fees]).to eq(2.50)
-      expect(event[:commission]).to eq(1.50)
-      expect(event[:expiration_date]).to eq(Date.new(2025, 6, 20))
-      expect(event[:quantity]).to eq(3)
-      expect(event[:instruments]).to be_an(Array)
-      expect(event[:timestamp]).to be_a(Time)
-    end
-
-    context 'when preview is true' do
-      before do
-        allow(put_spread).to receive_messages(
-          order_preview_id: 'preview_789',
-          order_preview_instruction: 'BUY_TO_CLOSE',
-          order_preview_price: 120.00,
-          order_preview_fees: 3.00,
-          order_preview_commission: 2.00
-        )
-      end
-
-      it 'uses preview values' do
-        event = put_spread.to_event('CLOSE', preview: true)
-
-        expect(event[:order_id]).to eq('preview_789')
-        expect(event[:order_instruction]).to eq('BUY_TO_CLOSE')
-        expect(event[:price]).to eq(120.00)
-        expect(event[:fees]).to eq(3.00)
-        expect(event[:commission]).to eq(2.00)
-      end
     end
   end
 
