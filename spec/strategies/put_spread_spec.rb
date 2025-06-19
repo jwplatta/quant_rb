@@ -329,4 +329,148 @@ RSpec.describe Platypi::PutSpread do
       expect(put_spread).to respond_to(:round)
     end
   end
+
+  describe 'serialization' do
+    let(:short_leg_with_all_attrs) do
+      double('PutOption',
+        symbol: 'SPY250620P00450000',
+        strike: 450.0,
+        mark: 2.75,
+        delta: -0.25,
+        ask: 2.80,
+        bid: 2.70,
+        expiration_date: Date.new(2025, 6, 20),
+        open_interest: 1200,
+        market_change?: false,
+        check_market: nil
+      )
+    end
+
+    let(:long_leg_with_all_attrs) do
+      double('PutOption',
+        symbol: 'SPY250620P00440000',
+        strike: 440.0,
+        mark: 1.50,
+        delta: -0.15,
+        ask: 1.55,
+        bid: 1.45,
+        expiration_date: Date.new(2025, 6, 20),
+        open_interest: 900,
+        market_change?: false,
+        check_market: nil
+      )
+    end
+
+    let(:put_spread_for_serialization) do
+      described_class.new(
+        underlying_symbol: 'SPY',
+        short_leg: short_leg_with_all_attrs,
+        long_leg: long_leg_with_all_attrs,
+        quantity: 3
+      )
+    end
+
+    let(:put_spread_hash) do
+      {
+        type: 'putspread',
+        quantity: 2,
+        underlying_symbol: 'SPY',
+        round: 2,
+        increment: 0.01,
+        short_leg: {
+          symbol: 'SPY250620P00450000',
+          strike: 450.0,
+          delta: -0.25,
+          mark: 2.75,
+          ask: 2.80,
+          bid: 2.70,
+          expiration_date: Date.new(2025, 6, 20),
+          open_interest: 1200
+        },
+        long_leg: {
+          symbol: 'SPY250620P00440000',
+          strike: 440.0,
+          delta: -0.15,
+          mark: 1.50,
+          ask: 1.55,
+          bid: 1.45,
+          expiration_date: Date.new(2025, 6, 20),
+          open_interest: 900
+        }
+      }
+    end
+
+    describe '#to_json' do
+      it 'converts to JSON string' do
+        json_string = put_spread_for_serialization.to_json
+        expect(json_string).to be_a(String)
+
+        parsed = JSON.parse(json_string, symbolize_names: true)
+        expect(parsed[:type]).to eq('putspread')
+        expect(parsed[:underlying_symbol]).to eq('SPY')
+      end
+    end
+
+    describe '.from_hash' do
+      it 'reconstructs PutSpread from hash' do
+        spread = described_class.from_hash(put_spread_hash)
+
+        expect(spread).to be_a(Platypi::PutSpread)
+        expect(spread.underlying_symbol).to eq('SPY')
+        expect(spread.quantity).to eq(2)
+        expect(spread.increment).to eq(0.01)
+        expect(spread.round).to eq(2)
+      end
+
+      it 'reconstructs option legs from hash data' do
+        spread = described_class.from_hash(put_spread_hash)
+
+        expect(spread.short_leg).to be_a(Platypi::PutOption)
+        expect(spread.short_leg.symbol).to eq('SPY250620P00450000')
+        expect(spread.short_leg.strike).to eq(450.0)
+        expect(spread.short_leg.mark).to eq(2.75)
+
+        expect(spread.long_leg).to be_a(Platypi::PutOption)
+        expect(spread.long_leg.symbol).to eq('SPY250620P00440000')
+        expect(spread.long_leg.strike).to eq(440.0)
+        expect(spread.long_leg.mark).to eq(1.50)
+      end
+
+      it 'handles nil legs gracefully' do
+        hash_with_nil_legs = put_spread_hash.merge(short_leg: nil, long_leg: nil)
+        spread = described_class.from_hash(hash_with_nil_legs)
+
+        expect(spread.short_leg).to be_nil
+        expect(spread.long_leg).to be_nil
+      end
+    end
+
+    describe '.from_json' do
+      it 'reconstructs PutSpread from JSON string' do
+        json_string = put_spread_hash.to_json
+        spread = described_class.from_json(json_string)
+
+        expect(spread).to be_a(Platypi::PutSpread)
+        expect(spread.underlying_symbol).to eq('SPY')
+        expect(spread.quantity).to eq(2)
+      end
+
+      it 'round-trip serialization preserves data' do
+        original_spread = described_class.new(
+          underlying_symbol: 'TEST',
+          quantity: 5,
+          increment: 0.05,
+          round: 3
+        )
+
+        json_string = original_spread.to_json
+        reconstructed = described_class.from_json(json_string)
+
+        expect(reconstructed.underlying_symbol).to eq(original_spread.underlying_symbol)
+        expect(reconstructed.quantity).to eq(original_spread.quantity)
+        expect(reconstructed.increment).to eq(original_spread.increment)
+        expect(reconstructed.round).to eq(original_spread.round)
+      end
+    end
+  end
 end
