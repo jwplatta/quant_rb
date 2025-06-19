@@ -10,7 +10,7 @@ RSpec.describe Platypi::PutSpreadFinder do
     )
   end
 
-  let(:option_chain) { DataObjects::OptionChain.build(option_chain_data) }
+  let(:option_chain) { Platypi::Schwab::DataObjects::OptionChain.build(option_chain_data) }
   let(:expiration_date) { Date.new(2025, 5, 20) }
 
   describe '#initialize' do
@@ -305,7 +305,7 @@ RSpec.describe Platypi::PutSpreadFinder do
       it 'handles option chain with no put options' do
         empty_chain_data = option_chain_data.dup
         empty_chain_data[:putExpDateMap] = {}
-        empty_chain = DataObjects::OptionChain.build(empty_chain_data)
+        empty_chain = Platypi::Schwab::DataObjects::OptionChain.build(empty_chain_data)
 
         result = finder.search(empty_chain)
         expect(result).to be_a(Platypi::NullStrategy)

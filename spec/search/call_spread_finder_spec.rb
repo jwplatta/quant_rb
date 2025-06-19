@@ -10,7 +10,7 @@ RSpec.describe Platypi::CallSpreadFinder do
     )
   end
 
-  let(:option_chain) { DataObjects::OptionChain.build(option_chain_data) }
+  let(:option_chain) { Platypi::Schwab::DataObjects::OptionChain.build(option_chain_data) }
   let(:expiration_date) { Date.new(2025, 5, 20) }
 
   describe '#initialize' do
