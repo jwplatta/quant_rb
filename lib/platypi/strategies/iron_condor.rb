@@ -71,33 +71,52 @@ module Platypi
       put_spread.check_market
     end
 
-    def instruments
-      put_spread.instruments + call_spread.instruments
-    end
-
-    def to_event(event_name, preview: false)
-      {
-        trade_id: trade_id,
-        trade_event: event_name,  # OPEN, CLOSE
-        trade_type: type, # iron_condor
-        underlying_symbol: underlying_symbol,
-        order_id: preview ? order_preview_id : order_id,
-        order_instruction: preview ? order_preview_instruction : order_instruction,
-        price: preview ? order_preview_price : order_price,
-        fees: preview ? order_preview_fees : order_fees,
-        commission: preview ? order_preview_commission : order_commission,
-        expiration_date: expiration_date,
-        quantity: quantity,
-        instruments: instruments,
-        timestamp: Time.now.utc
-      }
-    end
-
     def to_s
       "<#{self.class.name} #{expiration_date}, " \
         "PUT: #{put_spread.strikes.join('/')}, " \
         "CALL: #{call_spread.strikes.join('/')}, " \
         "Credit: #{credit}>"
+    end
+
+    def to_h
+      {
+        type: type,
+        quantity: quantity,
+        underlying_symbol: underlying_symbol,
+        expiration_date: expiration_date,
+        round: round,
+        increment: increment,
+        put_spread: put_spread.to_h,
+        call_spread: call_spread.to_h
+      }
+    end
+
+    def to_json(*args)
+      to_h.to_json(*args)
+    end
+
+    def self.from_json(json_string)
+      data = JSON.parse(json_string, symbolize_names: true)
+      from_hash(data)
+    end
+
+    def self.from_hash(data)
+      put_spread = PutSpread.from_hash(data[:put_spread])
+      call_spread = CallSpread.from_hash(data[:call_spread])
+
+      # Handle date conversion - it might be a string from JSON
+      expiration_date = data[:expiration_date]
+      expiration_date = Date.parse(expiration_date) if expiration_date.is_a?(String)
+
+      new(
+        underlying_symbol: data[:underlying_symbol],
+        call_spread: call_spread,
+        put_spread: put_spread,
+        expiration_date: expiration_date,
+        increment: data[:increment] || 0.01,
+        round: data[:round] || 2,
+        quantity: data[:quantity] || 1
+      )
     end
   end
 end
