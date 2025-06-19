@@ -4,37 +4,26 @@ require 'schwab_rb'
 
 class VerticalOrder
   class << self
-    def build(trade, **options)
-      order_instruction = options[:order_instruction] || :open
-      quantity = options[:quantity] || 1
-
+    def build(short_leg_symbol:, long_leg_symbol:, price:, account_number:, order_instruction: :open, quantity: 1)
       schwab_order_builder.new.tap do |builder|
-        builder.set_account_number(options[:account_number])
+        builder.set_account_number(account_number)
         builder.set_order_strategy_type('SINGLE')
         builder.set_session(SchwabRb::Orders::Session::NORMAL)
         builder.set_duration(SchwabRb::Orders::Duration::DAY)
         builder.set_order_type(order_type(order_instruction))
         builder.set_complex_order_strategy_type(SchwabRb::Order::ComplexOrderStrategyTypes::VERTICAL)
         builder.set_quantity(quantity)
-        builder.set_price(trade.credit)
+        builder.set_price(price)
         builder.add_option_leg(
           short_leg_instruction(order_instruction),
-          trade.short_leg.symbol,
+          short_leg_symbol,
           quantity
         )
         builder.add_option_leg(
           long_leg_instruction(order_instruction),
-          trade.long_leg.symbol,
+          long_leg_symbol,
           quantity
         )
-      end
-    end
-
-    def price(trade, order_instruction)
-      if order_instruction == :open
-        trade.credit
-      elsif order_instruction == :exit
-        trade.debit.abs
       end
     end
 
