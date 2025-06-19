@@ -4,40 +4,46 @@ require 'schwab_rb'
 
 class IronCondorOrder
   class << self
-    def build(trade, **options)
-      order_instruction = options[:order_instruction] || :open
-      quantity = options[:quantity] || 1
-
+    def build(
+      account_number:,
+      put_short_symbol:,
+      put_long_symbol:,
+      call_short_symbol:,
+      call_long_symbol:,
+      price:,
+      order_instruction: :open,
+      quantity: 1
+    )
       schwab_order_builder.new.tap do |builder|
-        builder.set_account_number(options[:account_number])
+        builder.set_account_number(account_number)
         builder.set_order_strategy_type('SINGLE')
         builder.set_session(SchwabRb::Orders::Session::NORMAL)
         builder.set_duration(SchwabRb::Orders::Duration::DAY)
-        builder.set_order_type(order_type(trade))
+        builder.set_order_type(order_type(order_instruction))
         builder.set_complex_order_strategy_type(SchwabRb::Order::ComplexOrderStrategyTypes::IRON_CONDOR)
         builder.set_quantity(quantity)
-        builder.set_price(trade.credit)
+        builder.set_price(price)
 
         instructions = leg_instructions_for_position(order_instruction)
 
         builder.add_option_leg(
           instructions[:put_short],
-          trade.put_spread.short_leg.symbol,
+          put_short_symbol,
           quantity
         )
         builder.add_option_leg(
           instructions[:put_long],
-          trade.put_spread.long_leg.symbol,
+          put_long_symbol,
           quantity
         )
         builder.add_option_leg(
           instructions[:call_short],
-          trade.call_spread.short_leg.symbol,
+          call_short_symbol,
           quantity
         )
         builder.add_option_leg(
           instructions[:call_long],
-          trade.call_spread.long_leg.symbol,
+          call_long_symbol,
           quantity
         )
       end
