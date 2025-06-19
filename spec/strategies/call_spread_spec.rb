@@ -153,25 +153,6 @@ RSpec.describe Platypi::CallSpread do
     end
   end
 
-  describe '#instruments' do
-    it 'returns array of instrument hashes' do
-      instruments = call_spread.instruments
-
-      expect(instruments).to eq([
-        {
-          symbol: 'SPY250620C00500000',
-          long_short: 'SHORT',
-          put_call: 'CALL'
-        },
-        {
-          symbol: 'SPY250620C00510000',
-          long_short: 'LONG',
-          put_call: 'CALL'
-        }
-      ])
-    end
-  end
-
   describe '#to_s' do
     it 'returns formatted string representation' do
       expected = "<Platypi::CallSpread #{Date.new(2025, 6, 20)}, " \
@@ -179,6 +160,91 @@ RSpec.describe Platypi::CallSpread do
                  "SPY250620C00510000, 510.0>"
 
       expect(call_spread.to_s).to eq(expected)
+    end
+  end
+
+  describe '#to_h' do
+    let(:short_leg) do
+      double('CallOption',
+        symbol: 'SPY250620C00500000',
+        strike: 500.0,
+        mark: 3.50,
+        delta: 0.30,
+        ask: 3.55,
+        bid: 3.45,
+        expiration_date: Date.new(2025, 6, 20),
+        open_interest: 1500,
+        market_change?: false,
+        check_market: nil
+      )
+    end
+
+    let(:long_leg) do
+      double('CallOption',
+        symbol: 'SPY250620C00510000',
+        strike: 510.0,
+        mark: 2.00,
+        delta: 0.20,
+        ask: 2.05,
+        bid: 1.95,
+        expiration_date: Date.new(2025, 6, 20),
+        open_interest: 800,
+        market_change?: false,
+        check_market: nil
+      )
+    end
+
+    it 'returns hash representation with all attributes' do
+      result = call_spread.to_h
+
+      expect(result).to be_a(Hash)
+      expect(result[:type]).to eq('callspread')
+      expect(result[:quantity]).to eq(2)
+      expect(result[:underlying_symbol]).to eq('SPY')
+      expect(result[:round]).to eq(2)
+      expect(result[:increment]).to eq(0.01)
+    end
+
+    it 'includes short_leg details' do
+      result = call_spread.to_h
+
+      expect(result[:short_leg]).to eq({
+        symbol: 'SPY250620C00500000',
+        strike: 500.0,
+        delta: 0.30,
+        mark: 3.50,
+        ask: 3.55,
+        bid: 3.45,
+        expiration_date: Date.new(2025, 6, 20),
+        open_interest: 1500
+      })
+    end
+
+    it 'includes long_leg details' do
+      result = call_spread.to_h
+
+      expect(result[:long_leg]).to eq({
+        symbol: 'SPY250620C00510000',
+        strike: 510.0,
+        delta: 0.20,
+        mark: 2.00,
+        ask: 2.05,
+        bid: 1.95,
+        expiration_date: Date.new(2025, 6, 20),
+        open_interest: 800
+      })
+    end
+
+    it 'handles nil values gracefully' do
+      spread = described_class.new
+
+      result = spread.to_h
+
+      expect(result[:type]).to eq('callspread')
+      expect(result[:quantity]).to eq(1)
+      expect(result[:underlying_symbol]).to be_nil
+      expect(result[:short_leg]).to be_nil
+      expect(result[:long_leg]).to be_nil
     end
   end
 

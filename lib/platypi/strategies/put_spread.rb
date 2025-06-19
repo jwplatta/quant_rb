@@ -63,36 +63,33 @@ module Platypi
       threads.each(&:join)
     end
 
-    def instruments
-      [
-        {
-          symbol: short_leg.symbol,
-          long_short: 'SHORT',
-          put_call: 'PUT'
-        },
-        {
-          symbol: long_leg.symbol,
-          long_short: 'LONG',
-          put_call: 'PUT'
-        }
-      ]
-    end
-
-    def to_event(event_name, preview: false)
+    def to_h
       {
-        trade_id: trade_id,
-        trade_event: event_name,  # OPEN, CLOSE
-        trade_type: type, # e.g., CALL_SPREAD, PUT_SPREAD
-        underlying_symbol: underlying_symbol,
-        order_id: preview ? order_preview_id : order_id,
-        order_instruction: preview ? order_preview_instruction : order_instruction,
-        price: preview ? order_preview_price : order_price,
-        fees: preview ? order_preview_fees : order_fees,
-        commission: preview ? order_preview_commission : order_commission,
-        expiration_date: expiration_date,
+        type: type,
         quantity: quantity,
-        instruments: instruments,
-        timestamp: Time.now.utc
+        underlying_symbol: underlying_symbol,
+        round: round,
+        increment: increment,
+        short_leg: short_leg ? {
+          symbol: short_leg.symbol,
+          strike: short_leg.strike,
+          delta: short_leg.delta,
+          mark: short_leg.mark,
+          ask: short_leg.ask,
+          bid: short_leg.bid,
+          expiration_date: short_leg.expiration_date,
+          open_interest: short_leg.open_interest
+        } : nil,
+        long_leg: long_leg ? {
+          symbol: long_leg.symbol,
+          strike: long_leg.strike,
+          delta: long_leg.delta,
+          mark: long_leg.mark,
+          ask: long_leg.ask,
+          bid: long_leg.bid,
+          expiration_date: long_leg.expiration_date,
+          open_interest: long_leg.open_interest
+        } : nil
       }
     end
 
