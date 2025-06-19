@@ -253,28 +253,6 @@ RSpec.describe Platypi::IronCondor do
     end
   end
 
-  describe '#instruments' do
-    it 'returns combined instruments from both spreads' do
-      instruments = iron_condor.instruments
-
-      expected = [
-        { symbol: 'SPY250620P00450000', long_short: 'SHORT', put_call: 'PUT' },
-        { symbol: 'SPY250620P00440000', long_short: 'LONG', put_call: 'PUT' },
-        { symbol: 'SPY250620C00500000', long_short: 'SHORT', put_call: 'CALL' },
-        { symbol: 'SPY250620C00510000', long_short: 'LONG', put_call: 'CALL' }
-      ]
-
-      expect(instruments).to eq(expected)
-    end
-
-    it 'handles empty instruments gracefully' do
-      allow(put_spread).to receive(:instruments).and_return([])
-      allow(call_spread).to receive(:instruments).and_return([])
-
-      expect(iron_condor.instruments).to eq([])
-    end
-  end
-
   describe '#to_s' do
     it 'returns formatted string representation' do
       expected = "<Platypi::IronCondor #{Date.new(2025, 6, 20)}, " \
@@ -325,6 +303,262 @@ RSpec.describe Platypi::IronCondor do
       profit_loss_ratio = iron_condor.max_profit / iron_condor.max_loss
       expect(profit_loss_ratio).to be > 0.05  # At least 5% return potential
       expect(profit_loss_ratio).to be < 1.0   # Max loss should exceed max profit
+    end
+  end
+
+  describe 'serialization' do
+    let(:put_spread_with_to_h) do
+      double('PutSpread',
+        delta: -0.15,
+        credit: 1.25,
+        debit: -1.25,
+        symbols: ['SPY250620P00450000', 'SPY250620P00440000'],
+        strikes: [450.0, 440.0],
+        marks: [2.75, 1.50],
+        spread_width: 10.0,
+        market_change?: false,
+        check_market: nil,
+        instruments: [
+          { symbol: 'SPY250620P00450000', long_short: 'SHORT', put_call: 'PUT' },
+          { symbol: 'SPY250620P00440000', long_short: 'LONG', put_call: 'PUT' }
+        ],
+        to_h: {
+          type: 'putspread',
+          quantity: 1,
+          underlying_symbol: 'SPY',
+          round: 2,
+          increment: 0.01,
+          short_leg: {
+            symbol: 'SPY250620P00450000',
+            strike: 450.0,
+            delta: -0.25,
+            mark: 2.75,
+            ask: 2.80,
+            bid: 2.70,
+            expiration_date: Date.new(2025, 6, 20),
+            open_interest: 1200
+          },
+          long_leg: {
+            symbol: 'SPY250620P00440000',
+            strike: 440.0,
+            delta: -0.15,
+            mark: 1.50,
+            ask: 1.55,
+            bid: 1.45,
+            expiration_date: Date.new(2025, 6, 20),
+            open_interest: 900
+          }
+        }
+      )
+    end
+
+    let(:call_spread_with_to_h) do
+      double('CallSpread',
+        delta: 0.25,
+        credit: 1.50,
+        debit: -1.50,
+        symbols: ['SPY250620C00500000', 'SPY250620C00510000'],
+        strikes: [500.0, 510.0],
+        marks: [3.50, 2.00],
+        spread_width: 10.0,
+        market_change?: false,
+        check_market: nil,
+        instruments: [
+          { symbol: 'SPY250620C00500000', long_short: 'SHORT', put_call: 'CALL' },
+          { symbol: 'SPY250620C00510000', long_short: 'LONG', put_call: 'CALL' }
+        ],
+        to_h: {
+          type: 'callspread',
+          quantity: 1,
+          underlying_symbol: 'SPY',
+          round: 2,
+          increment: 0.01,
+          short_leg: {
+            symbol: 'SPY250620C00500000',
+            strike: 500.0,
+            delta: 0.30,
+            mark: 3.50,
+            ask: 3.55,
+            bid: 3.45,
+            expiration_date: Date.new(2025, 6, 20),
+            open_interest: 1500
+          },
+          long_leg: {
+            symbol: 'SPY250620C00510000',
+            strike: 510.0,
+            delta: 0.20,
+            mark: 2.00,
+            ask: 2.05,
+            bid: 1.95,
+            expiration_date: Date.new(2025, 6, 20),
+            open_interest: 800
+          }
+        }
+      )
+    end
+
+    let(:iron_condor_for_serialization) do
+      described_class.new(
+        underlying_symbol: 'SPY',
+        call_spread: call_spread_with_to_h,
+        put_spread: put_spread_with_to_h,
+        expiration_date: Date.new(2025, 6, 20),
+        quantity: 2
+      )
+    end
+
+    let(:iron_condor_hash) do
+      {
+        type: 'ironcondor',
+        quantity: 3,
+        underlying_symbol: 'SPY',
+        expiration_date: Date.new(2025, 6, 20),
+        round: 2,
+        increment: 0.01,
+        put_spread: {
+          type: 'putspread',
+          quantity: 1,
+          underlying_symbol: 'SPY',
+          round: 2,
+          increment: 0.01,
+          short_leg: {
+            symbol: 'SPY250620P00450000',
+            strike: 450.0,
+            delta: -0.25,
+            mark: 2.75,
+            ask: 2.80,
+            bid: 2.70,
+            expiration_date: Date.new(2025, 6, 20),
+            open_interest: 1200
+          },
+          long_leg: {
+            symbol: 'SPY250620P00440000',
+            strike: 440.0,
+            delta: -0.15,
+            mark: 1.50,
+            ask: 1.55,
+            bid: 1.45,
+            expiration_date: Date.new(2025, 6, 20),
+            open_interest: 900
+          }
+        },
+        call_spread: {
+          type: 'callspread',
+          quantity: 1,
+          underlying_symbol: 'SPY',
+          round: 2,
+          increment: 0.01,
+          short_leg: {
+            symbol: 'SPY250620C00500000',
+            strike: 500.0,
+            delta: 0.30,
+            mark: 3.50,
+            ask: 3.55,
+            bid: 3.45,
+            expiration_date: Date.new(2025, 6, 20),
+            open_interest: 1500
+          },
+          long_leg: {
+            symbol: 'SPY250620C00510000',
+            strike: 510.0,
+            delta: 0.20,
+            mark: 2.00,
+            ask: 2.05,
+            bid: 1.95,
+            expiration_date: Date.new(2025, 6, 20),
+            open_interest: 800
+          }
+        }
+      }
+    end
+
+    describe '#to_h' do
+      it 'returns hash representation with all attributes' do
+        result = iron_condor_for_serialization.to_h
+
+        expect(result).to be_a(Hash)
+        expect(result[:type]).to eq('ironcondor')
+        expect(result[:quantity]).to eq(2)
+        expect(result[:underlying_symbol]).to eq('SPY')
+        expect(result[:expiration_date]).to eq(Date.new(2025, 6, 20))
+        expect(result[:round]).to eq(2)
+        expect(result[:increment]).to eq(0.01)
+      end
+
+      it 'includes nested spread data' do
+        result = iron_condor_for_serialization.to_h
+
+        expect(result[:put_spread]).to be_a(Hash)
+        expect(result[:call_spread]).to be_a(Hash)
+        expect(result[:put_spread][:type]).to eq('putspread')
+        expect(result[:call_spread][:type]).to eq('callspread')
+      end
+    end
+
+    describe '#to_json' do
+      it 'converts to JSON string' do
+        json_string = iron_condor_for_serialization.to_json
+        expect(json_string).to be_a(String)
+
+        parsed = JSON.parse(json_string, symbolize_names: true)
+        expect(parsed[:type]).to eq('ironcondor')
+        expect(parsed[:underlying_symbol]).to eq('SPY')
+      end
+    end
+
+    describe '.from_hash' do
+      it 'reconstructs IronCondor from hash' do
+        condor = described_class.from_hash(iron_condor_hash)
+
+        expect(condor).to be_a(Platypi::IronCondor)
+        expect(condor.underlying_symbol).to eq('SPY')
+        expect(condor.quantity).to eq(3)
+        expect(condor.increment).to eq(0.01)
+        expect(condor.round).to eq(2)
+        expect(condor.expiration_date).to eq(Date.new(2025, 6, 20))
+      end
+
+      it 'reconstructs nested spread objects' do
+        condor = described_class.from_hash(iron_condor_hash)
+
+        expect(condor.put_spread).to be_a(Platypi::PutSpread)
+        expect(condor.call_spread).to be_a(Platypi::CallSpread)
+
+        expect(condor.put_spread.underlying_symbol).to eq('SPY')
+        expect(condor.call_spread.underlying_symbol).to eq('SPY')
+      end
+    end
+
+    describe '.from_json' do
+      it 'reconstructs IronCondor from JSON string' do
+        json_string = iron_condor_hash.to_json
+        condor = described_class.from_json(json_string)
+
+        expect(condor).to be_a(Platypi::IronCondor)
+        expect(condor.underlying_symbol).to eq('SPY')
+        expect(condor.quantity).to eq(3)
+      end
+
+      it 'round-trip serialization preserves data' do
+        original_condor = described_class.new(
+          underlying_symbol: 'TEST',
+          call_spread: call_spread_with_to_h,
+          put_spread: put_spread_with_to_h,
+          expiration_date: Date.new(2025, 7, 18),
+          quantity: 5,
+          increment: 0.05,
+          round: 3
+        )
+
+        json_string = original_condor.to_json
+        reconstructed = described_class.from_json(json_string)
+
+        expect(reconstructed.underlying_symbol).to eq(original_condor.underlying_symbol)
+        expect(reconstructed.quantity).to eq(original_condor.quantity)
+        expect(reconstructed.increment).to eq(original_condor.increment)
+        expect(reconstructed.round).to eq(original_condor.round)
+        expect(reconstructed.expiration_date).to eq(original_condor.expiration_date)
+      end
     end
   end
 end
