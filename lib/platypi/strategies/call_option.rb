@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 module Platypi
-  # Call option strategy
   class CallOption < StrategyBase
     include Quoteable
 
@@ -15,6 +14,30 @@ module Platypi
           call_opt.bid = option.bid
           call_opt.expiration_date = option.expiration_date
           call_opt.open_interest = option.open_interest
+        end
+      end
+
+      def from_json(json_string)
+        data = JSON.parse(json_string, symbolize_names: true)
+        from_hash(data)
+      end
+
+      def from_hash(data)
+        new(data[:symbol],
+            quantity: data[:quantity] || 1,
+            increment: data[:increment] || 0.01,
+            round: data[:round] || 2).tap do |option|
+          option.strike = data[:strike]
+          option.delta = data[:delta]
+          option.mark = data[:mark]
+          option.ask = data[:ask]
+          option.bid = data[:bid]
+
+          # Handle date conversion - it might be a string from JSON
+          expiration_date = data[:expiration_date]
+          option.expiration_date = expiration_date.is_a?(String) ? Date.parse(expiration_date) : expiration_date
+
+          option.open_interest = data[:open_interest]
         end
       end
     end
@@ -44,6 +67,27 @@ module Platypi
 
     def long?
       quantity.positive?
+    end
+
+    def to_h
+      {
+        type: type,
+        symbol: symbol,
+        quantity: quantity,
+        round: round,
+        increment: increment,
+        strike: strike,
+        delta: delta,
+        mark: mark,
+        ask: ask,
+        bid: bid,
+        expiration_date: expiration_date,
+        open_interest: open_interest
+      }
+    end
+
+    def to_json(*args)
+      to_h.to_json(*args)
     end
   end
 end
