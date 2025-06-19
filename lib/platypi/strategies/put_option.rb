@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 module Platypi
-  # Put option strategy
   class PutOption < StrategyBase
     include Quoteable
 
@@ -15,6 +14,30 @@ module Platypi
           put_opt.bid = option.bid
           put_opt.expiration_date = option.expiration_date
           put_opt.open_interest = option.open_interest
+        end
+      end
+
+      def from_json(json_string)
+        data = JSON.parse(json_string, symbolize_names: true)
+        from_hash(data)
+      end
+
+      def from_hash(data)
+        new(data[:symbol],
+            quantity: data[:quantity] || 1,
+            increment: data[:increment] || 0.01,
+            round: data[:round] || 2).tap do |option|
+          option.strike = data[:strike]
+          option.delta = data[:delta]
+          option.mark = data[:mark]
+          option.ask = data[:ask]
+          option.bid = data[:bid]
+
+          # Handle date conversion - it might be a string from JSON
+          expiration_date = data[:expiration_date]
+          option.expiration_date = expiration_date.is_a?(String) ? Date.parse(expiration_date) : expiration_date
+
+          option.open_interest = data[:open_interest]
         end
       end
     end
@@ -46,26 +69,25 @@ module Platypi
       quantity.positive?
     end
 
-    def to_event(event_name, preview: false)
+    def to_h
       {
-        trade_id: trade_id,
-        trade_event: event_name,  # OPEN, CLOSE
-        trade_type: type, # e.g., CALL_OPTION, PUT_OPTION
-        underlying_symbol: symbol.split(/\d/)[0], # Extract underlying from option symbol
-        order_id: preview ? order_preview_id : order_id,
-        order_instruction: preview ? order_preview_instruction : order_instruction,
-        price: preview ? order_preview_price : order_price,
-        fees: preview ? order_preview_fees : order_fees,
-        commission: preview ? order_preview_commission : order_commission,
-        expiration_date: expiration_date,
+        type: type,
+        symbol: symbol,
         quantity: quantity,
-        instruments: [{
-          symbol: symbol,
-          long_short: quantity.positive? ? 'LONG' : 'SHORT',
-          put_call: 'PUT'
-        }],
-        timestamp: Time.now.utc
+        round: round,
+        increment: increment,
+        strike: strike,
+        delta: delta,
+        mark: mark,
+        ask: ask,
+        bid: bid,
+        expiration_date: expiration_date,
+        open_interest: open_interest
       }
+    end
+
+    def to_json(*args)
+      to_h.to_json(*args)
     end
   end
 end
