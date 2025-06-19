@@ -137,30 +137,29 @@ module Platypi
       end
     end
 
-    def build_and_preview_order(trade, quantity: 1, order_instruction: :open)
-      build_order(trade, quantity: quantity, order_instruction: order_instruction).then do |order|
+    def build_and_preview_order(order_instruction: :open, **strategy_kwargs)
+      build_order(order_instruction: order_instruction, **strategy_kwargs).then do |order|
         preview_order(order)
       end
     end
 
-    def build_and_place_order(trade, quantity: 1, order_instruction: :open)
-      build_order(trade, quantity: quantity, order_instruction: order_instruction).then do |order|
+    def build_and_place_order(order_instruction: :open, **strategy_kwargs)
+      build_order(order_instruction: order_instruction, **strategy_kwargs).then do |order|
         place_order(order)
       end
     end
 
-    def build_and_replace_order(order_id, trade, quantity: 1, order_instruction: :open)
-      build_order(trade, quantity: quantity, order_instruction: order_instruction).then do |order|
+    def build_and_replace_order(order_id, order_instruction: :open, **strategy_kwargs)
+      build_order(order_instruction: order_instruction, **strategy_kwargs).then do |order|
         replace_order(order_id, order)
       end
     end
 
-    def build_order(trade, quantity: 1, order_instruction: :open)
+    def build_order(order_instruction: :open, **strategy_kwargs)
       OrderFactory.build(
-        trade,
-        quantity: quantity,
         order_instruction: order_instruction,
-        account_number: ENV['SCHWAB_ACCOUNT_NUMBER']
+        account_number: ENV['SCHWAB_ACCOUNT_NUMBER'],
+        **strategy_kwargs
       )
     end
 
