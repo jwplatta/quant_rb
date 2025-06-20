@@ -84,14 +84,13 @@ module Platypi
         @trade_id = trade_id || SecureRandom.uuid
         @status = status
         @preview = preview
-        @events = []
         @progress = TradeProgress.new
         @journal = TradeJournal.new(@trade_id)
 
         initialize_orderable
       end
 
-      attr_reader :trade_id, :status, :events, :preview, :strategy
+      attr_reader :trade_id, :status, :preview, :strategy
 
       def set_strategy(strategy)
         @strategy = strategy
@@ -136,7 +135,6 @@ module Platypi
         if latest
           @status = latest.status
           @strategy = latest.instance_variable_get(:@strategy)
-          @events = latest.events
           @preview = latest.preview
 
           # Restore order state
@@ -184,7 +182,6 @@ module Platypi
           preview: preview,
           strategy: @strategy&.to_h,
           order: order_to_h,
-          events: events,
           timestamp: Time.now.utc
         }
       end
