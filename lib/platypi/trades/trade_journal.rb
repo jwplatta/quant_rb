@@ -166,6 +166,11 @@ module Platypi
       end
     end
 
+    # Find the trade state with OPEN status from the history
+    def open_state
+      trade_history.find { |state| %w[OPEN PREVIEW_OPEN].include?(state.status) }
+    end
+
     private
 
     def write_trade_to_file(trade)

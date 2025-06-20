@@ -358,4 +358,111 @@ RSpec.describe Platypi::TradeJournal do
       journal.save_trade(mock_trade)
     end
   end
+
+  describe '#open_state' do
+    let(:mock_open_trade) do
+      double('Trade',
+        trade_id: trade_id,
+        status: 'OPEN',
+        order_price: 1.50,
+        order_fees: 1.14,
+        order_commission: 1.30,
+        to_json: '{"trade_id":"test-trade-123","status":"OPEN","order_price":1.50}'
+      )
+    end
+
+    let(:mock_preview_open_trade) do
+      double('Trade',
+        trade_id: trade_id,
+        status: 'PREVIEW_OPEN',
+        order_price: 1.25,
+        order_fees: 1.14,
+        order_commission: 1.30,
+        to_json: '{"trade_id":"test-trade-123","status":"PREVIEW_OPEN","order_price":1.25}'
+      )
+    end
+
+    let(:mock_exit_trade) do
+      double('Trade',
+        trade_id: trade_id,
+        status: 'EXIT',
+        order_price: 0.75,
+        order_fees: 1.14,
+        order_commission: 1.30,
+        to_json: '{"trade_id":"test-trade-123","status":"EXIT","order_price":0.75}'
+      )
+    end
+
+    before do
+      allow(Platypi::Trades::Trade).to receive(:from_json) do |json_string|
+        data = JSON.parse(json_string)
+        case data['status']
+        when 'OPEN'
+          mock_open_trade
+        when 'PREVIEW_OPEN'
+          mock_preview_open_trade
+        when 'EXIT'
+          mock_exit_trade
+        end
+      end
+    end
+
+    context 'when trade has OPEN state in history' do
+      before do
+        journal.save_trade(mock_open_trade)
+        journal.save_trade(mock_exit_trade)
+      end
+
+      it 'returns the trade state with OPEN status' do
+        open_state = journal.open_state
+        expect(open_state).to eq(mock_open_trade)
+        expect(open_state.status).to eq('OPEN')
+        expect(open_state.order_price).to eq(1.50)
+      end
+    end
+
+    context 'when trade has PREVIEW_OPEN state in history' do
+      before do
+        journal.save_trade(mock_preview_open_trade)
+        journal.save_trade(mock_exit_trade)
+      end
+
+      it 'returns the trade state with PREVIEW_OPEN status' do
+        open_state = journal.open_state
+        expect(open_state).to eq(mock_preview_open_trade)
+        expect(open_state.status).to eq('PREVIEW_OPEN')
+        expect(open_state.order_price).to eq(1.25)
+      end
+    end
+
+    context 'when trade has no open states in history' do
+      before do
+        journal.save_trade(mock_exit_trade)
+      end
+
+      it 'returns nil' do
+        expect(journal.open_state).to be_nil
+      end
+    end
+
+    context 'when trade history is empty' do
+      it 'returns nil' do
+        expect(journal.open_state).to be_nil
+      end
+    end
+
+    context 'when trade has both OPEN and PREVIEW_OPEN states' do
+      before do
+        journal.save_trade(mock_preview_open_trade)
+        journal.save_trade(mock_open_trade)
+        journal.save_trade(mock_exit_trade)
+      end
+
+      it 'returns the first open state found (PREVIEW_OPEN in this case)' do
+        open_state = journal.open_state
+        expect(open_state).to eq(mock_preview_open_trade)
+        expect(open_state.status).to eq('PREVIEW_OPEN')
+      end
+    end
+  end
 end
