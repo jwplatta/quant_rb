@@ -633,7 +633,6 @@ RSpec.describe Platypi::Trades::Trade do
           order_datetime: DateTime.parse('2025-06-19T10:30:00Z'),
           order_rejects: []
         },
-        events: [],
         timestamp: Time.parse('2025-06-19T10:35:00Z')
       }
     end
@@ -671,7 +670,6 @@ RSpec.describe Platypi::Trades::Trade do
         expect(parsed).to have_key(:preview)
         expect(parsed).to have_key(:strategy)
         expect(parsed).to have_key(:order)
-        expect(parsed).to have_key(:events)
         expect(parsed).to have_key(:timestamp)
       end
     end
