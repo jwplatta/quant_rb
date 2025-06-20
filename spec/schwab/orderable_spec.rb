@@ -134,13 +134,12 @@ RSpec.describe Platypi::Orderable do
     it 'previews an order and sets preview attributes' do
       orderable_instance.preview_order(orderable_instance)
 
-      expect(orderable_instance.order_preview).not_to be_nil
-      expect(orderable_instance.order_preview_id).to eq('preview123')
-      expect(orderable_instance.order_preview_price).to eq(1.25)
-      expect(orderable_instance.order_preview_fees).to eq(1.14)
-      expect(orderable_instance.order_preview_commission).to eq(1.30)
-      expect(orderable_instance.order_preview_status).to eq('ACCEPTED')
-      expect(orderable_instance.order_preview_rejects).to eq([])
+      expect(orderable_instance.order_id).to eq('preview123')
+      expect(orderable_instance.order_price).to eq(1.25)
+      expect(orderable_instance.order_fees).to eq(1.14)
+      expect(orderable_instance.order_commission).to eq(1.30)
+      expect(orderable_instance.order_status).to eq('ACCEPTED')
+      expect(orderable_instance.order_rejects).to eq([])
     end
 
     it 'accepts order_instruction parameter' do
@@ -154,7 +153,7 @@ RSpec.describe Platypi::Orderable do
       )
 
       orderable_instance.preview_order(orderable_instance, order_instruction: :exit)
-      expect(orderable_instance.order_preview_instruction).to eq(:exit)
+      expect(orderable_instance.order_instruction).to eq(:exit)
     end
   end
 

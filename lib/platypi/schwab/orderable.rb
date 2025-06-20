@@ -8,11 +8,7 @@ module Platypi
 
     attr_reader :order, :order_id, :order_status, :order_rejects,
       :filled_order, :transactions, :order_instruction,
-      :order_price, :order_fees, :order_commission,
-      :order_preview, :order_preview_id, :order_preview_price,
-      :order_preview_fees, :order_preview_commission,
-      :order_preview_status, :order_preview_rejects, :order_preview_datetime,
-      :order_preview_instruction
+      :order_price, :order_fees, :order_commission
 
     def initialize_orderable
       @filled_order = nil
@@ -25,24 +21,6 @@ module Platypi
       @order_instruction = nil
       @order_rejects = []
       @transactions = []
-      @order_preview = nil
-      @order_preview_id = nil
-      @order_preview_price = nil
-      @order_preview_fees = nil
-      @order_preview_commission = nil
-      @order_preview_status = nil
-      @order_preview_rejects = []
-      @order_preview_datetime = nil
-      @order_preview_instruction = nil
-      @last_event = nil
-    end
-
-    def preview_net_credit_debit
-      order_preview_price * 100 - order_preview_fees - order_preview_commission
-    end
-
-    def preview_credit_debit
-      order_preview_price * 100
     end
 
     def order_id=(id)
@@ -87,19 +65,20 @@ module Platypi
         order_instruction: order_instruction,
         **extract_strategy_kwargs(strategy, order_instruction: order_instruction)
       ).then do |order_preview|
-        @order_preview = order_preview
-        @order_preview_id = order_preview.order_id
-        @order_preview_instruction = order_instruction
-        @order_preview_price = order_preview.price
-        @order_preview_fees = order_preview.fees
-        @order_preview_commission = order_preview.commission
-        @order_preview_status = order_preview.status
-        @order_preview_datetime = order_preview.entered_time
-        @order_preview_rejects = if order_preview.accepted?
-                           []
-                         else
-                           order_preview.order_validation_result.rejects(&:activity_message)
-                         end
+        # Store preview data in the order instance variables for later access
+        @order_id = order_preview.order_id
+        @order_instruction = order_instruction
+        @order_price = order_preview.price
+        @order_fees = order_preview.fees
+        @order_commission = order_preview.commission
+        @order_status = order_preview.status
+        @order_rejects = if order_preview.accepted?
+                          []
+                        else
+                          order_preview.order_validation_result.rejects.map(&:activity_message)
+                        end
+
+        order_preview
       end
     end
 
@@ -173,6 +152,27 @@ module Platypi
           @transactions = nil
         end
       end
+    end
+
+    def order_to_h
+      {
+        order_id: order_id,
+        order_instruction: order_instruction,
+        order_status: order_status,
+        order_price: order_price,
+        order_fees: order_fees,
+        order_commission: order_commission,
+        order_datetime: order_entered_time,
+        order_rejects: order_rejects,
+      }
+    end
+
+    def preview_credit_debit
+      order_price * 100
+    end
+
+    def preview_net_credit_debit
+      order_price * 100 - order_fees - order_commission
     end
 
     private
