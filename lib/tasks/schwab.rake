@@ -565,6 +565,8 @@ def build_order_details(orders, transactions)
 
       asset = t.transfer_items.find { |ti| ti.instrument.asset_type == "OPTION" }
 
+      next unless asset
+
       order_instruments[asset.instrument.instrument_id][:costs] << asset.cost
       order_instruments[asset.instrument.instrument_id][:fees_and_commissions] << fees_and_commissions_sum
       order_instruments[asset.instrument.instrument_id][:trade_dates] << DateTime.parse(t.trade_date)
