@@ -2,6 +2,43 @@
 
 module Platypi
   class CallSpread < StrategyBase
+    class << self
+      def from_json(json_string)
+        data = JSON.parse(json_string, symbolize_names: true)
+        from_hash(data)
+      end
+
+      def from_hash(data)
+        short_leg = data[:short_leg] ? create_option_from_hash(data[:short_leg]) : nil
+        long_leg = data[:long_leg] ? create_option_from_hash(data[:long_leg]) : nil
+
+        new(
+          underlying_symbol: data[:underlying_symbol],
+          short_leg: short_leg,
+          long_leg: long_leg,
+          increment: data[:increment] || 0.01,
+          round: data[:round] || 2,
+          quantity: data[:quantity] || 1
+        )
+      end
+
+      def create_option_from_hash(leg_data)
+        CallOption.new(leg_data[:symbol]).tap do |option|
+          option.strike = leg_data[:strike]
+          option.delta = leg_data[:delta]
+          option.mark = leg_data[:mark]
+          option.ask = leg_data[:ask]
+          option.bid = leg_data[:bid]
+
+          # Handle date conversion - it might be a string from JSON
+          expiration_date = leg_data[:expiration_date]
+          option.expiration_date = expiration_date.is_a?(String) ? Date.parse(expiration_date) : expiration_date
+
+          option.open_interest = leg_data[:open_interest]
+        end
+      end
+    end
+
     attr_reader :short_leg, :long_leg, :underlying_symbol, :quantity
 
     def initialize(
@@ -100,43 +137,6 @@ module Platypi
 
     def to_json(*args)
       to_h.to_json(*args)
-    end
-
-    def self.from_json(json_string)
-      data = JSON.parse(json_string, symbolize_names: true)
-      from_hash(data)
-    end
-
-    def self.from_hash(data)
-      short_leg = data[:short_leg] ? create_option_from_hash(data[:short_leg]) : nil
-      long_leg = data[:long_leg] ? create_option_from_hash(data[:long_leg]) : nil
-
-      new(
-        underlying_symbol: data[:underlying_symbol],
-        short_leg: short_leg,
-        long_leg: long_leg,
-        increment: data[:increment] || 0.01,
-        round: data[:round] || 2,
-        quantity: data[:quantity] || 1
-      )
-    end
-
-    private
-
-    def self.create_option_from_hash(leg_data)
-      CallOption.new(leg_data[:symbol]).tap do |option|
-        option.strike = leg_data[:strike]
-        option.delta = leg_data[:delta]
-        option.mark = leg_data[:mark]
-        option.ask = leg_data[:ask]
-        option.bid = leg_data[:bid]
-
-        # Handle date conversion - it might be a string from JSON
-        expiration_date = leg_data[:expiration_date]
-        option.expiration_date = expiration_date.is_a?(String) ? Date.parse(expiration_date) : expiration_date
-
-        option.open_interest = leg_data[:open_interest]
-      end
     end
   end
 end
