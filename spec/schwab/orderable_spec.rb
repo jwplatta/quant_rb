@@ -412,4 +412,65 @@ RSpec.describe Platypi::Orderable do
       end
     end
   end
+
+  describe '#restore_order_state' do
+    let(:order_data) do
+      {
+        order_id: 'restored-order-123',
+        order_status: 'FILLED',
+        order_instruction: 'exit',
+        order_price: 2.50,
+        order_fees: 1.50,
+        order_commission: 0.65,
+        order_rejects: ['Insufficient funds']
+      }
+    end
+
+    it 'restores all order state variables from order data' do
+      orderable_instance.restore_order_state(order_data)
+
+      expect(orderable_instance.order_id).to eq('restored-order-123')
+      expect(orderable_instance.order_status).to eq('FILLED')
+      expect(orderable_instance.order_instruction).to eq(:exit)
+      expect(orderable_instance.order_price).to eq(2.50)
+      expect(orderable_instance.order_fees).to eq(1.50)
+      expect(orderable_instance.order_commission).to eq(0.65)
+      expect(orderable_instance.order_rejects).to eq(['Insufficient funds'])
+    end
+
+    it 'converts order_instruction string to symbol' do
+      orderable_instance.restore_order_state(order_data)
+      expect(orderable_instance.order_instruction).to eq(:exit)
+    end
+
+    it 'handles nil order_instruction' do
+      order_data_without_instruction = order_data.dup
+      order_data_without_instruction.delete(:order_instruction)
+
+      orderable_instance.restore_order_state(order_data_without_instruction)
+      expect(orderable_instance.order_instruction).to be_nil
+    end
+
+    it 'defaults order_rejects to empty array when nil' do
+      order_data_without_rejects = order_data.dup
+      order_data_without_rejects.delete(:order_rejects)
+
+      orderable_instance.restore_order_state(order_data_without_rejects)
+      expect(orderable_instance.order_rejects).to eq([])
+    end
+
+    it 'handles missing keys gracefully' do
+      minimal_order_data = { order_id: 'minimal-123' }
+
+      orderable_instance.restore_order_state(minimal_order_data)
+
+      expect(orderable_instance.order_id).to eq('minimal-123')
+      expect(orderable_instance.order_status).to eq('UNKNOWN')  # order_status returns 'UNKNOWN' when @order_status is nil
+      expect(orderable_instance.order_instruction).to be_nil
+      expect(orderable_instance.order_price).to be_nil
+      expect(orderable_instance.order_fees).to be_nil
+      expect(orderable_instance.order_commission).to be_nil
+      expect(orderable_instance.order_rejects).to eq([])
+    end
+  end
 end

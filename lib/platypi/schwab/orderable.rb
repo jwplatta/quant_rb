@@ -167,6 +167,17 @@ module Platypi
       }
     end
 
+    def restore_order_state(order_data)
+      @order_id = order_data[:order_id]
+      @order_status = order_data[:order_status]
+      @order_instruction = order_data[:order_instruction]&.to_sym if order_data[:order_instruction]
+      @order_price = order_data[:order_price]
+      @order_fees = order_data[:order_fees]
+      @order_commission = order_data[:order_commission]
+      @order_rejects = order_data[:order_rejects] || []
+      # Note: @order, @filled_order, and @transactions would need to be reconstructed from full order data
+    end
+
     def preview_credit_debit
       order_price * 100
     end
