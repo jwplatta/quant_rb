@@ -53,12 +53,12 @@ module Platypi
           quantity: quantity
         )
 
-        potential_longs = short_legs.select do |long_raw|
+        potential_longs = opt_chain.put_opts.select do |long_raw|
           long_raw.expiration_date == short_leg.expiration_date &&
             long_raw.mark > 0.0 &&
-            ((short_leg.mark - long_raw.mark) * 100.0) >= min_credit &&
+            ((short_leg.mark - long_raw.mark) * 100.0).round >= min_credit &&
             long_raw.strike < short_leg.strike &&
-            (long_raw.strike - short_leg.strike).abs <= max_spread &&
+            (short_leg.strike - long_raw.strike) <= max_spread &&
             (expiration_type.nil? || long_raw.expiration_type == expiration_type) &&
             (settlement_type.nil? || long_raw.settlement_type == settlement_type) &&
             (option_root.nil? || long_raw.option_root == option_root)
