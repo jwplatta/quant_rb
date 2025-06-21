@@ -34,7 +34,7 @@ module Platypi
         ensure_directories_exist
         trades = []
 
-        Dir.glob(File.join(open_trades_path, '*.json')).each do |file_path|
+        Dir.glob(File.join(open_trades_path, '*.jsonl')).each do |file_path|
           trade = load_latest_trade_from_file(file_path)
           trades << trade if trade && trade_is_open?(trade)
         end
@@ -52,7 +52,7 @@ module Platypi
 
       # Check if a specific trade exists and is open
       def trade_open?(trade_id)
-        file_path = File.join(open_trades_path, "#{trade_id}.json")
+        file_path = File.join(open_trades_path, "#{trade_id}.jsonl")
         return false unless File.exist?(file_path)
 
         trade = load_latest_trade_from_file(file_path)
@@ -61,7 +61,7 @@ module Platypi
 
       # Get count of open trades
       def open_trade_count
-        Dir.glob(File.join(open_trades_path, '*.json')).count
+        Dir.glob(File.join(open_trades_path, '*.jsonl')).count
       end
 
       # Load all closed trades (just latest state)
@@ -69,7 +69,7 @@ module Platypi
         ensure_directories_exist
         trades = []
 
-        Dir.glob(File.join(closed_trades_path, '*.json')).each do |file_path|
+        Dir.glob(File.join(closed_trades_path, '*.jsonl')).each do |file_path|
           trade = load_latest_trade_from_file(file_path)
           trades << trade if trade
         end
@@ -80,7 +80,7 @@ module Platypi
       private
 
       def find_trade_file(trade_id)
-        filename = "#{trade_id}.json"
+        filename = "#{trade_id}.jsonl"
         open_file = File.join(open_trades_path, filename)
         closed_file = File.join(closed_trades_path, filename)
 
@@ -128,7 +128,7 @@ module Platypi
 
     # Get the current file path for this trade
     def current_file_path
-      filename = "#{trade_id}.json"
+      filename = "#{trade_id}.jsonl"
       open_file = File.join(self.class.open_trades_path, filename)
       closed_file = File.join(self.class.closed_trades_path, filename)
 
@@ -178,7 +178,7 @@ module Platypi
 
       # Ensure we're writing to the open folder for active trades
       if trade_is_active?(trade)
-        file_path = File.join(self.class.open_trades_path, "#{trade_id}.json")
+        file_path = File.join(self.class.open_trades_path, "#{trade_id}.jsonl")
       end
 
       File.open(file_path, 'a') do |file|
@@ -189,8 +189,8 @@ module Platypi
     def move_to_closed_if_needed(trade)
       return unless trade_is_closed?(trade)
 
-      open_file = File.join(self.class.open_trades_path, "#{trade_id}.json")
-      closed_file = File.join(self.class.closed_trades_path, "#{trade_id}.json")
+      open_file = File.join(self.class.open_trades_path, "#{trade_id}.jsonl")
+      closed_file = File.join(self.class.closed_trades_path, "#{trade_id}.jsonl")
 
       if File.exist?(open_file)
         FileUtils.mv(open_file, closed_file)
