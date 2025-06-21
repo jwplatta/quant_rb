@@ -99,11 +99,16 @@ module Platypi
       def open
         if preview
           @status = 'PREVIEW_OPEN'
-          preview_order(@strategy, order_instruction: :open)
+          send_preview_order(@strategy, order_instruction: :open)
         else
           @status = 'OPEN'
           send_order(@strategy, order_instruction: :open)
         end
+      rescue => e
+        @status = 'ERROR'
+        # Optionally log the error or store it
+        puts "Error opening trade #{@trade_id}: #{e.message}"
+        raise e  # Re-raise if you want the caller to handle it, or remove this line to swallow the exception
       ensure
         save
       end
@@ -111,19 +116,28 @@ module Platypi
       def exit
         if preview
           @status = 'PREVIEW_EXIT'
-          preview_order(@strategy, order_instruction: :exit)
+          send_preview_order(@strategy, order_instruction: :exit)
         else
           @status = 'EXIT'
           send_order(@strategy, order_instruction: :exit)
         end
+      rescue => e
+        @status = 'ERROR'
+        # Optionally log the error or store it
+        puts "Error exiting trade #{@trade_id}: #{e.message}"
+        raise e  # Re-raise if you want the caller to handle it, or remove this line to swallow the exception
       ensure
         save
       end
 
       def check_progress
-        # This could check order status, update trade state, etc.
-        # Save after any state changes
-        save
+        return nil unless @strategy
+        @progress.progress(self)
+      end
+
+      def check_risk
+        return 'UNKNOWN' unless @strategy
+        @progress.risk_status(@strategy)
       end
 
       def save
@@ -134,7 +148,7 @@ module Platypi
         latest = @journal.load_trade
         if latest
           @status = latest.status
-          @strategy = latest.instance_variable_get(:@strategy)
+          @strategy = latest.strategy
           @preview = latest.preview
 
           # Restore order state
@@ -173,6 +187,14 @@ module Platypi
 
       def closed?
         %w[EXIT PREVIEW_EXIT ERROR].include?(status)
+      end
+
+      def opening?
+        %w[OPEN PREVIEW_OPEN].include?(status)
+      end
+
+      def exiting?
+        %w[EXIT PREVIEW_EXIT].include?(status)
       end
 
       def to_h
