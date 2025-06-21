@@ -1,67 +1,56 @@
 # frozen_string_literal: true
 
 require 'dotenv'
+require 'pqueue'
 
 Dotenv.load
 
 class BotBase
-  CHECK_INTERVAL = 300
-  TRADE_DIR = 'data/trades'
+  CHECK_INTERVAL = 5 # seconds
+  TRADES_DIR = ENV.fetch('TRADES_DIR', 'data/trades')
 
-  attr_reader :event_queue, :poller, :handler, :file_mutex
-
-  class << self
-    def run
-      new.run
-    end
-  end
+  attr_reader :event_queue, :poller, :handler, :trade_file_mutex, :trade
 
   def initialize
-    Dir.mkdir(TRADE_DIR) unless Dir.exist?(TRADE_DIR)
+    Dir.mkdir(TRADES_DIR) unless Dir.exist?(TRADES_DIR)
 
+    # @event_queue = PQueue.new { |a, b| a.timestamp < b.timestamp }
     @event_queue = Queue.new
-    @file_mutex = Mutex.new
+    @trade_file_mutex = Mutex.new
+    @trade = nil
 
     @poller = MarketPoller.new(self, @event_queue, CHECK_INTERVAL)
     @handler = EventHandler.new(self, @event_queue)
+    @threads = []
   end
 
   def run
     puts "Starting #{self.class.name} bot..."
-    trap('INT') { stop }
-    trap('TERM') { stop }
 
-    poller.start
-    handler.start
+    @threads << Thread.new { handler.run }
+    @threads << Thread.new { poller.run }
 
     begin
-      poller.thread.join
-      handler.thread.join
+      @threads.each(&:join)
     rescue Interrupt
-      stop
+      puts "Interrupt received, stopping #{self.class.name} bot..."
+      poller.stop
+      handler.stop
+    ensure
+      puts "Ensuring #{self.class.name} bot cleanup..."
+      poller.stop
+      handler.stop
     end
   end
 
-  def stop
-    puts "Stopping #{self.class.name} bot..."
-    poller.stop
-    handler.stop
-  end
-
-  def find_trade
-    trade_finder.search
-  end
-
-  def trade_file
-    raise NotImplementedError, 'Subclasses must implement a trade_file method'
-  end
-
-  def order_history_file
-    raise NotImplementedError, 'Subclasses must implement an order_history_file method'
-  end
+  # def stop
+  #   puts "Stopping #{self.class.name} bot..."
+  #   # poller.stop
+  #   handler.stop
+  # end
 
   def read_trade
-    file_mutex.synchronize do
+    trade_file_mutex.synchronize do
       trade = File.open(trade_file, 'r') do |file|
         JSON.parse(file.read, symbolize_names: true).then do |trade_hash|
           trade_class.from_h(trade_hash)
@@ -81,15 +70,15 @@ class BotBase
   end
 
   def save_trade(trade)
-    file_mutex.synchronize do
+    trade_file_mutex.synchronize do
       File.open(trade_file, 'w') do |file|
-        file.write(trade.to_json)
+        file.write(trade)
       end
     end
   end
 
   def delete_trade
-    file_mutex.synchronize do
+    trade_file_mutex.synchronize do
       File.delete(trade_file) if File.exist?(trade_file)
       File.delete(order_history_file) if File.exist?(order_history_file)
     end
