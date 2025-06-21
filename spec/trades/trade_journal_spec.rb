@@ -88,7 +88,7 @@ RSpec.describe Platypi::TradeJournal do
       it 'saves trade to open folder' do
         journal.save_trade(mock_trade)
 
-        file_path = File.join(described_class.open_trades_path, "#{trade_id}.json")
+        file_path = File.join(described_class.open_trades_path, "#{trade_id}.jsonl")
         expect(File.exist?(file_path)).to be true
 
         content = File.read(file_path)
@@ -99,7 +99,7 @@ RSpec.describe Platypi::TradeJournal do
         journal.save_trade(mock_trade)
         journal.save_trade(mock_trade)
 
-        file_path = File.join(described_class.open_trades_path, "#{trade_id}.json")
+        file_path = File.join(described_class.open_trades_path, "#{trade_id}.jsonl")
         lines = File.readlines(file_path)
         expect(lines.length).to eq(2)
         expect(lines.all? { |line| line.strip == mock_trade.to_json }).to be true
@@ -110,12 +110,12 @@ RSpec.describe Platypi::TradeJournal do
       it 'moves trade file from open to closed folder' do
         # First save an open trade
         journal.save_trade(mock_trade)
-        open_file = File.join(described_class.open_trades_path, "#{trade_id}.json")
+        open_file = File.join(described_class.open_trades_path, "#{trade_id}.jsonl")
         expect(File.exist?(open_file)).to be true
 
         # Then save a closed trade
         journal.save_trade(closed_trade)
-        closed_file = File.join(described_class.closed_trades_path, "#{trade_id}.json")
+        closed_file = File.join(described_class.closed_trades_path, "#{trade_id}.jsonl")
 
         expect(File.exist?(open_file)).to be false
         expect(File.exist?(closed_file)).to be true
@@ -130,25 +130,25 @@ RSpec.describe Platypi::TradeJournal do
   describe '#current_file_path' do
     context 'when trade file exists in open folder' do
       it 'returns open folder path' do
-        File.write(File.join(described_class.open_trades_path, "#{trade_id}.json"), mock_trade.to_json)
+        File.write(File.join(described_class.open_trades_path, "#{trade_id}.jsonl"), mock_trade.to_json)
 
-        expected_path = File.join(described_class.open_trades_path, "#{trade_id}.json")
+        expected_path = File.join(described_class.open_trades_path, "#{trade_id}.jsonl")
         expect(journal.current_file_path).to eq(expected_path)
       end
     end
 
     context 'when trade file exists in closed folder' do
       it 'returns closed folder path' do
-        File.write(File.join(described_class.closed_trades_path, "#{trade_id}.json"), closed_trade.to_json)
+        File.write(File.join(described_class.closed_trades_path, "#{trade_id}.jsonl"), closed_trade.to_json)
 
-        expected_path = File.join(described_class.closed_trades_path, "#{trade_id}.json")
+        expected_path = File.join(described_class.closed_trades_path, "#{trade_id}.jsonl")
         expect(journal.current_file_path).to eq(expected_path)
       end
     end
 
     context 'when trade file does not exist' do
       it 'returns default open folder path' do
-        expected_path = File.join(described_class.open_trades_path, "#{trade_id}.json")
+        expected_path = File.join(described_class.open_trades_path, "#{trade_id}.jsonl")
         expect(journal.current_file_path).to eq(expected_path)
       end
     end
@@ -178,7 +178,7 @@ RSpec.describe Platypi::TradeJournal do
     end
 
     it 'handles empty lines gracefully' do
-      file_path = File.join(described_class.open_trades_path, "#{trade_id}.json")
+      file_path = File.join(described_class.open_trades_path, "#{trade_id}.jsonl")
       File.write(file_path, "#{mock_trade.to_json}\n\n#{closed_trade.to_json}\n")
 
       history = journal.trade_history
@@ -192,7 +192,7 @@ RSpec.describe Platypi::TradeJournal do
     end
 
     it 'deletes the trade file' do
-      file_path = File.join(described_class.open_trades_path, "#{trade_id}.json")
+      file_path = File.join(described_class.open_trades_path, "#{trade_id}.jsonl")
       expect(File.exist?(file_path)).to be true
 
       journal.delete_trade
@@ -217,15 +217,15 @@ RSpec.describe Platypi::TradeJournal do
 
       # Create test files
       File.write(
-        File.join(described_class.open_trades_path, "#{trade1_id}.json"),
+        File.join(described_class.open_trades_path, "#{trade1_id}.jsonl"),
         '{"trade_id":"trade-1","status":"OPEN"}'
       )
       File.write(
-        File.join(described_class.open_trades_path, "#{trade2_id}.json"),
+        File.join(described_class.open_trades_path, "#{trade2_id}.jsonl"),
         '{"trade_id":"trade-2","status":"PREVIEW_OPEN"}'
       )
       File.write(
-        File.join(described_class.open_trades_path, "#{closed_trade_id}.json"),
+        File.join(described_class.open_trades_path, "#{closed_trade_id}.jsonl"),
         '{"trade_id":"closed-trade","status":"EXIT"}'
       )
     end
@@ -250,7 +250,7 @@ RSpec.describe Platypi::TradeJournal do
       end
 
       File.write(
-        File.join(described_class.closed_trades_path, "#{closed_trade_id}.json"),
+        File.join(described_class.closed_trades_path, "#{closed_trade_id}.jsonl"),
         '{"trade_id":"closed-trade-1","status":"EXIT"}'
       )
     end
@@ -276,11 +276,11 @@ RSpec.describe Platypi::TradeJournal do
       end
 
       File.write(
-        File.join(described_class.open_trades_path, "#{open_trade_id}.json"),
+        File.join(described_class.open_trades_path, "#{open_trade_id}.jsonl"),
         '{"trade_id":"open-trade","status":"OPEN"}'
       )
       File.write(
-        File.join(described_class.closed_trades_path, "#{closed_trade_id}.json"),
+        File.join(described_class.closed_trades_path, "#{closed_trade_id}.jsonl"),
         '{"trade_id":"closed-trade","status":"EXIT"}'
       )
     end
@@ -318,7 +318,7 @@ RSpec.describe Platypi::TradeJournal do
 
     it 'returns true for open trade' do
       File.write(
-        File.join(described_class.open_trades_path, "#{open_trade_id}.json"),
+        File.join(described_class.open_trades_path, "#{open_trade_id}.jsonl"),
         '{"trade_id":"open-trade","status":"OPEN"}'
       )
 
@@ -331,7 +331,7 @@ RSpec.describe Platypi::TradeJournal do
 
     it 'returns false for closed trade in open folder' do
       File.write(
-        File.join(described_class.open_trades_path, "#{open_trade_id}.json"),
+        File.join(described_class.open_trades_path, "#{open_trade_id}.jsonl"),
         '{"trade_id":"open-trade","status":"EXIT"}'
       )
 
@@ -343,8 +343,8 @@ RSpec.describe Platypi::TradeJournal do
     it 'returns count of files in open trades folder' do
       expect(described_class.open_trade_count).to eq(0)
 
-      File.write(File.join(described_class.open_trades_path, 'trade1.json'), '{}')
-      File.write(File.join(described_class.open_trades_path, 'trade2.json'), '{}')
+      File.write(File.join(described_class.open_trades_path, 'trade1.jsonl'), '{}')
+      File.write(File.join(described_class.open_trades_path, 'trade2.jsonl'), '{}')
 
       expect(described_class.open_trade_count).to eq(2)
     end
