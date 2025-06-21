@@ -17,16 +17,21 @@ RSpec.describe Platypi::Trades::Trade do
   let(:trade_id) { SecureRandom.uuid }
   let(:status) { Platypi::Trades::TRADE_STATUSES[:open] }
 
-  # Mock journal for testing
+  # Mock journal and progress for testing
   let(:mock_journal) { double('TradeJournal') }
+  let(:mock_progress) { double('TradeProgress') }
 
   before do
     allow(Platypi::TradeJournal).to receive(:new).and_return(mock_journal)
+    allow(Platypi::TradeProgress).to receive(:new).and_return(mock_progress)
     allow(mock_journal).to receive(:save_trade)
     allow(mock_journal).to receive(:load_trade)
     allow(mock_journal).to receive(:trade_history).and_return([])
     allow(mock_journal).to receive(:delete_trade)
     allow(mock_journal).to receive(:current_file_path).and_return('/tmp/test.json')
+    allow(mock_journal).to receive(:open_state).and_return(nil)
+    allow(mock_progress).to receive(:progress).and_return(nil)
+    allow(mock_progress).to receive(:risk_status).and_return('UNKNOWN')
   end
 
   describe '#initialize' do
@@ -52,7 +57,7 @@ RSpec.describe Platypi::Trades::Trade do
     let(:trade) { described_class.new(strategy: mock_strategy, trade_id: trade_id, preview: false) }
 
     before do
-      allow(trade).to receive(:preview_order)
+      allow(trade).to receive(:send_preview_order)
       allow(trade).to receive(:send_order)
     end
 
@@ -60,7 +65,7 @@ RSpec.describe Platypi::Trades::Trade do
       let(:trade) { described_class.new(strategy: mock_strategy, trade_id: trade_id, preview: true) }
 
       it 'sets status to PREVIEW_OPEN and saves' do
-        expect(trade).to receive(:preview_order).with(mock_strategy, order_instruction: :open)
+        expect(trade).to receive(:send_preview_order).with(mock_strategy, order_instruction: :open)
         expect(mock_journal).to receive(:save_trade).with(trade)
 
         trade.open
@@ -85,7 +90,7 @@ RSpec.describe Platypi::Trades::Trade do
     let(:trade) { described_class.new(strategy: mock_strategy, trade_id: trade_id, preview: false) }
 
     before do
-      allow(trade).to receive(:preview_order)
+      allow(trade).to receive(:send_preview_order)
       allow(trade).to receive(:send_order)
     end
 
@@ -93,7 +98,7 @@ RSpec.describe Platypi::Trades::Trade do
       let(:trade) { described_class.new(strategy: mock_strategy, trade_id: trade_id, preview: true) }
 
       it 'sets status to PREVIEW_EXIT and saves' do
-        expect(trade).to receive(:preview_order).with(mock_strategy, order_instruction: :exit)
+        expect(trade).to receive(:send_preview_order).with(mock_strategy, order_instruction: :exit)
         expect(mock_journal).to receive(:save_trade).with(trade)
 
         trade.exit
@@ -222,9 +227,36 @@ RSpec.describe Platypi::Trades::Trade do
   describe '#check_progress' do
     let(:trade) { described_class.new(strategy: mock_strategy, trade_id: trade_id) }
 
-    it 'saves after checking progress' do
-      expect(mock_journal).to receive(:save_trade).with(trade)
-      trade.check_progress
+    it 'returns progress value from TradeProgress' do
+      expect(mock_progress).to receive(:progress).with(trade).and_return(75.5)
+
+      result = trade.check_progress
+      expect(result).to eq(75.5)
+    end
+
+    it 'returns nil when no strategy is present' do
+      trade = described_class.new(strategy: nil, trade_id: trade_id)
+
+      result = trade.check_progress
+      expect(result).to be_nil
+    end
+  end
+
+  describe '#check_risk' do
+    let(:trade) { described_class.new(strategy: mock_strategy, trade_id: trade_id) }
+
+    it 'returns risk status from TradeProgress' do
+      expect(mock_progress).to receive(:risk_status).with(mock_strategy).and_return('YELLOW')
+
+      result = trade.check_risk
+      expect(result).to eq('YELLOW')
+    end
+
+    it 'returns UNKNOWN when no strategy is present' do
+      trade = described_class.new(strategy: nil, trade_id: trade_id)
+
+      result = trade.check_risk
+      expect(result).to eq('UNKNOWN')
     end
   end
 
