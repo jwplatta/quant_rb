@@ -51,4 +51,7 @@ module Platypi
   require_relative "platypi/trades/trade_progress"
   require_relative "platypi/trades/trade_journal"
   require_relative "platypi/trades/trade"
+
+  # Require bots
+  require_relative "platypi/bots/spx_weekly"
 end
