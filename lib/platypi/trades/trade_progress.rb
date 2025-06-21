@@ -50,7 +50,7 @@ module Platypi
 
       current_strategy.check_market
       quantity = current_strategy.quantity || 1
-      current_value = current_strategy.credit * quantity
+      current_value = current_strategy.credit * current_strategy.quantity * 100.0
       opening_credit = open_credit(open_state)
 
       current_pnl = opening_credit - current_value
@@ -78,7 +78,7 @@ module Platypi
       quantity = trade_state.strategy.quantity || 1
 
       # REVIEW: do we need to multiply by quantity?
-      (opening_price * 100 - opening_fees - opening_commission) * quantity
+      (opening_price * quantity * 100) - opening_fees - opening_commission
     end
   end
 end
