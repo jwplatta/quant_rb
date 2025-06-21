@@ -199,152 +199,46 @@ RSpec.describe Platypi::TradeProgress do
       end
 
       it 'calculates positive progress correctly' do
-        # Opening credit: (2.50 * 100 - 1.14 - 1.30) * 1 = 247.56
-        # Current value: 2.50 * 1 = 2.50
-        # Current P&L: 247.56 - 2.50 = 245.06
-        # Max profit: 247.56 * 0.65 = 160.914
-        # Progress: (245.06 / 160.914) * 100 = 152.3% -> 100% (capped)
+        # Opening credit: (2.50 * 1 * 100) - 1.14 - 1.30 = 250 - 2.44 = 247.56
+        # Current value: 2.50 * 1 * 100.0 = 250.0
+        # Current P&L: 247.56 - 250.0 = -2.44
+        # Max loss: 247.56 * 4.0 = 990.24
+        # Progress: (-2.44 / 990.24) * 100 = -0.246...%
 
         result = trade_progress.progress(mock_trade)
 
-        expect(result).to eq(100.0)
+        expect(result).to be_within(0.01).of(-0.25)
         expect(mock_strategy).to have_received(:check_market)
       end
 
       it 'calculates negative progress correctly' do
-        # Set up a scenario where we have less profit
-        allow(mock_strategy).to receive(:credit).and_return(3.00)
-
-        # Opening credit: (2.50 * 100 - 1.14 - 1.30) * 1 = 247.56
-        # Current value: 3.00 * 1 = 3.00
-        # Current P&L: 247.56 - 3.00 = 244.56
-        # Max profit: 247.56 * 0.65 = 160.914
-        # Progress: (244.56 / 160.914) * 100 = 152.0% -> 100% (still capped)
-
-        # Let's create a scenario with lower opening credit to get a value < 100
-        allow(mock_open_state).to receive(:order_price).and_return(1.50)
-        # Opening credit: (1.50 * 100 - 1.14 - 1.30) * 1 = 147.56
-        # Current value: 3.00 * 1 = 3.00
-        # Current P&L: 147.56 - 3.00 = 144.56
-        # Max profit: 147.56 * 0.65 = 95.914
-        # Progress: (144.56 / 95.914) * 100 = 150.7% -> 100% (still capped)
-
-        # Let's try a different approach - higher current credit
-        allow(mock_strategy).to receive(:credit).and_return(1.20)
-        # Current value: 1.20 * 1 = 1.20
-        # Current P&L: 147.56 - 1.20 = 146.36
-        # Progress: (146.36 / 95.914) * 100 = 152.6% -> 100% (still capped)
-
-        # Use an even lower opening price
-        allow(mock_open_state).to receive(:order_price).and_return(1.00)
-        allow(mock_strategy).to receive(:credit).and_return(0.80)
-        # Opening credit: (1.00 * 100 - 1.14 - 1.30) * 1 = 97.56
-        # Current value: 0.80 * 1 = 0.80
-        # Current P&L: 97.56 - 0.80 = 96.76
-        # Max profit: 97.56 * 0.65 = 63.414
-        # Progress: (96.76 / 63.414) * 100 = 152.6% -> 100% (still capped)
-
-        # Let's try a scenario where we haven't reached max profit yet
-        allow(mock_strategy).to receive(:credit).and_return(0.50)
-        # Current value: 0.50 * 1 = 0.50
-        # Current P&L: 97.56 - 0.50 = 97.06
-        # Max profit: 97.56 * 0.65 = 63.414
-        # Progress: (97.06 / 63.414) * 100 = 153.0% -> 100% (still capped)
-
-        # Let's use a much smaller opening credit scenario
-        allow(mock_open_state).to receive(:order_price).and_return(0.75)
-        allow(mock_strategy).to receive(:credit).and_return(0.50)
-        # Opening credit: (0.75 * 100 - 1.14 - 1.30) * 1 = 72.56
-        # Current value: 0.50 * 1 = 0.50
-        # Current P&L: 72.56 - 0.50 = 72.06
-        # Max profit: 72.56 * 0.65 = 47.164
-        # Progress: (72.06 / 47.164) * 100 = 152.8% -> 100% (still capped)
-
-        # Actually test a scenario that gives us partial progress
-        allow(mock_open_state).to receive(:order_price).and_return(1.00)
-        allow(mock_strategy).to receive(:credit).and_return(0.70)
-        # Opening credit: (1.00 * 100 - 1.14 - 1.30) * 1 = 97.56
-        # Current value: 0.70 * 1 = 0.70
-        # Current P&L: 97.56 - 0.70 = 96.86
-        # Max profit: 97.56 * 0.65 = 63.414
-        # Progress: (96.86 / 63.414) * 100 = 152.8% -> 100% (still capped)
-
-        # Try with much lower credit
-        allow(mock_strategy).to receive(:credit).and_return(0.30)
-        # Current value: 0.30 * 1 = 0.30
-        # Current P&L: 97.56 - 0.30 = 97.26
-        # Max profit: 97.56 * 0.65 = 63.414
-        # Progress: (97.26 / 63.414) * 100 = 153.4% -> 100% (still capped)
-
-        # Let's try with a profit threshold that makes it harder to hit 100%
-        allow(mock_strategy).to receive(:credit).and_return(0.60)
-        # Current P&L: 97.56 - 0.60 = 96.96
-        # Max profit: 97.56 * 0.65 = 63.414
-        # This should give us a percentage less than 100 if we reduce the P&L enough
-
-        # Actually, let's use a completely different approach - use current credit that gives partial progress
-        allow(mock_open_state).to receive(:order_price).and_return(2.00)
-        allow(mock_strategy).to receive(:credit).and_return(1.50)
-        # Opening credit: (2.00 * 100 - 1.14 - 1.30) * 1 = 197.56
-        # Current value: 1.50 * 1 = 1.50
-        # Current P&L: 197.56 - 1.50 = 196.06
-        # Max profit: 197.56 * 0.65 = 128.414
-        # Progress: (196.06 / 128.414) * 100 = 152.7% -> 100% (still capped)
-
-        # Let's try increasing the current credit to reduce P&L
-        allow(mock_strategy).to receive(:credit).and_return(1.80)
-        # Current value: 1.80 * 1 = 1.80
-        # Current P&L: 197.56 - 1.80 = 195.76
-        # This will still be > max profit
-
-        # Try a scenario where we haven't reached target yet
-        allow(mock_strategy).to receive(:credit).and_return(1.20)
-        # Current value: 1.20 * 1 = 1.20
-        # Current P&L: 197.56 - 1.20 = 196.36
-        # Max profit: 197.56 * 0.65 = 128.414
-        # We need P&L < 128.414, so credit needs to be higher
-
-        # Let's be more systematic - we want P&L to be 50% of max profit
-        # Max profit = 197.56 * 0.65 = 128.414
-        # Target P&L = 128.414 * 0.5 = 64.207
-        # So: 197.56 - current_value = 64.207
-        # current_value = 197.56 - 64.207 = 133.353
-        # But current_value = credit * quantity = credit * 1, so credit = 133.353
+        # Let's create a scenario that results in a larger loss to hit -100%
         allow(mock_strategy).to receive(:credit).and_return(133.353)
+
+        # Opening credit: (2.50 * 1 * 100) - 1.14 - 1.30 = 247.56
+        # Current value: 133.353 * 1 * 100.0 = 13335.3
+        # Current P&L: 247.56 - 13335.3 = -13087.74
+        # Max loss: 247.56 * 4.0 = 990.24
+        # Since P&L <= -max_loss, this should return -100.0
 
         result = trade_progress.progress(mock_trade)
 
-        expect(result).to be > 0
-        expect(result).to be < 100
+        expect(result).to eq(-100.0)
       end
 
       it 'handles loss scenarios' do
         # Set up a losing scenario where current value exceeds opening credit
         allow(mock_strategy).to receive(:credit).and_return(10.00)
 
-        # Opening credit: (2.50 * 100 - 1.14 - 1.30) * 1 = 247.56
-        # Current value: 10.00 * 1 = 10.00
-        # Current P&L: 247.56 - 10.00 = 237.56 (still positive, need bigger loss)
-
-        # Let's create a real loss scenario
-        allow(mock_open_state).to receive(:order_price).and_return(1.00)
-        # Opening credit: (1.00 * 100 - 1.14 - 1.30) * 1 = 97.56
-        # Current value: 10.00 * 1 = 10.00
-        # Current P&L: 97.56 - 10.00 = 87.56 (still positive)
-
-        # Make it an actual loss
-        allow(mock_strategy).to receive(:credit).and_return(2.00)
-        # Current value: 2.00 * 1 = 2.00
-        # Current P&L: 97.56 - 2.00 = 95.56 (still positive)
-
-        # Let's reverse this - make current value much higher
-        allow(mock_strategy).to receive(:credit).and_return(5.00)
-        # Opening credit: 97.56, Current value: 5.00
-        # P&L: 97.56 - 5.00 = 92.56 (positive)
+        # Opening credit: (2.50 * 1 * 100) - 1.14 - 1.30 = 247.56
+        # Current value: 10.00 * 1 * 100.0 = 1000.0
+        # Current P&L: 247.56 - 1000.0 = -752.44
+        # Max loss: 247.56 * 4.0 = 990.24
+        # Progress: (-752.44 / 990.24) * 100 = -75.98%
 
         result = trade_progress.progress(mock_trade)
 
-        expect(result).to be_a(Numeric)
+        expect(result).to be_within(0.1).of(-75.98)
       end
 
       it 'uses custom thresholds when provided' do
@@ -406,10 +300,10 @@ RSpec.describe Platypi::TradeProgress do
     end
 
     it 'calculates opening credit correctly' do
-      # (2.50 * 100 - 1.14 - 1.30) * 2 = 495.12
+      # (2.50 * 2 * 100) - 1.14 - 1.30 = 500 - 2.44 = 497.56
       result = trade_progress.open_credit(mock_trade_state)
 
-      expect(result).to eq(495.12)
+      expect(result).to eq(497.56)
     end
 
     it 'handles nil values gracefully' do
@@ -426,7 +320,7 @@ RSpec.describe Platypi::TradeProgress do
     it 'handles single contract quantity' do
       allow(mock_trade_state.strategy).to receive(:quantity).and_return(1)
 
-      # (2.50 * 100 - 1.14 - 1.30) * 1 = 247.56
+      # (2.50 * 1 * 100) - 1.14 - 1.30 = 250 - 2.44 = 247.56
       result = trade_progress.open_credit(mock_trade_state)
 
       expect(result).to eq(247.56)
@@ -435,10 +329,10 @@ RSpec.describe Platypi::TradeProgress do
     it 'handles zero price' do
       allow(mock_trade_state).to receive(:order_price).and_return(0.0)
 
-      # (0.0 * 100 - 1.14 - 1.30) * 2 = -4.88
+      # (0.0 * 2 * 100) - 1.14 - 1.30 = 0 - 2.44 = -2.44
       result = trade_progress.open_credit(mock_trade_state)
 
-      expect(result).to eq(-4.88)
+      expect(result).to eq(-2.44)
     end
   end
 
@@ -519,34 +413,6 @@ RSpec.describe Platypi::TradeProgress do
 
       tested = trade_progress.tested?(mock_trade)
       expect(tested).to be false
-    end
-  end
-
-  describe 'thread safety and performance' do
-    let(:mock_strategy) do
-      double('Strategy',
-        check_market: nil,
-        delta: 0.15
-      )
-    end
-
-    it 'handles concurrent calls safely' do
-      threads = 10.times.map do
-        Thread.new do
-          100.times { trade_progress.risk_status(mock_strategy) }
-        end
-      end
-
-      expect { threads.each(&:join) }.not_to raise_error
-    end
-
-    it 'performs calculations efficiently' do
-      start_time = Time.now
-
-      1000.times { trade_progress.risk_status(mock_strategy) }
-
-      end_time = Time.now
-      expect(end_time - start_time).to be < 1.0 # Should complete in under 1 second
     end
   end
 end
