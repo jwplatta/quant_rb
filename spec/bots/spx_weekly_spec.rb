@@ -264,19 +264,7 @@ RSpec.describe Platypi::SPXWeekly do
     before do
       allow(bot).to receive(:puts)
       allow(bot).to receive(:next_weekday).and_return(next_friday)
-      allow(bot).to receive(:option_chain).and_return(mock_opt_chain)
       allow(Platypi::IronCondorFinder).to receive(:new).and_return(mock_finder)
-    end
-
-    context 'when no option chain is available' do
-      before do
-        allow(bot).to receive(:option_chain).and_return(nil)
-      end
-
-      it 'returns nil' do
-        result = bot.send(:find_trading_opportunity)
-        expect(result).to be_nil
-      end
     end
 
     context 'when finder returns null strategy' do
@@ -314,6 +302,14 @@ RSpec.describe Platypi::SPXWeekly do
           dist_from_strike: 0.01,
           settlement_type: 'P',
           option_root: 'SPXW'
+        )
+      end
+
+      it 'calls finder search with option chain parameters' do
+        bot.send(:find_trading_opportunity)
+        expect(mock_finder).to have_received(:search).with(
+          from_date: next_friday,
+          to_date: next_friday
         )
       end
     end
