@@ -1,7 +1,5 @@
 module Platypi
   class SPXWeekly
-    include Platypi::Schwab
-
     def initialize(mode: :preview)
       @mode = mode
       @underlying_symbol = '$SPX'
@@ -89,15 +87,6 @@ module Platypi
       exp_date = next_weekday
       puts "Looking for opportunities expiring: #{exp_date}"
 
-      opt_chain = option_chain(
-        underlying_symbol,
-        contract_type: 'ALL',
-        from_date: exp_date,
-        to_date: exp_date,
-      )
-
-      return nil unless opt_chain
-
       finder = Platypi::IronCondorFinder.new(
         underlying_symbol: underlying_symbol,
         expiration_date: exp_date,
@@ -110,7 +99,10 @@ module Platypi
         option_root: option_root
       )
 
-      strategy = finder.search(opt_chain)
+      strategy = finder.search(
+        from_date: exp_date,
+        to_date: exp_date
+      )
 
       if strategy.is_a?(Platypi::NullStrategy)
         puts "No suitable trades found"
@@ -201,7 +193,7 @@ module Platypi
       progress = trade.check_progress
       risk = trade.check_risk
 
-      puts "Trade progress: #{progress}%, Risk status: #{risk}"
+      puts "Trade progress: #{progress&.round(2)}%, Risk status: #{risk}"
 
       if progress.nil?
         puts "Cannot calculate progress, will check again next cycle"
@@ -209,17 +201,20 @@ module Platypi
         return
       end
 
+      progress = progress.round(2)
+
       if progress >= 100.0
         puts "Profit target reached (#{progress}%)"
         place_exit_order(trade)
       elsif progress <= -100.0
         puts "Stop loss triggered (#{progress}%)"
         place_exit_order(trade)
+      elsif risk == 'YELLOW'
       elsif risk == 'RED'
         puts "HIGH RISK DETECTED! Delta breach - manual intervention required"
         @running = false # Stop the bot for manual review
       else
-        puts "Continuing to monitor..."
+        puts "\nContinuing to monitor...\n"
         sleep sleep_interval
       end
     end
