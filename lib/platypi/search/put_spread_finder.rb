@@ -3,6 +3,8 @@
 module Platypi
   # Put spread finder for searching options
   class PutSpreadFinder
+    include Platypi::Schwab
+
     attr_reader :underlying_symbol, :short_delta, :max_spread,
                 :min_credit, :min_open_interest, :dist_from_strike, :trades, :short_legs, :expiration_date, :quantity, :expiration_type, :settlement_type, :option_root
 
@@ -34,7 +36,23 @@ module Platypi
       @option_root = option_root
     end
 
-    def search(opt_chain)
+    def search(opt_chain_or_params = nil, from_date: nil, to_date: nil)
+      # Handle both direct option chain and option chain parameters
+      if opt_chain_or_params.respond_to?(:put_opts)
+        # Called from IronCondorFinder with actual option chain data
+        opt_chain = opt_chain_or_params
+      else
+        # Called independently - load option chain internally with PUT contract type
+        opt_chain = option_chain(
+          underlying_symbol,
+          contract_type: 'PUT',
+          from_date: from_date || expiration_date,
+          to_date: to_date || expiration_date
+        )
+      end
+
+      return NullStrategy.new unless opt_chain
+
       short_legs = opt_chain.put_opts.select do |option|
         option.expiration_date == expiration_date &&
           option.mark * 100.0 >= min_credit &&

@@ -68,28 +68,86 @@ RSpec.describe Platypi::CallSpreadFinder do
         expiration_date: expiration_date,
         short_delta: 0.30,
         max_spread: 20.0,
-        min_credit: 50.0,  # Reduced from 100.0 to 50.0
+        min_credit: 50.0,
         min_open_interest: 0,
-        dist_from_strike: 0.01,  # Reduced from 0.05 to 0.01
+        dist_from_strike: 0.01,
         quantity: 1
       )
     end
 
-    it 'finds call spreads with valid criteria' do
-      result = finder.search(option_chain)
+    context 'when called with option chain data (from IronCondorFinder)' do
+      it 'finds call spreads with valid criteria' do
+        result = finder.search(option_chain)
 
-      expect(result).to be_a(Platypi::CallSpread)
-      expect(result.underlying_symbol).to eq('$SPX')
-      expect(result.short_leg).to be_a(Platypi::CallOption)
-      expect(result.long_leg).to be_a(Platypi::CallOption)
+        expect(result).to be_a(Platypi::CallSpread)
+        expect(result.underlying_symbol).to eq('$SPX')
+        expect(result.short_leg).to be_a(Platypi::CallOption)
+        expect(result.long_leg).to be_a(Platypi::CallOption)
+      end
+
+      it 'returns the spread with the highest credit' do
+        result = finder.search(option_chain)
+
+        # Since we're looking for the max credit, verify it's a valid spread
+        expect(result.credit).to be > 0.5  # Reduced expectation
+        expect(result.short_leg.strike).to be < result.long_leg.strike  # Call spread structure
+      end
     end
 
-    it 'returns the spread with the highest credit' do
-      result = finder.search(option_chain)
+    context 'when called independently (loads option chain internally)' do
+      before do
+        # Mock the option_chain method to return our test data
+        allow(finder).to receive(:option_chain).and_return(option_chain)
+      end
 
-      # Since we're looking for the max credit, verify it's a valid spread
-      expect(result.credit).to be > 0.5  # Reduced expectation
-      expect(result.short_leg.strike).to be < result.long_leg.strike  # Call spread structure
+      it 'loads option chain and finds call spreads' do
+        result = finder.search(
+          from_date: expiration_date,
+          to_date: expiration_date
+        )
+
+        expect(result).to be_a(Platypi::CallSpread)
+        expect(result.underlying_symbol).to eq('$SPX')
+      end
+
+      it 'calls option_chain with correct parameters' do
+        finder.search(
+          from_date: expiration_date,
+          to_date: expiration_date
+        )
+
+        expect(finder).to have_received(:option_chain).with(
+          '$SPX',
+          contract_type: 'CALL',
+          from_date: expiration_date,
+          to_date: expiration_date
+        )
+      end
+
+      it 'uses expiration_date as default for from_date and to_date' do
+        finder.search()
+
+        expect(finder).to have_received(:option_chain).with(
+          '$SPX',
+          contract_type: 'CALL',
+          from_date: expiration_date,
+          to_date: expiration_date
+        )
+      end
+
+      context 'when option_chain method returns nil' do
+        before do
+          allow(finder).to receive(:option_chain).and_return(nil)
+        end
+
+        it 'returns NullStrategy' do
+          result = finder.search(
+            from_date: expiration_date,
+            to_date: expiration_date
+          )
+          expect(result).to be_a(Platypi::NullStrategy)
+        end
+      end
     end
 
     it 'respects short delta filter' do
