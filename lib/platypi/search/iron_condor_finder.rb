@@ -3,6 +3,8 @@
 module Platypi
   # Iron condor finder for searching options
   class IronCondorFinder
+    include Platypi::Schwab
+
     attr_reader :underlying_symbol, :expiration_date, :short_delta, :max_spread,
                 :min_credit, :min_open_interest, :dist_from_strike,
                 :call_spread, :put_spread, :quantity, :expiration_type,
@@ -36,7 +38,16 @@ module Platypi
       @put_spread = nil
     end
 
-    def search(opt_chain)
+    def search(from_date: nil, to_date: nil)
+      opt_chain = option_chain(
+        underlying_symbol,
+        contract_type: 'ALL',
+        from_date: from_date || expiration_date,
+        to_date: to_date || expiration_date
+      )
+
+      return NullStrategy.new unless opt_chain
+
       @call_spread = call_spread_finder.search(opt_chain)
       @put_spread = put_spread_finder.search(opt_chain)
 

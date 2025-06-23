@@ -75,8 +75,16 @@ RSpec.describe Platypi::IronCondorFinder do
       )
     end
 
+    before do
+      # Mock the option_chain method to return our test data
+      allow(finder).to receive(:option_chain).and_return(option_chain)
+    end
+
     it 'finds iron condors with valid criteria' do
-      result = finder.search(option_chain)
+      result = finder.search(
+        from_date: expiration_date,
+        to_date: expiration_date
+      )
 
       expect(result).to be_a(Platypi::IronCondor)
       expect(result.underlying_symbol).to eq('$SPX')
@@ -85,7 +93,10 @@ RSpec.describe Platypi::IronCondorFinder do
     end
 
     it 'returns iron condor with combined credit from both spreads' do
-      result = finder.search(option_chain)
+      result = finder.search(
+        from_date: expiration_date,
+        to_date: expiration_date
+      )
 
       if result.is_a?(Platypi::IronCondor)
         expect(result.credit).to be > 1.0  # Should be sum of both spreads
@@ -95,7 +106,10 @@ RSpec.describe Platypi::IronCondorFinder do
     end
 
     it 'ensures both spreads have same expiration date' do
-      result = finder.search(option_chain)
+      result = finder.search(
+        from_date: expiration_date,
+        to_date: expiration_date
+      )
 
       if result.is_a?(Platypi::IronCondor)
         expect(result.call_spread.expiration_date).to eq(result.put_spread.expiration_date)
@@ -114,7 +128,13 @@ RSpec.describe Platypi::IronCondorFinder do
         dist_from_strike: 0.01
       )
 
-      result = restrictive_finder.search(option_chain)
+      # Mock the option_chain method
+      allow(restrictive_finder).to receive(:option_chain).and_return(option_chain)
+
+      result = restrictive_finder.search(
+        from_date: expiration_date,
+        to_date: expiration_date
+      )
 
       if result.is_a?(Platypi::IronCondor)
         expect(result.call_spread.short_leg.delta.abs).to be <= 0.10
@@ -135,7 +155,13 @@ RSpec.describe Platypi::IronCondorFinder do
         dist_from_strike: 0.01
       )
 
-      result = narrow_finder.search(option_chain)
+      # Mock the option_chain method
+      allow(narrow_finder).to receive(:option_chain).and_return(option_chain)
+
+      result = narrow_finder.search(
+        from_date: expiration_date,
+        to_date: expiration_date
+      )
 
       if result.is_a?(Platypi::IronCondor)
         expect(result.call_spread.spread_width).to be <= 5.0
@@ -156,7 +182,13 @@ RSpec.describe Platypi::IronCondorFinder do
         dist_from_strike: 0.01
       )
 
-      result = high_credit_finder.search(option_chain)
+      # Mock the option_chain method
+      allow(high_credit_finder).to receive(:option_chain).and_return(option_chain)
+
+      result = high_credit_finder.search(
+        from_date: expiration_date,
+        to_date: expiration_date
+      )
 
       if result.is_a?(Platypi::IronCondor)
         expect(result.call_spread.credit * 100).to be >= 300.0
@@ -177,7 +209,13 @@ RSpec.describe Platypi::IronCondorFinder do
         dist_from_strike: 0.005  # Very close to current price
       )
 
-      result = close_strike_finder.search(option_chain)
+      # Mock the option_chain method
+      allow(close_strike_finder).to receive(:option_chain).and_return(option_chain)
+
+      result = close_strike_finder.search(
+        from_date: expiration_date,
+        to_date: expiration_date
+      )
 
       if result.is_a?(Platypi::IronCondor)
         underlying_price = option_chain.underlying_price
@@ -206,7 +244,13 @@ RSpec.describe Platypi::IronCondorFinder do
         expiration_type: 'W'  # Weekly options
       )
 
-      result = weekly_finder.search(option_chain)
+      # Mock the option_chain method
+      allow(weekly_finder).to receive(:option_chain).and_return(option_chain)
+
+      result = weekly_finder.search(
+        from_date: expiration_date,
+        to_date: expiration_date
+      )
 
       if result.is_a?(Platypi::IronCondor)
         expect(result.call_spread.short_leg.expiration_type).to eq('W')
@@ -228,7 +272,13 @@ RSpec.describe Platypi::IronCondorFinder do
         settlement_type: 'P'  # Physical settlement (though SPX is cash)
       )
 
-      result = cash_settled_finder.search(option_chain)
+      # Mock the option_chain method
+      allow(cash_settled_finder).to receive(:option_chain).and_return(option_chain)
+
+      result = cash_settled_finder.search(
+        from_date: expiration_date,
+        to_date: expiration_date
+      )
 
       if result.is_a?(Platypi::IronCondor)
         expect(result.call_spread.short_leg.settlement_type).to eq('P')
@@ -250,7 +300,13 @@ RSpec.describe Platypi::IronCondorFinder do
         option_root: 'SPXW'
       )
 
-      result = spxw_finder.search(option_chain)
+      # Mock the option_chain method
+      allow(spxw_finder).to receive(:option_chain).and_return(option_chain)
+
+      result = spxw_finder.search(
+        from_date: expiration_date,
+        to_date: expiration_date
+      )
 
       if result.is_a?(Platypi::IronCondor)
         expect(result.call_spread.short_leg.option_root).to eq('SPXW')
@@ -272,7 +328,13 @@ RSpec.describe Platypi::IronCondorFinder do
         dist_from_strike: 0.50
       )
 
-      result = impossible_call_finder.search(option_chain)
+      # Mock the option_chain method
+      allow(impossible_call_finder).to receive(:option_chain).and_return(option_chain)
+
+      result = impossible_call_finder.search(
+        from_date: expiration_date,
+        to_date: expiration_date
+      )
       expect(result).to be_a(Platypi::NullStrategy)
     end
 
@@ -288,7 +350,13 @@ RSpec.describe Platypi::IronCondorFinder do
         dist_from_strike: 0.50
       )
 
-      result = impossible_put_finder.search(option_chain)
+      # Mock the option_chain method
+      allow(impossible_put_finder).to receive(:option_chain).and_return(option_chain)
+
+      result = impossible_put_finder.search(
+        from_date: expiration_date,
+        to_date: expiration_date
+      )
       expect(result).to be_a(Platypi::NullStrategy)
     end
 
@@ -303,7 +371,13 @@ RSpec.describe Platypi::IronCondorFinder do
         dist_from_strike: 0.50     # Very far from strike
       )
 
-      result = impossible_finder.search(option_chain)
+      # Mock the option_chain method
+      allow(impossible_finder).to receive(:option_chain).and_return(option_chain)
+
+      result = impossible_finder.search(
+        from_date: expiration_date,
+        to_date: expiration_date
+      )
       expect(result).to be_a(Platypi::NullStrategy)
     end
 
@@ -319,7 +393,13 @@ RSpec.describe Platypi::IronCondorFinder do
       end
 
       it 'returns NullStrategy when expiration date does not match' do
-        result = wrong_expiration_finder.search(option_chain)
+        # Mock the option_chain method
+        allow(wrong_expiration_finder).to receive(:option_chain).and_return(option_chain)
+
+        result = wrong_expiration_finder.search(
+          from_date: Date.new(2025, 6, 20),
+          to_date: Date.new(2025, 6, 20)
+        )
         expect(result).to be_a(Platypi::NullStrategy)
       end
     end
@@ -330,7 +410,13 @@ RSpec.describe Platypi::IronCondorFinder do
         empty_call_chain_data[:callExpDateMap] = {}
         empty_call_chain = Platypi::Schwab::DataObjects::OptionChain.build(empty_call_chain_data)
 
-        result = finder.search(empty_call_chain)
+        # Mock the option_chain method
+        allow(finder).to receive(:option_chain).and_return(empty_call_chain)
+
+        result = finder.search(
+          from_date: expiration_date,
+          to_date: expiration_date
+        )
         expect(result).to be_a(Platypi::NullStrategy)
       end
 
@@ -339,14 +425,26 @@ RSpec.describe Platypi::IronCondorFinder do
         empty_put_chain_data[:putExpDateMap] = {}
         empty_put_chain = Platypi::Schwab::DataObjects::OptionChain.build(empty_put_chain_data)
 
-        result = finder.search(empty_put_chain)
+        # Mock the option_chain method
+        allow(finder).to receive(:option_chain).and_return(empty_put_chain)
+
+        result = finder.search(
+          from_date: expiration_date,
+          to_date: expiration_date
+        )
         expect(result).to be_a(Platypi::NullStrategy)
       end
 
       it 'handles options with zero or negative marks' do
         # This is more of an integration test to ensure the search doesn't break
         # with edge case data
-        result = finder.search(option_chain)
+        # Mock the option_chain method
+        allow(finder).to receive(:option_chain).and_return(option_chain)
+
+        result = finder.search(
+          from_date: expiration_date,
+          to_date: expiration_date
+        )
 
         if result.is_a?(Platypi::IronCondor)
           expect(result.call_spread.short_leg.mark).to be > 0
@@ -456,7 +554,13 @@ RSpec.describe Platypi::IronCondorFinder do
     end
 
     it 'finds realistic iron condors from SPX data' do
-      result = realistic_finder.search(option_chain)
+      # Mock the option_chain method
+      allow(realistic_finder).to receive(:option_chain).and_return(option_chain)
+
+      result = realistic_finder.search(
+        from_date: expiration_date,
+        to_date: expiration_date
+      )
 
       expect(result).to be_a(Platypi::IronCondor)
       expect(result.credit).to be >= 1.0  # Combined credit should be at least $1.00
@@ -467,7 +571,13 @@ RSpec.describe Platypi::IronCondorFinder do
     end
 
     it 'ensures proper iron condor structure' do
-      result = realistic_finder.search(option_chain)
+      # Mock the option_chain method
+      allow(realistic_finder).to receive(:option_chain).and_return(option_chain)
+
+      result = realistic_finder.search(
+        from_date: expiration_date,
+        to_date: expiration_date
+      )
 
       if result.is_a?(Platypi::IronCondor)
         # Call spread structure: short strike < long strike
@@ -490,7 +600,13 @@ RSpec.describe Platypi::IronCondorFinder do
     end
 
     it 'has reasonable risk/reward characteristics' do
-      result = realistic_finder.search(option_chain)
+      # Mock the option_chain method
+      allow(realistic_finder).to receive(:option_chain).and_return(option_chain)
+
+      result = realistic_finder.search(
+        from_date: expiration_date,
+        to_date: expiration_date
+      )
 
       if result.is_a?(Platypi::IronCondor)
         # Max profit should be the total credit
@@ -525,9 +641,15 @@ RSpec.describe Platypi::IronCondorFinder do
     end
 
     it 'completes search in reasonable time' do
+      # Mock the option_chain method
+      allow(performance_finder).to receive(:option_chain).and_return(option_chain)
+
       start_time = Time.now
 
-      performance_finder.search(option_chain)
+      performance_finder.search(
+        from_date: expiration_date,
+        to_date: expiration_date
+      )
 
       end_time = Time.now
       expect(end_time - start_time).to be < 2.0  # Should complete in under 2 seconds
@@ -548,7 +670,13 @@ RSpec.describe Platypi::IronCondorFinder do
     end
 
     it 'validates strike price relationships' do
-      result = finder.search(option_chain)
+      # Mock the option_chain method
+      allow(finder).to receive(:option_chain).and_return(option_chain)
+
+      result = finder.search(
+        from_date: expiration_date,
+        to_date: expiration_date
+      )
 
       if result.is_a?(Platypi::IronCondor)
         call_strikes = result.call_spread.strikes.sort
@@ -563,6 +691,39 @@ RSpec.describe Platypi::IronCondorFinder do
         # All call strikes should be above all put strikes (typical iron condor)
         expect(call_strikes.min).to be > put_strikes.max
       end
+    end
+  end
+
+  describe 'option_chain method call' do
+    let(:finder) do
+      described_class.new(
+        underlying_symbol: '$SPX',
+        expiration_date: expiration_date,
+        short_delta: 0.30,
+        max_spread: 20.0,
+        min_credit: 50.0,
+        min_open_interest: 0,
+        dist_from_strike: 0.01
+      )
+    end
+
+    before do
+      # Mock the option_chain method to return our test data
+      allow(finder).to receive(:option_chain).and_return(option_chain)
+    end
+
+    it 'calls option_chain with correct parameters' do
+      finder.search(
+        from_date: expiration_date,
+        to_date: expiration_date
+      )
+
+      expect(finder).to have_received(:option_chain).with(
+        '$SPX',
+        contract_type: 'ALL',
+        from_date: expiration_date,
+        to_date: expiration_date
+      )
     end
   end
 end
