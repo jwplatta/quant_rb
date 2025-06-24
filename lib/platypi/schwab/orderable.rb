@@ -65,7 +65,6 @@ module Platypi
         order_instruction: order_instruction,
         **extract_strategy_kwargs(strategy, order_instruction: order_instruction)
       ).then do |order_preview|
-        # Store preview data in the order instance variables for later access
         @order_id = order_preview.order_id
         @order_instruction = order_instruction
         @order_price = order_preview.price
