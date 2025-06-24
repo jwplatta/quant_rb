@@ -37,7 +37,7 @@ module Platypi
       @option_root = option_root
     end
 
-    def search(opt_chain_or_params = nil, from_date: nil, to_date: nil)
+    def search(opt_chain_or_params = nil, from_date: nil, to_date: nil, return_spreads: false)
       # Handle both direct option chain and option chain parameters
       if opt_chain_or_params.respond_to?(:call_opts)
         # Called from IronCondorFinder with actual option chain data
@@ -110,10 +110,12 @@ module Platypi
         )
       end
 
-      if @spreads.empty?
+      return spreads if return_spreads
+
+      if spreads.empty?
         NullStrategy.new
       else
-        @spreads.max_by(&:credit)
+        spreads.max_by(&:credit)
       end
     end
   end

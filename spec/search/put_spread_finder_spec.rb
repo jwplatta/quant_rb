@@ -28,7 +28,7 @@ RSpec.describe Platypi::PutSpreadFinder do
       expect(finder.expiration_type).to be_nil
       expect(finder.settlement_type).to be_nil
       expect(finder.option_root).to be_nil
-      expect(finder.trades).to eq([])
+      expect(finder.spreads).to eq([])
       expect(finder.short_legs).to eq([])
     end
 
@@ -405,12 +405,12 @@ RSpec.describe Platypi::PutSpreadFinder do
       expect(result.short_leg.strike).to be > result.long_leg.strike
     end
 
-    it 'populates trades array during search' do
+    it 'populates spreads array during search' do
       finder = realistic_finder
       finder.search(option_chain)
 
-      expect(finder.trades).not_to be_empty
-      expect(finder.trades).to all(be_a(Platypi::PutSpread))
+      expect(finder.spreads).not_to be_empty
+      expect(finder.spreads).to all(be_a(Platypi::PutSpread))
     end
   end
 
