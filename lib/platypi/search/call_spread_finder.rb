@@ -6,7 +6,7 @@ module Platypi
     include Platypi::Schwab
 
     attr_reader :underlying_symbol, :short_delta, :max_spread,
-      :min_credit, :min_open_interest, :dist_from_strike, :trades, :short_legs,
+      :min_credit, :min_open_interest, :dist_from_strike, :spreads, :short_legs,
       :expiration_date, :quantity, :expiration_type, :settlement_type, :option_root
 
     def initialize(
@@ -29,7 +29,7 @@ module Platypi
       @min_credit = min_credit
       @min_open_interest = min_open_interest
       @dist_from_strike = dist_from_strike
-      @trades = []
+      @spreads = []
       @short_legs = []
       @quantity = quantity
       @expiration_type = expiration_type
@@ -103,17 +103,17 @@ module Platypi
         best_long_raw = candidate_longs.min_by(&:mark)
         long_leg = CallOption.from_schwab_option(best_long_raw, quantity: quantity)
 
-        @trades << CallSpread.new(
+        @spreads << CallSpread.new(
           underlying_symbol: underlying_symbol,
           short_leg: short_leg,
           long_leg: long_leg
         )
       end
 
-      if @trades.empty?
+      if @spreads.empty?
         NullStrategy.new
       else
-        @trades.max_by(&:credit)
+        @spreads.max_by(&:credit)
       end
     end
   end
