@@ -48,8 +48,13 @@ module Platypi
 
       return NullStrategy.new unless opt_chain
 
-      @call_spread = call_spread_finder.search(opt_chain)
-      @put_spread = put_spread_finder.search(opt_chain)
+      call_spreads = call_spread_finder.search(opt_chain, return_spreads: true)
+      put_spreads = put_spread_finder.search(opt_chain, return_spreads: true)
+      all_spread_combos = call_spreads.product(put_spreads)
+
+      call_spread, put_spread = all_spread_combos.max_by do |call_spread, put_spread|
+        call_spread.credit + put_spread.credit / (call_spread.delta.abs + put_spread.delta.abs)
+      end
 
       if call_spread.is_a?(CallSpread) && put_spread.is_a?(PutSpread)
         IronCondor.new(
