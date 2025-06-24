@@ -77,29 +77,6 @@ namespace :schwab do
         "dist from strike #{dist_from_strike}, quantity #{quantity}" \
         " and settlement type #{settlement_type}"
 
-    contract_type = if trade_type == 'iron_condor'
-      'ALL'
-    elsif trade_type == 'call_spread'
-      'CALL'
-    elsif trade_type == 'put_spread'
-      'PUT'
-    else
-      puts 'Invalid trade type'
-      exit
-    end
-
-    opt_chain = schwab_client.option_chain(
-      underlying,
-      contract_type: contract_type,
-      from_date: end_date,
-      to_date: end_date
-    )
-
-    if opt_chain.nil?
-      puts "No option chain found for #{underlying}"
-      exit
-    end
-
     finder = trade_finder(
       trade_type,
       underlying,
@@ -113,7 +90,7 @@ namespace :schwab do
       settlement_type
     )
 
-    trade = finder.search(opt_chain)
+    trade = finder.search
 
     if trade.type == 'putspread' || trade.type == 'callspread'
       puts """
@@ -122,15 +99,39 @@ namespace :schwab do
       ###########
       short leg symbol: #{trade.short_leg.symbol}
       short leg strike: #{trade.short_leg.strike}
+      short leg open interest: #{trade.short_leg.open_interest}
+
       long leg symbol: #{trade.long_leg.symbol}
       long leg strike: #{trade.long_leg.strike}
+      long leg open interest: #{trade.long_leg.open_interest}
+
       expiration date: #{trade.expiration_date}
       credit/debit: #{trade.credit}
       spread width: #{trade.spread_width}
       delta: #{trade.delta}
-      open interest: #{trade.short_leg.open_interest}
       """
-    elsif trade.type == :ironcondor
+    elsif trade.type == 'ironcondor'
+      puts """
+      ###########
+      TRADE FOUND: Iron Condor
+      ###########
+      expiration date: #{trade.expiration_date}
+      credit: #{trade.credit}
+
+      Call Spread:
+      spread width: #{trade.call_spread.spread_width}
+      short leg symbol: #{trade.call_spread.short_leg.symbol}
+      short leg strike: #{trade.call_spread.short_leg.strike}
+      long leg symbol: #{trade.call_spread.long_leg.symbol}
+      long leg strike: #{trade.call_spread.long_leg.strike}
+
+      Put Spread:
+      spread width: #{trade.put_spread.spread_width}
+      short leg symbol: #{trade.put_spread.short_leg.symbol}
+      short leg strike: #{trade.put_spread.short_leg.strike}
+      long leg symbol: #{trade.put_spread.long_leg.symbol}
+      long leg strike: #{trade.put_spread.long_leg.strike}
+      """
     else
       puts 'No trade found'
     end
@@ -181,15 +182,6 @@ namespace :schwab do
       else
         puts "Unknown asset type: #{position.instrument.asset_type}"
       end
-    end
-  end
-
-  desc 'Write positions to CSV'
-  task :positions_to_csv do
-    account = schwab_client.account(account_hash, fields: 'positions')
-
-    account.positions.each do |position|
-      puts position.to_h
     end
   end
 
@@ -372,17 +364,6 @@ namespace :schwab do
     options.each do |opt|
       puts "#{opt.strike.to_s.ljust(6)} | #{opt.open_interest}"
     end
-  end
-
-  desc 'Print Open Orders'
-  task :print_open_orders => :environment do |_t, args|
-    orders = schwab_client.account_orders(
-      status: 'PENDING_ACTIVATION',
-      from_date: Date.today - 1,
-      to_date: Date.today + 1
-    )
-
-    binding.pry
   end
 
   desc 'Print Trades'
