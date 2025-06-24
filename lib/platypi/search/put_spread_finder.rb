@@ -36,7 +36,7 @@ module Platypi
       @option_root = option_root
     end
 
-    def search(opt_chain_or_params = nil, from_date: nil, to_date: nil)
+    def search(opt_chain_or_params = nil, from_date: nil, to_date: nil, return_spreads: false)
       # Handle both direct option chain and option chain parameters
       if opt_chain_or_params.respond_to?(:put_opts)
         # Called from IronCondorFinder with actual option chain data
@@ -71,7 +71,7 @@ module Platypi
           quantity: quantity
         )
 
-        potential_longs = valid_longs.select do |long_raw|
+        potential_longs = opt_chain.put_opts.select do |long_raw|
           long_raw.expiration_date == short_leg.expiration_date &&
             long_raw.mark > 0.0 &&
             ((short_leg.mark - long_raw.mark) * 100.0).round >= min_credit &&
@@ -97,10 +97,12 @@ module Platypi
         )
       end
 
-      if @spreads.empty?
+      return spreads if return_spreads
+
+      if spreads.empty?
         NullStrategy.new
       else
-        @spreads.max_by(&:credit)
+        spreads.max_by(&:credit)
       end
     end
   end
