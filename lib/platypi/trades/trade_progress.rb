@@ -26,12 +26,12 @@ module Platypi
       end
     end
 
-    def tested?(trade)
-      risk_status(trade) == 'YELLOW'
+    def tested?(strategy)
+      risk_status(strategy) == 'YELLOW'
     end
 
-    def danger?(trade)
-      risk_status(trade) == 'RED'
+    def danger?(strategy)
+      risk_status(strategy) == 'RED'
     end
 
     def exit?(trade)
@@ -59,7 +59,6 @@ module Platypi
       max_profit = opening_credit.abs * profit_thresh
       max_loss = opening_credit.abs * loss_thresh.abs
 
-      # Return progress percentage
       if current_pnl >= max_profit
         100.0
       elsif current_pnl <= -max_loss
