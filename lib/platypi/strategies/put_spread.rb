@@ -61,7 +61,7 @@ module Platypi
     end
 
     def delta
-      short_leg.delta
+      short_leg.delta.abs
     end
 
     def credit
