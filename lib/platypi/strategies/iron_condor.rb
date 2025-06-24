@@ -97,6 +97,12 @@ module Platypi
       put_spread.check_market
     end
 
+    def credit_delta_ratio
+      total_delta = put_spread.delta.abs + call_spread.delta.abs
+      return 0.0 if total_delta.zero?
+      credit / total_delta
+    end
+
     def to_s
       "<#{self.class.name} #{expiration_date}, " \
         "PUT: #{put_spread.strikes.join('/')}, " \
