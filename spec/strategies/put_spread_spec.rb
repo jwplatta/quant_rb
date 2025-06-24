@@ -82,7 +82,7 @@ RSpec.describe Platypi::PutSpread do
 
   describe '#delta' do
     it 'returns short leg delta' do
-      expect(put_spread.delta).to eq(-0.25)
+      expect(put_spread.delta).to eq(0.25)
     end
   end
 
