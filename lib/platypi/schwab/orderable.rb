@@ -60,6 +60,13 @@ module Platypi
       %w[REJECTED EXPIRED CANCELED].include?(order_status)
     end
 
+    def send_order_test(strategy, order_instruction: :open)
+      build_and_preview_order(
+        order_instruction: order_instruction,
+        **extract_strategy_kwargs(strategy, order_instruction: order_instruction)
+      )
+    end
+
     def send_preview_order(strategy, order_instruction: :open)
       build_and_preview_order(
         order_instruction: order_instruction,
