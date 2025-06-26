@@ -49,11 +49,19 @@ module Platypi
       return NullStrategy.new unless opt_chain
 
       call_spreads = call_spread_finder.search(opt_chain, return_spreads: true)
-      put_spreads = put_spread_finder.search(opt_chain, return_spreads: true)
-      all_spread_combos = call_spreads.product(put_spreads)
+      return NullStrategy.new if call_spreads.empty?
 
-      call_spread, put_spread = all_spread_combos.max_by do |call_spread, put_spread|
-        call_spread.credit + put_spread.credit / (call_spread.delta.abs + put_spread.delta.abs)
+      put_spreads = put_spread_finder.search(opt_chain, return_spreads: true)
+      return NullStrategy.new if put_spreads.empty?
+
+      all_combos = call_spreads.product(put_spreads)
+
+      all_combos_with_min_credit = all_combos.select do |call_sprd, put_sprd|
+        (call_sprd.credit + put_sprd.credit) * 100 >= min_credit
+      end
+
+      call_spread, put_spread = all_combos_with_min_credit.max_by do |call_sprd, put_sprd|
+        (call_sprd.credit + put_sprd.credit) / (call_sprd.delta.abs + put_sprd.delta.abs)
       end
 
       if call_spread.is_a?(CallSpread) && put_spread.is_a?(PutSpread)
@@ -75,7 +83,6 @@ module Platypi
         expiration_date: expiration_date,
         short_delta: short_delta,
         max_spread: max_spread,
-        min_credit: min_credit,
         min_open_interest: min_open_interest,
         dist_from_strike: dist_from_strike,
         quantity: quantity,
@@ -91,7 +98,6 @@ module Platypi
         expiration_date: expiration_date,
         short_delta: short_delta,
         max_spread: max_spread,
-        min_credit: min_credit,
         min_open_interest: min_open_interest,
         dist_from_strike: dist_from_strike,
         quantity: quantity,
