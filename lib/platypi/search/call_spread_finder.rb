@@ -14,7 +14,7 @@ module Platypi
       expiration_date: nil,
       short_delta: 0.15,
       max_spread: 20.0,
-      min_credit: 100.0,
+      min_credit: nil,
       min_open_interest: 0,
       dist_from_strike: 0.07,
       quantity: 1,
@@ -58,14 +58,14 @@ module Platypi
       # Filters the call options in the option chain to identify potential short legs
       # for a call spread strategy. The selection criteria include:
       # - Matching the specified expiration date.
-      # - Having a mark price (scaled by 100) greater than or equal to the minimum credit.
+      # - Having a mark price (scaled by 100) greater than or equal to the minimum credit (if specified).
       # - Ensuring the absolute delta value is within the specified range.
       # - Meeting the minimum open interest requirement.
       # - Ensuring the strike price is sufficiently distant from the underlying price
       #   based on the specified distance threshold.
       short_legs = opt_chain.call_opts.select do |option|
         option.expiration_date == expiration_date &&
-          option.mark * 100.0 >= min_credit &&
+          (min_credit.nil? || option.mark * 100.0 >= min_credit) &&
           option.delta.abs <= short_delta &&
           option.delta.abs >= 0.00 &&
           option.open_interest >= min_open_interest &&
@@ -83,14 +83,14 @@ module Platypi
         # that meet the following criteria:
         # - The expiration date matches the short leg's expiration date.
         # - The credit (difference between short leg's mark and long option's mark, multiplied by 100)
-        #   is greater than or equal to the minimum credit (`min_credit`).
+        #   is greater than or equal to the minimum credit (if specified).
         # - The long option's strike price is greater than the short leg's strike price.
         # - The absolute difference between the long option's strike price and the short leg's strike price
         #   is less than or equal to the maximum spread (`max_spread`).
         candidate_longs = opt_chain.call_opts.select do |long_raw|
           long_raw.expiration_date == short_leg.expiration_date &&
             long_raw.mark > 0.0 &&
-            ((short_leg.mark - long_raw.mark) * 100.0).round >= min_credit &&
+            (min_credit.nil? || ((short_leg.mark - long_raw.mark) * 100.0).round >= min_credit) &&
             long_raw.strike > short_leg.strike &&
             (long_raw.strike - short_leg.strike) <= max_spread &&
             (expiration_type.nil? || long_raw.expiration_type == expiration_type) &&

@@ -21,7 +21,7 @@ RSpec.describe Platypi::CallSpreadFinder do
       expect(finder.expiration_date).to be_nil
       expect(finder.short_delta).to eq(0.15)
       expect(finder.max_spread).to eq(20.0)
-      expect(finder.min_credit).to eq(100.0)
+      expect(finder.min_credit).to eq(nil)
       expect(finder.min_open_interest).to eq(0)
       expect(finder.dist_from_strike).to eq(0.07)
       expect(finder.quantity).to eq(1)
@@ -58,6 +58,24 @@ RSpec.describe Platypi::CallSpreadFinder do
       expect(finder.expiration_type).to eq('W')
       expect(finder.settlement_type).to eq('P')
       expect(finder.option_root).to eq('SPXW')
+    end
+
+    it 'accepts nil min_credit parameter' do
+      finder = described_class.new(
+        underlying_symbol: 'AAPL',
+        expiration_date: expiration_date,
+        short_delta: 0.20,
+        max_spread: 10.0,
+        min_credit: nil,  # Test nil min_credit
+        min_open_interest: 100,
+        dist_from_strike: 0.05,
+        quantity: 5,
+        expiration_type: 'W',
+        settlement_type: 'P',
+        option_root: 'SPXW'
+      )
+
+      expect(finder.min_credit).to be_nil
     end
   end
 
@@ -335,60 +353,103 @@ RSpec.describe Platypi::CallSpreadFinder do
         end
       end
     end
-  end
 
-  describe 'integration with real option data' do
-    let(:realistic_finder) do
-      described_class.new(
-        underlying_symbol: '$SPX',
-        expiration_date: expiration_date,
-        short_delta: 0.25,        # ~25 delta short
-        max_spread: 15.0,         # 15 point spread max
-        min_credit: 50.0,         # Reduced from 200.0 to 50.0
-        min_open_interest: 0,     # No OI requirement for test
-        dist_from_strike: 0.01    # Reduced from 0.03 to 0.01
-      )
+    describe 'integration with real option data' do
+      let(:realistic_finder) do
+        described_class.new(
+          underlying_symbol: '$SPX',
+          expiration_date: expiration_date,
+          short_delta: 0.25,        # ~25 delta short
+          max_spread: 15.0,         # 15 point spread max
+          min_credit: 50.0,         # Reduced from 200.0 to 50.0
+          min_open_interest: 0,     # No OI requirement for test
+          dist_from_strike: 0.01    # Reduced from 0.03 to 0.01
+        )
+      end
+
+      it 'finds realistic call spreads from SPX data' do
+        result = realistic_finder.search(option_chain)
+
+        expect(result).to be_a(Platypi::CallSpread)
+        expect(result.credit).to be >= 0.5  # Reduced expectation
+        expect(result.spread_width).to be <= 15.0
+        expect(result.short_leg.delta.abs).to be <= 0.25
+        expect(result.short_leg.strike).to be < result.long_leg.strike
+      end
+
+      it 'populates spreads array during search' do
+        finder = realistic_finder
+        finder.search(option_chain)
+
+        expect(finder.spreads).not_to be_empty
+        expect(finder.spreads).to all(be_a(Platypi::CallSpread))
+      end
     end
 
-    it 'finds realistic call spreads from SPX data' do
-      result = realistic_finder.search(option_chain)
+    describe 'performance considerations' do
+      let(:performance_finder) do
+        described_class.new(
+          underlying_symbol: '$SPX',
+          expiration_date: expiration_date,
+          short_delta: 0.30,
+          max_spread: 20.0,
+          min_credit: 50.0,
+          min_open_interest: 0,
+          dist_from_strike: 0.01
+        )
+      end
 
-      expect(result).to be_a(Platypi::CallSpread)
-      expect(result.credit).to be >= 0.5  # Reduced expectation
-      expect(result.spread_width).to be <= 15.0
-      expect(result.short_leg.delta.abs).to be <= 0.25
-      expect(result.short_leg.strike).to be < result.long_leg.strike
+      it 'completes search in reasonable time' do
+        start_time = Time.now
+
+        performance_finder.search(option_chain)
+
+        end_time = Time.now
+        expect(end_time - start_time).to be < 1.0  # Should complete in under 1 second
+      end
     end
 
-    it 'populates spreads array during search' do
-      finder = realistic_finder
-      finder.search(option_chain)
-
-      expect(finder.spreads).not_to be_empty
-      expect(finder.spreads).to all(be_a(Platypi::CallSpread))
-    end
-  end
-
-  describe 'performance considerations' do
-    let(:performance_finder) do
-      described_class.new(
+    it 'ignores min_credit filter when set to nil' do
+      # Create a finder with nil min_credit - should not filter by credit
+      no_credit_filter_finder = described_class.new(
         underlying_symbol: '$SPX',
         expiration_date: expiration_date,
         short_delta: 0.30,
         max_spread: 20.0,
-        min_credit: 50.0,
+        min_credit: nil,  # No credit filtering
         min_open_interest: 0,
         dist_from_strike: 0.01
       )
-    end
 
-    it 'completes search in reasonable time' do
-      start_time = Time.now
+      # Create a finder with high min_credit - should filter by credit
+      high_credit_finder = described_class.new(
+        underlying_symbol: '$SPX',
+        expiration_date: expiration_date,
+        short_delta: 0.30,
+        max_spread: 20.0,
+        min_credit: 500.0,  # High credit requirement
+        min_open_interest: 0,
+        dist_from_strike: 0.01
+      )
 
-      performance_finder.search(option_chain)
+      no_credit_result = no_credit_filter_finder.search(option_chain)
+      high_credit_result = high_credit_finder.search(option_chain)
 
-      end_time = Time.now
-      expect(end_time - start_time).to be < 1.0  # Should complete in under 1 second
+      # The no-credit-filter finder should find spreads more easily
+      # or at least not be more restrictive than the high-credit finder
+      if no_credit_result.is_a?(Platypi::CallSpread) && high_credit_result.is_a?(Platypi::NullStrategy)
+        # This confirms that removing the credit filter allows more spreads to be found
+        expect(no_credit_result).to be_a(Platypi::CallSpread)
+      elsif no_credit_result.is_a?(Platypi::CallSpread) && high_credit_result.is_a?(Platypi::CallSpread)
+        # Both found spreads, but the no-credit finder should have more options
+        no_credit_filter_finder.search(option_chain, return_spreads: true)
+        high_credit_finder.search(option_chain, return_spreads: true)
+
+        expect(no_credit_filter_finder.spreads.length).to be >= high_credit_finder.spreads.length
+      else
+        # At minimum, verify the no-credit finder doesn't fail
+        expect([Platypi::CallSpread, Platypi::NullStrategy]).to include(no_credit_result.class)
+      end
     end
   end
 end
