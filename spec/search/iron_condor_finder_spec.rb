@@ -171,13 +171,13 @@ RSpec.describe Platypi::IronCondorFinder do
       end
     end
 
-    it 'respects minimum credit filter for both spreads' do
+    it 'respects minimum credit filter for combined spreads' do
       high_credit_finder = described_class.new(
         underlying_symbol: '$SPX',
         expiration_date: expiration_date,
         short_delta: 0.30,
         max_spread: 20.0,
-        min_credit: 300.0,  # High minimum credit per spread
+        min_credit: 300.0,  # High minimum credit for total combination
         min_open_interest: 0,
         dist_from_strike: 0.01
       )
@@ -191,8 +191,9 @@ RSpec.describe Platypi::IronCondorFinder do
       )
 
       if result.is_a?(Platypi::IronCondor)
-        expect(result.call_spread.credit * 100).to be >= 300.0
-        expect(result.put_spread.credit * 100).to be >= 300.0
+        # Total credit should meet the minimum requirement
+        total_credit = (result.call_spread.credit + result.put_spread.credit) * 100.0
+        expect(total_credit).to be >= 300.0
       else
         expect(result).to be_a(Platypi::NullStrategy)
       end
@@ -473,7 +474,7 @@ RSpec.describe Platypi::IronCondorFinder do
       )
     end
 
-    it 'creates call spread finder with same parameters' do
+    it 'creates call spread finder with same parameters except min_credit' do
       call_finder = finder.call_spread_finder
 
       expect(call_finder).to be_a(Platypi::CallSpreadFinder)
@@ -481,7 +482,7 @@ RSpec.describe Platypi::IronCondorFinder do
       expect(call_finder.expiration_date).to eq(expiration_date)
       expect(call_finder.short_delta).to eq(0.25)
       expect(call_finder.max_spread).to eq(15.0)
-      expect(call_finder.min_credit).to eq(75.0)
+      expect(call_finder.min_credit).to be_nil  # Should be nil, not passed from iron condor finder
       expect(call_finder.min_open_interest).to eq(10)
       expect(call_finder.dist_from_strike).to eq(0.03)
       expect(call_finder.quantity).to eq(2)
@@ -515,7 +516,7 @@ RSpec.describe Platypi::IronCondorFinder do
       )
     end
 
-    it 'creates put spread finder with same parameters' do
+    it 'creates put spread finder with same parameters except min_credit' do
       put_finder = finder.put_spread_finder
 
       expect(put_finder).to be_a(Platypi::PutSpreadFinder)
@@ -523,7 +524,7 @@ RSpec.describe Platypi::IronCondorFinder do
       expect(put_finder.expiration_date).to eq(expiration_date)
       expect(put_finder.short_delta).to eq(0.25)
       expect(put_finder.max_spread).to eq(15.0)
-      expect(put_finder.min_credit).to eq(75.0)
+      expect(put_finder.min_credit).to be_nil  # Should be nil, not passed from iron condor finder
       expect(put_finder.min_open_interest).to eq(10)
       expect(put_finder.dist_from_strike).to eq(0.03)
       expect(put_finder.quantity).to eq(2)
