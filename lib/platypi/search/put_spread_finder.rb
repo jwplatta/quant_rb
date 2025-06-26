@@ -13,7 +13,7 @@ module Platypi
       expiration_date: nil,
       short_delta: 0.15,
       max_spread: 20.0,
-      min_credit: 100.0,
+      min_credit: nil,
       min_open_interest: 0,
       dist_from_strike: 0.07,
       quantity: 1,
@@ -55,7 +55,7 @@ module Platypi
 
       short_legs = opt_chain.put_opts.select do |option|
         option.expiration_date == expiration_date &&
-          option.mark * 100.0 >= min_credit &&
+          (min_credit.nil? || option.mark * 100.0 >= min_credit) &&
           option.delta.abs <= short_delta &&
           option.delta.abs >= 0.00 &&
           option.open_interest >= min_open_interest &&
@@ -74,7 +74,7 @@ module Platypi
         potential_longs = opt_chain.put_opts.select do |long_raw|
           long_raw.expiration_date == short_leg.expiration_date &&
             long_raw.mark > 0.0 &&
-            ((short_leg.mark - long_raw.mark) * 100.0).round >= min_credit &&
+            (min_credit.nil? || ((short_leg.mark - long_raw.mark) * 100.0).round >= min_credit) &&
             long_raw.strike < short_leg.strike &&
             (short_leg.strike - long_raw.strike) <= max_spread &&
             (expiration_type.nil? || long_raw.expiration_type == expiration_type) &&
