@@ -5,17 +5,11 @@ module Platypi
   class PutSpreadFinder
     include Platypi::Schwab
 
-    attr_reader :underlying_symbol, :short_delta, :max_spread,
-                :min_credit, :min_open_interest, :dist_from_strike, :spreads, :short_legs, :expiration_date, :quantity, :expiration_type, :settlement_type, :option_root
+    attr_reader :underlying_symbol, :spreads, :short_legs, :expiration_date, :quantity,   :expiration_type, :settlement_type, :option_root
 
     def initialize(
       underlying_symbol:,
       expiration_date: nil,
-      short_delta: 0.15,
-      max_spread: 20.0,
-      min_credit: nil,
-      min_open_interest: 0,
-      dist_from_strike: 0.07,
       quantity: 1,
       expiration_type: nil,
       settlement_type: nil,
@@ -23,11 +17,6 @@ module Platypi
     )
       @underlying_symbol = underlying_symbol
       @expiration_date = expiration_date
-      @short_delta = short_delta
-      @max_spread = max_spread
-      @min_credit = min_credit
-      @min_open_interest = min_open_interest
-      @dist_from_strike = dist_from_strike
       @spreads = []
       @short_legs = []
       @quantity = quantity
@@ -36,7 +25,17 @@ module Platypi
       @option_root = option_root
     end
 
-    def search(opt_chain_or_params = nil, from_date: nil, to_date: nil, return_spreads: false)
+    def search(
+      opt_chain_or_params = nil,
+      from_date: nil,
+      to_date: nil,
+      return_spreads: false,
+      short_delta: 0.15,
+      max_spread: 20.0,
+      min_credit: nil,
+      min_open_interest: 0,
+      dist_from_strike: 0.07
+    )
       # Handle both direct option chain and option chain parameters
       if opt_chain_or_params.respond_to?(:put_opts)
         # Called from IronCondorFinder with actual option chain data
