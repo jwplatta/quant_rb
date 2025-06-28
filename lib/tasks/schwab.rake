@@ -77,7 +77,7 @@ namespace :schwab do
         "dist from strike #{dist_from_strike}, quantity #{quantity}" \
         " and settlement type #{settlement_type}"
 
-    finder = trade_finder(
+    trade = find_trade(
       trade_type,
       underlying,
       end_date,
@@ -89,8 +89,6 @@ namespace :schwab do
       quantity,
       settlement_type
     )
-
-    trade = finder.search
 
     if trade.type == 'putspread' || trade.type == 'callspread'
       puts """
@@ -117,8 +115,10 @@ namespace :schwab do
       ###########
       expiration date: #{trade.expiration_date}
       credit: #{trade.credit}
+      delta: #{trade.delta}
 
       Call Spread:
+      delta: #{trade.call_spread.delta}
       spread width: #{trade.call_spread.spread_width}
       short leg symbol: #{trade.call_spread.short_leg.symbol}
       short leg strike: #{trade.call_spread.short_leg.strike}
@@ -126,6 +126,7 @@ namespace :schwab do
       long leg strike: #{trade.call_spread.long_leg.strike}
 
       Put Spread:
+      delta: #{trade.put_spread.delta}
       spread width: #{trade.put_spread.spread_width}
       short leg symbol: #{trade.put_spread.short_leg.symbol}
       short leg strike: #{trade.put_spread.short_leg.strike}
@@ -558,46 +559,40 @@ def build_order_details(orders, transactions)
   end.to_h
 end
 
-def trade_finder(trade_type, underlying, end_date, short_delta, max_spread, min_credit, min_open_interest,
-                 dist_from_strike, quantity, settlement_type)
-  case trade_type
-  when 'iron_condor'
-    Platypi::IronCondorFinder.new(
-      underlying_symbol: underlying,
-      expiration_date: end_date,
-      short_delta: short_delta,
-      max_spread: max_spread,
-      min_credit: min_credit,
-      min_open_interest: min_open_interest,
-      dist_from_strike: dist_from_strike,
-      quantity: quantity,
-      settlement_type: settlement_type
-    )
-  when 'call_spread'
-    Platypi::CallSpreadFinder.new(
-      underlying_symbol: underlying,
-      expiration_date: end_date,
-      short_delta: short_delta,
-      max_spread: max_spread,
-      min_credit: min_credit,
-      min_open_interest: min_open_interest,
-      dist_from_strike: dist_from_strike,
-      quantity: quantity,
-      settlement_type: settlement_type
-    )
-  when 'put_spread'
-    Platypi::PutSpreadFinder.new(
-      underlying_symbol: underlying,
-      expiration_date: end_date,
-      short_delta: short_delta,
-      max_spread: max_spread,
-      min_credit: min_credit,
-      min_open_interest: min_open_interest,
-      dist_from_strike: dist_from_strike,
-      quantity: quantity,
-      settlement_type: settlement_type
-    )
-  else
-    raise ArgumentError, "Invalid trade type: #{trade_type}"
-  end
+def find_trade(
+  trade_type, underlying, end_date, short_delta, max_spread, min_credit, min_open_interest, dist_from_strike, quantity, settlement_type
+)
+  finder = case trade_type
+           when 'iron_condor'
+             Platypi::IronCondorFinder.new(
+               underlying_symbol: underlying,
+               expiration_date: end_date,
+               quantity: quantity,
+               settlement_type: settlement_type
+             )
+           when 'call_spread'
+             Platypi::CallSpreadFinder.new(
+               underlying_symbol: underlying,
+               expiration_date: end_date,
+               quantity: quantity,
+               settlement_type: settlement_type
+             )
+           when 'put_spread'
+             Platypi::PutSpreadFinder.new(
+               underlying_symbol: underlying,
+               expiration_date: end_date,
+               quantity: quantity,
+               settlement_type: settlement_type
+             )
+           else
+             raise ArgumentError, "Invalid trade type: #{trade_type}"
+           end
+
+  finder.search(
+    short_delta: short_delta,
+    max_spread: max_spread,
+    min_credit: min_credit,
+    min_open_interest: min_open_interest,
+    dist_from_strike: dist_from_strike
+  )
 end
