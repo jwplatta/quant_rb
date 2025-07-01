@@ -1,6 +1,6 @@
 require 'spec_helper'
 
-RSpec.describe Platypi::Trades::TradeOrderManager do
+RSpec.describe Platypi::Trades::OrderManager do
   let(:order_manager) { described_class.new }
   let(:mock_strategy) { double('Strategy', type: 'ironcondor', credit: 1.25, debit: 0.75, quantity: 1) }
   let(:mock_iron_condor) do
