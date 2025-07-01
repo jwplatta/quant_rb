@@ -2,17 +2,17 @@ require_relative '../schwab/schwab'
 
 module Platypi
   module Trades
-    class TradeOrderManager
+    class OrderManager
       include Schwab
 
       attr_reader :order, :order_id, :order_status, :order_rejects,
                   :filled_order, :transactions, :order_instruction,
                   :order_price, :order_fees, :order_commission
 
-      def initialize
+      def initialize(order_id: nil)
+        @order_id = order_id
         @filled_order = nil
         @order = nil
-        @order_id = nil
         @order_status = nil
         @order_price = nil
         @order_fees = nil
@@ -117,7 +117,7 @@ module Platypi
         end
       end
 
-      def to_h
+      def last_order_to_h
         {
           order_id: order_id,
           order_instruction: order_instruction,
