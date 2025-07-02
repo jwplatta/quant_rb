@@ -6,12 +6,10 @@ module Platypi
       include Schwab
 
       attr_reader :order, :order_id, :order_status, :order_rejects,
-                  :filled_order, :transactions, :order_instruction,
-                  :order_price, :order_fees, :order_commission
+                  :order_instruction, :order_price, :order_fees, :order_commission, :transactions
 
       def initialize(order_id: nil)
         @order_id = order_id
-        @filled_order = nil
         @order = nil
         @order_status = nil
         @order_price = nil
@@ -44,11 +42,11 @@ module Platypi
       end
 
       def accepted?
-        order_status == 'ACCEPTED' || @filled_order&.status == 'ACCEPTED'
+        order_status == 'ACCEPTED' || @order&.status == 'ACCEPTED'
       end
 
       def filled?
-        order_status == 'FILLED' || @filled_order&.status == 'FILLED'
+        order_status == 'FILLED' || @order&.status == 'FILLED'
       end
 
       def working?
@@ -152,7 +150,6 @@ module Platypi
       private
 
       def reset_order_state
-        @filled_order = nil
         @order = nil
         @order_id = nil
         @order_status = nil
@@ -197,7 +194,7 @@ module Platypi
 
         case order.status
         when 'FILLED'
-          @filled_order = order
+          @order = order
           @order_id = order.order_id
           @order_status = order.status
           # TODO: commission and fees
