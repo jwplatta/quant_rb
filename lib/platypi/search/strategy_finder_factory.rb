@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 module Platypi
-  class FinderFactory
+  class StrategyFinderFactory
     VALID_STRATEGIES = %w[ironcondor callspread putspread].freeze
 
     class << self

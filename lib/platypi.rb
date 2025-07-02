@@ -42,6 +42,7 @@ module Platypi
   require_relative "platypi/strategies/null_strategy"
 
   # Finally require search components
+  require_relative "platypi/search/strategy_finder_factory"
   require_relative "platypi/search/call_spread_finder"
   require_relative "platypi/search/put_spread_finder"
   require_relative "platypi/search/iron_condor_finder"
@@ -51,6 +52,7 @@ module Platypi
   require_relative "platypi/trades/trade_progress"
   require_relative "platypi/trades/trade_journal"
   require_relative "platypi/trades/trade"
+  require_relative "platypi/trades/order_manager"
 
   # Require bots
   require_relative "platypi/bots/spx_weekly"

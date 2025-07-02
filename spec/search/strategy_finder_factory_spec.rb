@@ -2,7 +2,7 @@
 
 require 'spec_helper'
 
-RSpec.describe Platypi::FinderFactory do
+RSpec.describe Platypi::StrategyFinderFactory do
   describe '.create' do
     let(:underlying_symbol) { 'SPX' }
     let(:expiration_date) { '2025-07-04' }
