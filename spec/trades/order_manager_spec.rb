@@ -64,9 +64,9 @@ RSpec.describe Platypi::Trades::OrderManager do
       expect(order_manager).to be_filled
     end
 
-    it 'returns true when filled_order status is FILLED' do
-      filled_order = double('Order', status: 'FILLED')
-      order_manager.instance_variable_set(:@filled_order, filled_order)
+    it 'returns true when @order status is FILLED' do
+      order = double('Order', status: 'FILLED')
+      order_manager.instance_variable_set(:@order, order)
       expect(order_manager).to be_filled
     end
 
@@ -112,9 +112,9 @@ RSpec.describe Platypi::Trades::OrderManager do
       expect(order_manager).to be_accepted
     end
 
-    it 'returns true when filled_order status is ACCEPTED' do
-      filled_order = double('Order', status: 'ACCEPTED')
-      order_manager.instance_variable_set(:@filled_order, filled_order)
+    it 'returns true when @order status is ACCEPTED' do
+      order = double('Order', status: 'ACCEPTED')
+      order_manager.instance_variable_set(:@order, order)
       expect(order_manager).to be_accepted
     end
 
@@ -239,7 +239,7 @@ RSpec.describe Platypi::Trades::OrderManager do
 
         expect(result).to eq(mock_order)
         expect(order_manager.order_status).to eq('FILLED')
-        expect(order_manager.filled_order).to eq(mock_order)
+        expect(order_manager.order).to eq(mock_order)
       end
     end
 
@@ -285,7 +285,7 @@ RSpec.describe Platypi::Trades::OrderManager do
     end
   end
 
-  describe '#to_h' do
+  describe '#last_order_to_h' do
     before do
       order_manager.instance_variable_set(:@order_id, 'test-123')
       order_manager.instance_variable_set(:@order_instruction, :open)
@@ -297,7 +297,7 @@ RSpec.describe Platypi::Trades::OrderManager do
     end
 
     it 'returns a hash representation of the order state' do
-      result = order_manager.to_h
+      result = order_manager.last_order_to_h
 
       expect(result).to eq({
         order_id: 'test-123',
