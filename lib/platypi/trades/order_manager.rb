@@ -41,11 +41,20 @@ module Platypi
         end
       end
 
+      def opening?
+        @order_instruction == :open
+      end
+
+      def closing?
+        @order_instruction == :close
+      end
+
       def accepted?
         order_status == 'ACCEPTED' || @order&.status == 'ACCEPTED'
       end
 
       def filled?
+        check_order_status
         order_status == 'FILLED' || @order&.status == 'FILLED'
       end
 
@@ -58,10 +67,11 @@ module Platypi
       end
 
       def send_order_test(strategy, order_instruction: :open)
-        build_and_preview_order(
+        order_preview = build_and_preview_order(
           order_instruction: order_instruction,
           **extract_strategy_kwargs(strategy, order_instruction: order_instruction)
         )
+        order_preview.status == 'ACCEPTED'
       end
 
       def send_preview_order(strategy, order_instruction: :open)
@@ -136,7 +146,6 @@ module Platypi
         @order_fees = order_data[:order_fees]
         @order_commission = order_data[:order_commission]
         @order_rejects = order_data[:order_rejects] || []
-        # Note: @order, @filled_order, and @transactions would need to be reconstructed from full order data
       end
 
       def preview_credit_debit
@@ -236,7 +245,7 @@ module Platypi
       def strategy_price(strategy, order_instruction)
         if order_instruction == :open
           strategy.credit
-        elsif order_instruction == :exit
+        elsif order_instruction == :close
           strategy.debit.abs
         else
           raise "Unsupported order instruction: #{order_instruction}"
