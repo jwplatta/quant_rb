@@ -106,7 +106,7 @@ module Platypi
         underlying_symbol: underlying_symbol,
         round: round,
         increment: increment,
-        short_leg: short_leg ? {
+        short_leg: {
           symbol: short_leg.symbol,
           strike: short_leg.strike,
           delta: short_leg.delta,
@@ -115,8 +115,8 @@ module Platypi
           bid: short_leg.bid,
           expiration_date: short_leg.expiration_date,
           open_interest: short_leg.open_interest
-        } : nil,
-        long_leg: long_leg ? {
+        },
+        long_leg: {
           symbol: long_leg.symbol,
           strike: long_leg.strike,
           delta: long_leg.delta,
@@ -125,7 +125,7 @@ module Platypi
           bid: long_leg.bid,
           expiration_date: long_leg.expiration_date,
           open_interest: long_leg.open_interest
-        } : nil
+        }
       }
     end
 
