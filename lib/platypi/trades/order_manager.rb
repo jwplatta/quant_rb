@@ -46,7 +46,7 @@ module Platypi
       end
 
       def closing?
-        @order_instruction == :close
+        @order_instruction == :exit
       end
 
       def accepted?
@@ -54,7 +54,6 @@ module Platypi
       end
 
       def filled?
-        check_order_status
         order_status == 'FILLED' || @order&.status == 'FILLED'
       end
 
@@ -92,7 +91,7 @@ module Platypi
           order_instruction: order_instruction,
           **extract_strategy_kwargs(strategy, order_instruction: order_instruction)
         ).then do |order|
-          update_order_state_from_order(order, order_instruction) unless order.nil?
+          update_order_state_from_order(order, order_instruction)
           order
         end
       end
@@ -111,12 +110,21 @@ module Platypi
         return nil unless order_id
 
         get_order(order_id).then do |order|
-          update_order_state_from_status_check(order)
+          @order_id = order.order_id
+          @order_status = order.status
+          @order = order
+
+          if order.status == 'FILLED'
+            @order_price = order.price
+            @order_fees = order.fees
+            @order_commission = order.commission
+          end
+
           order
         end
       end
 
-      def stop_order
+      def stop_working_order
         return nil unless order_id
 
         cancel_order(order_id).then do |success|
@@ -125,7 +133,7 @@ module Platypi
         end
       end
 
-      def last_order_to_h
+      def to_h
         {
           order_id: order_id,
           order_instruction: order_instruction,
@@ -138,10 +146,10 @@ module Platypi
         }
       end
 
-      def restore_from_hash(order_data)
+      def from_h(order_data)
         @order_id = order_data[:order_id]
         @order_status = order_data[:order_status]
-        @order_instruction = order_data[:order_instruction]&.to_sym if order_data[:order_instruction]
+        @order_instruction = order_data[:order_instruction]
         @order_price = order_data[:order_price]
         @order_fees = order_data[:order_fees]
         @order_commission = order_data[:order_commission]
@@ -167,7 +175,6 @@ module Platypi
         @order_commission = nil
         @order_instruction = nil
         @order_rejects = []
-        @transactions = []
       end
 
       def update_order_state_from_preview(order_preview, order_instruction)
@@ -190,34 +197,16 @@ module Platypi
         if order.nil?
           @order_status = 'REJECTED'
         else
-          @order_id = order.order_id
-          @order_status = order.status
-          @order = order
-          @transactions = nil
-        end
-      end
-
-      def update_order_state_from_status_check(order)
-        @order_status = order.status
-        @order = order
-
-        case order.status
-        when 'FILLED'
           @order = order
           @order_id = order.order_id
           @order_status = order.status
-          # TODO: commission and fees
-        when 'REJECTED', 'EXPIRED', 'CANCELED'
-          @order_status = order.status
-          @order_id = nil
-        when 'PENDING_ACTIVATION', 'WORKING'
-          @order_status = order.status
-        else
-          raise "Unknown order status: #{order.status}"
+          @order_price = order.price
+          @order_fees = order.fees
+          @order_commission = order.commission
         end
       end
 
-      def extract_strategy_kwargs(strategy, order_instruction: :open)
+      def extract_strategy_kwargs(strategy, order_instruction)
         case strategy.type
         when 'callspread', 'putspread'
           {
@@ -245,7 +234,7 @@ module Platypi
       def strategy_price(strategy, order_instruction)
         if order_instruction == :open
           strategy.credit
-        elsif order_instruction == :close
+        elsif order_instruction == :exit
           strategy.debit.abs
         else
           raise "Unsupported order instruction: #{order_instruction}"
