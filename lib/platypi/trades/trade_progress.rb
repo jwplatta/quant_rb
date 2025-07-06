@@ -2,64 +2,28 @@
 
 module Platypi
   class TradeProgress
-    attr_reader :profit_thresh, :loss_thresh, :green_delta, :yellow_delta
-
-    def initialize(profit_thresh: 0.65, loss_thresh: -4.0, green_delta: 0.16, yellow_delta: 0.26)
+    def initialize(profit_thresh: 0.65, loss_thresh: -2.0)
       @profit_thresh = profit_thresh
       @loss_thresh = loss_thresh
-      @green_delta = green_delta
-      @yellow_delta = yellow_delta
+      @progress_perc = nil
+      @current_pnl = nil
     end
 
-    def risk_status(strategy)
-      strategy.check_market # NOTE: ref quoteable.rb
+    attr_reader :profit_thresh, :loss_thresh, :progress_perc, :current_pnl
 
-      # Check if delta is nil first, then check if it responds to undefined? and is undefined
-      if strategy.delta.nil? || (strategy.delta.respond_to?(:undefined?) && strategy.delta.undefined?)
-        'UNKNOWN'
-      elsif strategy.delta.abs < green_delta
-        'GREEN'
-      elsif strategy.delta.abs < yellow_delta
-        'YELLOW'
-      else
-        'RED'
-      end
-    end
+    def check_progress(strategy, trade_history)
+      strategy.check_market
+      current_value = strategy.credit * strategy.quantity * 100.0
 
-    def tested?(strategy)
-      risk_status(strategy) == 'YELLOW'
-    end
+      total_credit = calculate_total_credit(trade_history)
 
-    def danger?(strategy)
-      risk_status(strategy) == 'RED'
-    end
-
-    def exit?(trade)
-      progress_value = progress(trade)
-      return false unless progress_value
-
-      progress_value >= 100 || progress_value <= -100
-    end
-
-    def progress(trade)
-      open_state = trade.open_state
-      return nil unless open_state
-
-      current_strategy = trade.strategy
-      return nil unless current_strategy
-
-      current_strategy.check_market
-      quantity = current_strategy.quantity || 1
-      current_value = current_strategy.credit * current_strategy.quantity * 100.0
-      opening_credit = open_credit(open_state)
-
-      current_pnl = opening_credit - current_value
+      @current_pnl = total_credit - current_value
 
       # Calculate target profit and loss thresholds
-      max_profit = opening_credit.abs * profit_thresh
-      max_loss = opening_credit.abs * loss_thresh.abs
+      max_profit = total_credit.abs * profit_thresh
+      max_loss = total_credit.abs * loss_thresh.abs
 
-      if current_pnl >= max_profit
+      @progress_perc = if current_pnl >= max_profit
         100.0
       elsif current_pnl <= -max_loss
         -100.0
@@ -68,16 +32,64 @@ module Platypi
       else
         (current_pnl / max_loss) * 100.0
       end
+
+      @progress_perc
     end
 
-    def open_credit(trade_state)
-      opening_price = trade_state.order_price || 0.0
-      opening_fees = trade_state.order_fees || 0.0
-      opening_commission = trade_state.order_commission || 0.0
-      quantity = trade_state.strategy.quantity || 1
+    def exit?(strategy, trade_history)
+      check_progress(strategy, trade_history)
 
-      # REVIEW: do we need to multiply by quantity?
-      (opening_price * quantity * 100) - opening_fees - opening_commission
+      progress_perc >= 100 || progress_perc <= -100
+    end
+
+    def to_h
+      {
+        progress_perc: progress_perc,
+        current_pnl: current_pnl,
+        profit_thresh: profit_thresh,
+        loss_thresh: loss_thresh
+      }
+    end
+
+    private
+
+    def calculate_total_credit(trade_history)
+      total_credits = 0.0
+      total_fees = 0.0
+      total_commissions = 0.0
+
+      trade_history.each do |event|
+        order_manager = event.order_manager
+        quantity = event.quantity
+
+        if opening_event?(event)
+          price = order_manager.order_price || 0.0
+          fees = order_manager.order_fees || 0.0
+          commission = order_manager.order_commission || 0.0
+
+          total_credits += (price * quantity * 100)
+          total_fees += fees
+          total_commissions += commission
+        elsif closing_event?(event)
+          price = order_manager.order_price || 0.0
+          fees = order_manager.order_fees || 0.0
+          commission = order_manager.order_commission || 0.0
+
+          total_credits -= (price * quantity * 100)
+          total_fees += fees
+          total_commissions += commission
+        end
+      end
+
+      total_credits - total_fees - total_commissions
+    end
+
+    def opening_event?(event)
+      %w[TRADE_ENTERED ADJUST_ENTERED].include?(event.current_state)
+    end
+
+    def closing_event?(event)
+      event.current_state == 'ADJUST_EXITED' || event.current_state == 'TRADE_EXITED'
     end
   end
 end
