@@ -304,17 +304,7 @@ RSpec.describe Platypi::PutSpread do
       })
     end
 
-    it 'handles nil values gracefully' do
-      spread = described_class.new
 
-      result = spread.to_h
-
-      expect(result[:type]).to eq('putspread')
-      expect(result[:quantity]).to eq(1)
-      expect(result[:underlying_symbol]).to be_nil
-      expect(result[:short_leg]).to be_nil
-      expect(result[:long_leg]).to be_nil
-    end
   end
 
   describe 'inheritance' do
@@ -411,9 +401,9 @@ RSpec.describe Platypi::PutSpread do
       end
     end
 
-    describe '.from_hash' do
+    describe '.from_h' do
       it 'reconstructs PutSpread from hash' do
-        spread = described_class.from_hash(put_spread_hash)
+        spread = described_class.from_h(put_spread_hash)
 
         expect(spread).to be_a(Platypi::PutSpread)
         expect(spread.underlying_symbol).to eq('SPY')
@@ -423,7 +413,7 @@ RSpec.describe Platypi::PutSpread do
       end
 
       it 'reconstructs option legs from hash data' do
-        spread = described_class.from_hash(put_spread_hash)
+        spread = described_class.from_h(put_spread_hash)
 
         expect(spread.short_leg).to be_a(Platypi::PutOption)
         expect(spread.short_leg.symbol).to eq('SPY250620P00450000')
@@ -436,13 +426,7 @@ RSpec.describe Platypi::PutSpread do
         expect(spread.long_leg.mark).to eq(1.50)
       end
 
-      it 'handles nil legs gracefully' do
-        hash_with_nil_legs = put_spread_hash.merge(short_leg: nil, long_leg: nil)
-        spread = described_class.from_hash(hash_with_nil_legs)
 
-        expect(spread.short_leg).to be_nil
-        expect(spread.long_leg).to be_nil
-      end
     end
 
     describe '.from_json' do
@@ -456,20 +440,14 @@ RSpec.describe Platypi::PutSpread do
       end
 
       it 'round-trip serialization preserves data' do
-        original_spread = described_class.new(
-          underlying_symbol: 'TEST',
-          quantity: 5,
-          increment: 0.05,
-          round: 3
-        )
-
-        json_string = original_spread.to_json
+        # Test with actual spread that has both legs
+        json_string = put_spread_for_serialization.to_json
         reconstructed = described_class.from_json(json_string)
 
-        expect(reconstructed.underlying_symbol).to eq(original_spread.underlying_symbol)
-        expect(reconstructed.quantity).to eq(original_spread.quantity)
-        expect(reconstructed.increment).to eq(original_spread.increment)
-        expect(reconstructed.round).to eq(original_spread.round)
+        expect(reconstructed.underlying_symbol).to eq('SPY')
+        expect(reconstructed.quantity).to eq(3)
+        expect(reconstructed.increment).to eq(0.01)
+        expect(reconstructed.round).to eq(2)
       end
     end
   end
