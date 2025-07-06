@@ -506,9 +506,9 @@ RSpec.describe Platypi::IronCondor do
       end
     end
 
-    describe '.from_hash' do
+    describe '.from_h' do
       it 'reconstructs IronCondor from hash' do
-        condor = described_class.from_hash(iron_condor_hash)
+        condor = described_class.from_h(iron_condor_hash)
 
         expect(condor).to be_a(Platypi::IronCondor)
         expect(condor.underlying_symbol).to eq('SPY')
@@ -519,7 +519,7 @@ RSpec.describe Platypi::IronCondor do
       end
 
       it 'reconstructs nested spread objects' do
-        condor = described_class.from_hash(iron_condor_hash)
+        condor = described_class.from_h(iron_condor_hash)
 
         expect(condor.put_spread).to be_a(Platypi::PutSpread)
         expect(condor.call_spread).to be_a(Platypi::CallSpread)

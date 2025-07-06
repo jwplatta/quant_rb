@@ -6,12 +6,12 @@ module Platypi
     class << self
       def from_json(json_string)
         data = JSON.parse(json_string, symbolize_names: true)
-        from_hash(data)
+        from_h(data)
       end
 
-      def from_hash(data)
-        put_spread = PutSpread.from_hash(data[:put_spread])
-        call_spread = CallSpread.from_hash(data[:call_spread])
+      def from_h(data)
+        put_spread = PutSpread.from_h(data[:put_spread])
+        call_spread = CallSpread.from_h(data[:call_spread])
 
         # Handle date conversion - it might be a string from JSON
         expiration_date = data[:expiration_date]
