@@ -34,27 +34,26 @@ module Platypi
 
       def initialize(trade_id)
         @trade_id = trade_id
+        @last_event = nil
+        @trade_history = []
         self.class.ensure_directory_exists
         FileUtils.touch(file_path) unless File.exist?(file_path)
+        load_trade_history
       end
 
-      attr_reader :trade_id
+      attr_reader :trade_id, :trade_history
 
       def log(trade)
-        reset
+        @last_event = trade.clone
+        @trade_history << @last_event
+
         File.open(file_path, 'a') do |file|
           file.puts(trade.to_json)
         end
       end
 
-      def reset
-        @trade_history = nil
-        @last_event = nil
-        @trade_adjustment_events = nil
-      end
-
       def last_event
-        @last_event ||= trade_history.min_by { |trade_event| trade_event.timestamp }
+        @last_event ||= trade_history.min_by { |event| event.timestamp }
       end
 
       def trade_entered_event
@@ -76,8 +75,8 @@ module Platypi
         )
       end
 
-      def trade_history
-        @trade_history ||= File.readlines(file_path).map do |line|
+      def load_trade_history
+        @trade_history = File.readlines(file_path).map do |line|
           line = line.strip
           next if line.empty?
 
