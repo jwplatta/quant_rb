@@ -5,6 +5,39 @@ module Platypi
     VALID_STRATEGIES = %w[ironcondor callspread putspread].freeze
 
     class << self
+      def search(
+        strategy_type:,
+        underlying_symbol:,
+        expiration_date:,
+        quantity: 1,
+        settlement_type: nil,
+        option_root: nil,
+        from_date: nil,
+        to_date: nil,
+        short_delta: 0.05,
+        max_spread: 10.0,
+        min_credit: 100.0,
+        min_open_interest: 0,
+        dist_from_strike: 0.01
+      )
+        create(
+          strategy_type: strategy_type,
+          underlying_symbol: underlying_symbol,
+          expiration_date: expiration_date,
+          quantity: quantity,
+          settlement_type: settlement_type,
+          option_root: option_root
+        ).search(
+          from_date: from_date,
+          to_date: to_date,
+          short_delta: short_delta,
+          max_spread: max_spread,
+          min_credit: min_credit,
+          min_open_interest: min_open_interest,
+          dist_from_strike: dist_from_strike
+        )
+      end
+
       def create(
         strategy_type:,
         underlying_symbol:,
