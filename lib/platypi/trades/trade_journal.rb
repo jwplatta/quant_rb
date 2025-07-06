@@ -10,7 +10,7 @@ module Platypi
     class TradeJournal
       class << self
         def base_path
-          @base_path ||= ENV.fetch(
+          ENV.fetch(
             'TRADE_JOURNAL_PATH',
             File.join(Dir.home, '.platypi', 'trade_journal')
           )
@@ -18,6 +18,17 @@ module Platypi
 
         def ensure_directory_exists
           FileUtils.mkdir_p(base_path) unless Dir.exist?(base_path)
+        end
+
+        def read_or_init(trade_id)
+          new(trade_id)
+        end
+
+        def trade_open?(trade_id)
+          journal = new(trade_id)
+          journal.trade_exited_event.nil? && !journal.trade_entered_event.nil?
+        rescue Errno::ENOENT
+          false
         end
       end
 
@@ -30,12 +41,32 @@ module Platypi
       attr_reader :trade_id
 
       def log(trade)
+        reset
         File.open(file_path, 'a') do |file|
-          file.puts(trade.state_to_json)
+          file.puts(trade.to_json)
         end
       end
 
-      def last_state
+      def reset
+        @trade_history = nil
+        @last_event = nil
+        @trade_adjustment_events = nil
+      end
+
+      def last_event
+        @last_event ||= trade_history.min_by { |trade_event| trade_event.timestamp }
+      end
+
+      def trade_entered_event
+        @trade_entered_event ||= trade_history.find { |event| event.current_state == 'TRADE_ENTERED' }
+      end
+
+      def trade_exited_event
+        @trade_exited_event ||= trade_history.find { |event| event.current_state == 'TRADE_EXITED' }
+      end
+
+      def trade_adjustment_events
+        @trade_adjustment_events ||= trade_history.select { |event| ['ADJUST_EXITED', 'ADJUST_ENTERED'].include?(event.current_state) }
       end
 
       def file_path

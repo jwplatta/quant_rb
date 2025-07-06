@@ -4,465 +4,374 @@ require_relative '../spec_helper'
 require 'fileutils'
 require 'tmpdir'
 
-RSpec.describe Platypi::TradeJournal do
-  let(:test_base_path) { Dir.mktmpdir('trade_journal_test') }
+RSpec.describe Platypi::Trades::TradeJournal do
   let(:trade_id) { 'test-trade-123' }
+  let(:temp_dir) { Dir.mktmpdir }
   let(:journal) { described_class.new(trade_id) }
 
-  # Mock trade object for testing
-  let(:mock_trade) do
-    double('Trade',
-      trade_id: trade_id,
-      status: 'OPEN',
-      to_json: '{"trade_id":"test-trade-123","status":"OPEN","timestamp":"2025-06-20T10:00:00Z"}'
-    )
-  end
-
-  let(:closed_trade) do
-    double('Trade',
-      trade_id: trade_id,
-      status: 'EXIT',
-      to_json: '{"trade_id":"test-trade-123","status":"EXIT","timestamp":"2025-06-20T11:00:00Z"}'
-    )
-  end
-
   before do
-    # Override the base path for testing and clear memoized values
-    described_class.instance_variable_set(:@base_path, test_base_path)
-    described_class.instance_variable_set(:@open_trades_path, nil)
-    described_class.instance_variable_set(:@closed_trades_path, nil)
-
-    # Ensure directories exist for each test
-    described_class.ensure_directories_exist
+    # Set up temporary directory for testing
+    allow(ENV).to receive(:fetch).with('TRADE_JOURNAL_PATH', anything).and_return(temp_dir)
   end
 
   after do
-    # Clean up test directory and reset class variables
-    FileUtils.rm_rf(test_base_path) if Dir.exist?(test_base_path)
-    described_class.instance_variable_set(:@base_path, nil)
-    described_class.instance_variable_set(:@open_trades_path, nil)
-    described_class.instance_variable_set(:@closed_trades_path, nil)
+    # Clean up temporary directory
+    FileUtils.rm_rf(temp_dir)
   end
 
   describe '.base_path' do
-    it 'uses ENV variable if set' do
-      # Reset the memoized value first
-      described_class.instance_variable_set(:@base_path, nil)
-      allow(ENV).to receive(:fetch).with('TRADE_JOURNAL_PATH', anything).and_return('/custom/path')
-      expect(described_class.base_path).to eq('/custom/path')
+    context 'when TRADE_JOURNAL_PATH is set' do
+      it 'returns the environment variable value' do
+        allow(ENV).to receive(:fetch).with('TRADE_JOURNAL_PATH', anything).and_return('/custom/path')
+
+        expect(described_class.base_path).to eq('/custom/path')
+      end
     end
 
-    it 'uses default path if ENV not set' do
-      described_class.instance_variable_set(:@base_path, nil)
-      ENV['TRADE_JOURNAL_PATH'] = nil
-      expected_path = File.join(Dir.home, '.platypi', 'trade_journal')
-      expect(described_class.base_path).to eq(expected_path)
+    context 'when TRADE_JOURNAL_PATH is not set' do
+      it 'returns the default path' do
+        # Override the stub to simulate no environment variable
+        allow(ENV).to receive(:fetch).with('TRADE_JOURNAL_PATH', anything).and_call_original
+        allow(ENV).to receive(:[]).with('TRADE_JOURNAL_PATH').and_return(nil)
+        allow(ENV).to receive(:fetch).with('TRADE_JOURNAL_PATH', anything) do |key, default|
+          default
+        end
+        expected_path = File.join(Dir.home, '.platypi', 'trade_journal')
+
+        expect(described_class.base_path).to eq(expected_path)
+      end
     end
   end
 
-  describe '.ensure_directories_exist' do
-    it 'creates open and closed directories' do
-      # Clear directories first
-      FileUtils.rm_rf(test_base_path)
-      described_class.instance_variable_set(:@base_path, test_base_path)
-      described_class.instance_variable_set(:@open_trades_path, nil)
-      described_class.instance_variable_set(:@closed_trades_path, nil)
+  describe '.ensure_directory_exists' do
+    it 'creates the directory if it does not exist' do
+      custom_path = File.join(temp_dir, 'custom_journal')
+      allow(ENV).to receive(:fetch).with('TRADE_JOURNAL_PATH', anything).and_return(custom_path)
 
-      described_class.ensure_directories_exist
+      expect(Dir.exist?(custom_path)).to be false
+      described_class.ensure_directory_exists
+      expect(Dir.exist?(custom_path)).to be true
+    end
 
-      expect(Dir.exist?(described_class.open_trades_path)).to be true
-      expect(Dir.exist?(described_class.closed_trades_path)).to be true
+    it 'does nothing if the directory already exists' do
+      expect(Dir.exist?(temp_dir)).to be true
+      expect { described_class.ensure_directory_exists }.not_to raise_error
     end
   end
 
   describe '#initialize' do
-    it 'sets trade_id and ensures directories exist' do
+    it 'sets the trade_id' do
       expect(journal.trade_id).to eq(trade_id)
-      expect(Dir.exist?(described_class.open_trades_path)).to be true
-      expect(Dir.exist?(described_class.closed_trades_path)).to be true
+    end
+
+    it 'ensures the directory exists' do
+      expect(described_class).to receive(:ensure_directory_exists)
+      described_class.new(trade_id)
+    end
+
+    it 'creates the file if it does not exist' do
+      new_journal = described_class.new('new-trade-456')
+      expect(File.exist?(new_journal.file_path)).to be true
     end
   end
 
-  describe '#save_trade' do
-    context 'with an open trade' do
-      it 'saves trade to open folder' do
-        journal.save_trade(mock_trade)
-
-        file_path = File.join(described_class.open_trades_path, "#{trade_id}.jsonl")
-        expect(File.exist?(file_path)).to be true
-
-        content = File.read(file_path)
-        expect(content.strip).to eq(mock_trade.to_json)
-      end
-
-      it 'appends multiple states to the same file' do
-        journal.save_trade(mock_trade)
-        journal.save_trade(mock_trade)
-
-        file_path = File.join(described_class.open_trades_path, "#{trade_id}.jsonl")
-        lines = File.readlines(file_path)
-        expect(lines.length).to eq(2)
-        expect(lines.all? { |line| line.strip == mock_trade.to_json }).to be true
-      end
-    end
-
-    context 'with a closed trade' do
-      it 'moves trade file from open to closed folder' do
-        # First save an open trade
-        journal.save_trade(mock_trade)
-        open_file = File.join(described_class.open_trades_path, "#{trade_id}.jsonl")
-        expect(File.exist?(open_file)).to be true
-
-        # Then save a closed trade
-        journal.save_trade(closed_trade)
-        closed_file = File.join(described_class.closed_trades_path, "#{trade_id}.jsonl")
-
-        expect(File.exist?(open_file)).to be false
-        expect(File.exist?(closed_file)).to be true
-
-        # Should contain both states
-        lines = File.readlines(closed_file)
-        expect(lines.length).to eq(2)
-      end
+  describe '#file_path' do
+    it 'returns the correct file path' do
+      expected_path = File.join(temp_dir, "trade_#{trade_id}.jsonl")
+      expect(journal.file_path).to eq(expected_path)
     end
   end
 
-  describe '#current_file_path' do
-    context 'when trade file exists in open folder' do
-      it 'returns open folder path' do
-        File.write(File.join(described_class.open_trades_path, "#{trade_id}.jsonl"), mock_trade.to_json)
-
-        expected_path = File.join(described_class.open_trades_path, "#{trade_id}.jsonl")
-        expect(journal.current_file_path).to eq(expected_path)
-      end
+  describe '#log' do
+    let(:mock_trade) do
+      double('Trade',
+        to_json: '{"trade_id":"test-123","state":"TRADE_ENTERED","timestamp":"2025-07-06T10:00:00Z"}')
     end
 
-    context 'when trade file exists in closed folder' do
-      it 'returns closed folder path' do
-        File.write(File.join(described_class.closed_trades_path, "#{trade_id}.jsonl"), closed_trade.to_json)
+    it 'writes trade data to the file' do
+      journal.log(mock_trade)
 
-        expected_path = File.join(described_class.closed_trades_path, "#{trade_id}.jsonl")
-        expect(journal.current_file_path).to eq(expected_path)
-      end
+      content = File.read(journal.file_path)
+      expect(content).to include(mock_trade.to_json)
     end
 
-    context 'when trade file does not exist' do
-      it 'returns default open folder path' do
-        expected_path = File.join(described_class.open_trades_path, "#{trade_id}.jsonl")
-        expect(journal.current_file_path).to eq(expected_path)
-      end
+    it 'appends to existing file content' do
+      first_trade = double('Trade', to_json: '{"trade_id":"test-123","state":"TRADE_FOUND"}')
+      second_trade = double('Trade', to_json: '{"trade_id":"test-123","state":"TRADE_ENTERED"}')
+
+      journal.log(first_trade)
+      journal.log(second_trade)
+
+      content = File.read(journal.file_path)
+      expect(content).to include(first_trade.to_json)
+      expect(content).to include(second_trade.to_json)
+    end
+
+    it 'calls reset before logging' do
+      expect(journal).to receive(:reset)
+      journal.log(mock_trade)
+    end
+  end
+
+  describe '#reset' do
+    it 'resets all cached instance variables' do
+      # Set some cached values
+      journal.instance_variable_set(:@trade_history, 'cached_value')
+      journal.instance_variable_set(:@last_event, 'cached_value')
+      journal.instance_variable_set(:@trade_adjustment_events, ['cached_value'])
+
+      journal.reset
+
+      expect(journal.instance_variable_get(:@trade_history)).to be_nil
+      expect(journal.instance_variable_get(:@last_event)).to be_nil
+      expect(journal.instance_variable_get(:@trade_adjustment_events)).to be_nil
     end
   end
 
   describe '#trade_history' do
+    let(:mock_trade_1) do
+      double('Trade',
+        current_state: 'TRADE_FOUND',
+        timestamp: Time.parse('2025-07-06T10:00:00Z'))
+    end
+
+    let(:mock_trade_2) do
+      double('Trade',
+        current_state: 'TRADE_ENTERED',
+        timestamp: Time.parse('2025-07-06T11:00:00Z'))
+    end
+
     before do
-      # Mock the Trade.from_json method
-      allow(Platypi::Trades::Trade).to receive(:from_json) do |json_string|
-        data = JSON.parse(json_string)
-        double('Trade', trade_id: data['trade_id'], status: data['status'])
-      end
+      # Write test data to file
+      File.write(journal.file_path,
+        '{"trade_id":"test-123","state":"TRADE_FOUND","timestamp":"2025-07-06T10:00:00Z"}' + "\n" +
+        '{"trade_id":"test-123","state":"TRADE_ENTERED","timestamp":"2025-07-06T11:00:00Z"}' + "\n")
     end
 
-    it 'returns empty array when file does not exist' do
-      expect(journal.trade_history).to eq([])
-    end
-
-    it 'returns all trade states from file' do
-      journal.save_trade(mock_trade)
-      journal.save_trade(closed_trade)
+    it 'parses trade history from file' do
+      expect(Platypi::Trades::Trade).to receive(:from_json).twice.and_return(mock_trade_1, mock_trade_2)
 
       history = journal.trade_history
-      expect(history.length).to eq(2)
-      expect(history.first.status).to eq('OPEN')
-      expect(history.last.status).to eq('EXIT')
+      expect(history).to contain_exactly(mock_trade_1, mock_trade_2)
     end
 
-    it 'handles empty lines gracefully' do
-      file_path = File.join(described_class.open_trades_path, "#{trade_id}.jsonl")
-      File.write(file_path, "#{mock_trade.to_json}\n\n#{closed_trade.to_json}\n")
+    it 'handles empty lines' do
+      File.write(journal.file_path,
+        '{"trade_id":"test-123","state":"TRADE_FOUND"}' + "\n" +
+        '' + "\n" +
+        '{"trade_id":"test-123","state":"TRADE_ENTERED"}' + "\n")
+
+      expect(Platypi::Trades::Trade).to receive(:from_json).twice.and_return(mock_trade_1, mock_trade_2)
 
       history = journal.trade_history
-      expect(history.length).to eq(2)
+      expect(history).to contain_exactly(mock_trade_1, mock_trade_2)
+    end
+
+    it 'handles JSON parsing errors gracefully' do
+      File.write(journal.file_path,
+        '{"trade_id":"test-123","state":"TRADE_FOUND"}' + "\n" +
+        'invalid json' + "\n" +
+        '{"trade_id":"test-123","state":"TRADE_ENTERED"}' + "\n")
+
+      expect(Platypi::Trades::Trade).to receive(:from_json).with('{"trade_id":"test-123","state":"TRADE_FOUND"}').and_return(mock_trade_1)
+      expect(Platypi::Trades::Trade).to receive(:from_json).with('invalid json').and_raise(JSON::ParserError.new('invalid'))
+      expect(Platypi::Trades::Trade).to receive(:from_json).with('{"trade_id":"test-123","state":"TRADE_ENTERED"}').and_return(mock_trade_2)
+
+      expect { journal.trade_history }.to output(/Error parsing trade history line/).to_stdout
+      history = journal.trade_history
+      expect(history).to contain_exactly(mock_trade_1, mock_trade_2)
+    end
+
+    it 'caches the result' do
+      expect(File).to receive(:readlines).once.and_return(['{"test":"data"}'])
+      expect(Platypi::Trades::Trade).to receive(:from_json).once.and_return(mock_trade_1)
+
+      journal.trade_history
+      journal.trade_history # Second call should use cache
     end
   end
 
-  describe '#delete_trade' do
-    before do
-      journal.save_trade(mock_trade)
+  describe '#last_event' do
+    let(:early_trade) do
+      double('Trade', timestamp: Time.parse('2025-07-06T10:00:00Z'))
     end
 
-    it 'deletes the trade file' do
-      file_path = File.join(described_class.open_trades_path, "#{trade_id}.jsonl")
-      expect(File.exist?(file_path)).to be true
-
-      journal.delete_trade
-      expect(File.exist?(file_path)).to be false
-    end
-  end
-
-  describe '.load_open_trades' do
-    let(:trade1_id) { 'trade-1' }
-    let(:trade2_id) { 'trade-2' }
-    let(:closed_trade_id) { 'closed-trade' }
-
-    before do
-      # Mock Trade.from_json to return different trades based on content
-      allow(Platypi::Trades::Trade).to receive(:from_json) do |json_string|
-        data = JSON.parse(json_string)
-        double('Trade',
-          trade_id: data['trade_id'],
-          status: data['status']
-        )
-      end
-
-      # Create test files
-      File.write(
-        File.join(described_class.open_trades_path, "#{trade1_id}.jsonl"),
-        '{"trade_id":"trade-1","status":"OPEN"}'
-      )
-      File.write(
-        File.join(described_class.open_trades_path, "#{trade2_id}.jsonl"),
-        '{"trade_id":"trade-2","status":"PREVIEW_OPEN"}'
-      )
-      File.write(
-        File.join(described_class.open_trades_path, "#{closed_trade_id}.jsonl"),
-        '{"trade_id":"closed-trade","status":"EXIT"}'
-      )
+    let(:late_trade) do
+      double('Trade', timestamp: Time.parse('2025-07-06T11:00:00Z'))
     end
 
-    it 'returns only trades with open status' do
-      trades = described_class.load_open_trades
-      expect(trades.length).to eq(2)
-      expect(trades.map(&:trade_id)).to contain_exactly(trade1_id, trade2_id)
+    it 'returns the trade with the earliest timestamp' do
+      allow(journal).to receive(:trade_history).and_return([late_trade, early_trade])
+
+      expect(journal.last_event).to eq(early_trade)
+    end
+
+    it 'caches the result' do
+      allow(journal).to receive(:trade_history).and_return([late_trade, early_trade])
+
+      result1 = journal.last_event
+      result2 = journal.last_event
+
+      expect(result1).to eq(result2)
     end
   end
 
-  describe '.load_closed_trades' do
-    let(:closed_trade_id) { 'closed-trade-1' }
-
-    before do
-      allow(Platypi::Trades::Trade).to receive(:from_json) do |json_string|
-        data = JSON.parse(json_string)
-        double('Trade',
-          trade_id: data['trade_id'],
-          status: data['status']
-        )
-      end
-
-      File.write(
-        File.join(described_class.closed_trades_path, "#{closed_trade_id}.jsonl"),
-        '{"trade_id":"closed-trade-1","status":"EXIT"}'
-      )
+  describe '#trade_entered_event' do
+    let(:trade_found) do
+      double('Trade', current_state: 'TRADE_FOUND')
     end
 
-    it 'returns trades from closed folder' do
-      trades = described_class.load_closed_trades
-      expect(trades.length).to eq(1)
-      expect(trades.first.trade_id).to eq(closed_trade_id)
+    let(:trade_entered) do
+      double('Trade', current_state: 'TRADE_ENTERED')
+    end
+
+    it 'returns the first trade with TRADE_ENTERED state' do
+      allow(journal).to receive(:trade_history).and_return([trade_found, trade_entered])
+
+      expect(journal.trade_entered_event).to eq(trade_entered)
+    end
+
+    it 'returns nil when no trade entered' do
+      allow(journal).to receive(:trade_history).and_return([trade_found])
+
+      expect(journal.trade_entered_event).to be_nil
     end
   end
 
-  describe '.load_trade' do
-    let(:open_trade_id) { 'open-trade' }
-    let(:closed_trade_id) { 'closed-trade' }
-
-    before do
-      allow(Platypi::Trades::Trade).to receive(:from_json) do |json_string|
-        data = JSON.parse(json_string)
-        double('Trade',
-          trade_id: data['trade_id'],
-          status: data['status']
-        )
-      end
-
-      File.write(
-        File.join(described_class.open_trades_path, "#{open_trade_id}.jsonl"),
-        '{"trade_id":"open-trade","status":"OPEN"}'
-      )
-      File.write(
-        File.join(described_class.closed_trades_path, "#{closed_trade_id}.jsonl"),
-        '{"trade_id":"closed-trade","status":"EXIT"}'
-      )
+  describe '#trade_exited_event' do
+    let(:trade_entered) do
+      double('Trade', current_state: 'TRADE_ENTERED')
     end
 
-    it 'finds trade in open folder' do
-      trade = described_class.load_trade(open_trade_id)
-      expect(trade).not_to be_nil
-      expect(trade.trade_id).to eq(open_trade_id)
+    let(:trade_exited) do
+      double('Trade', current_state: 'TRADE_EXITED')
     end
 
-    it 'finds trade in closed folder' do
-      trade = described_class.load_trade(closed_trade_id)
-      expect(trade).not_to be_nil
-      expect(trade.trade_id).to eq(closed_trade_id)
+    it 'returns the first trade with TRADE_EXITED state' do
+      allow(journal).to receive(:trade_history).and_return([trade_entered, trade_exited])
+
+      expect(journal.trade_exited_event).to eq(trade_exited)
     end
 
-    it 'returns nil for non-existent trade' do
-      trade = described_class.load_trade('non-existent')
-      expect(trade).to be_nil
+    it 'returns nil when no trade exited' do
+      allow(journal).to receive(:trade_history).and_return([trade_entered])
+
+      expect(journal.trade_exited_event).to be_nil
+    end
+  end
+
+  describe '#trade_adjustment_events' do
+    let(:trade_entered) do
+      double('Trade', current_state: 'TRADE_ENTERED')
+    end
+
+    let(:adjust_exited) do
+      double('Trade', current_state: 'ADJUST_EXITED')
+    end
+
+    let(:adjust_entered) do
+      double('Trade', current_state: 'ADJUST_ENTERED')
+    end
+
+    it 'returns only trades with adjustment states' do
+      allow(journal).to receive(:trade_history).and_return([trade_entered, adjust_exited, adjust_entered])
+
+      expect(journal.trade_adjustment_events).to contain_exactly(adjust_exited, adjust_entered)
+    end
+
+    it 'returns empty array when no adjustments' do
+      allow(journal).to receive(:trade_history).and_return([trade_entered])
+
+      expect(journal.trade_adjustment_events).to be_empty
+    end
+  end
+
+  describe '.read_or_init' do
+    it 'returns a new TradeJournal instance' do
+      result = described_class.read_or_init('test-trade-456')
+
+      expect(result).to be_a(described_class)
+      expect(result.trade_id).to eq('test-trade-456')
     end
   end
 
   describe '.trade_open?' do
-    let(:open_trade_id) { 'open-trade' }
+    context 'when trade has entered but not exited' do
+      it 'returns true' do
+        trade_id = 'open-trade-123'
+        journal = described_class.new(trade_id)
 
-    before do
-      allow(Platypi::Trades::Trade).to receive(:from_json) do |json_string|
-        data = JSON.parse(json_string)
-        double('Trade',
-          trade_id: data['trade_id'],
-          status: data['status']
-        )
+        entered_trade = double('Trade', current_state: 'TRADE_ENTERED')
+        allow(journal).to receive(:trade_entered_event).and_return(entered_trade)
+        allow(journal).to receive(:trade_exited_event).and_return(nil)
+        allow(described_class).to receive(:new).with(trade_id).and_return(journal)
+
+        expect(described_class.trade_open?(trade_id)).to be true
       end
     end
 
-    it 'returns true for open trade' do
-      File.write(
-        File.join(described_class.open_trades_path, "#{open_trade_id}.jsonl"),
-        '{"trade_id":"open-trade","status":"OPEN"}'
-      )
+    context 'when trade has not entered' do
+      it 'returns false' do
+        trade_id = 'no-entry-trade-123'
+        journal = described_class.new(trade_id)
 
-      expect(described_class.trade_open?(open_trade_id)).to be true
+        allow(journal).to receive(:trade_entered_event).and_return(nil)
+        allow(journal).to receive(:trade_exited_event).and_return(nil)
+        allow(described_class).to receive(:new).with(trade_id).and_return(journal)
+
+        expect(described_class.trade_open?(trade_id)).to be false
+      end
     end
 
-    it 'returns false for non-existent trade' do
-      expect(described_class.trade_open?('non-existent')).to be false
+    context 'when trade has entered and exited' do
+      it 'returns false' do
+        trade_id = 'closed-trade-123'
+        journal = described_class.new(trade_id)
+
+        entered_trade = double('Trade', current_state: 'TRADE_ENTERED')
+        exited_trade = double('Trade', current_state: 'TRADE_EXITED')
+        allow(journal).to receive(:trade_entered_event).and_return(entered_trade)
+        allow(journal).to receive(:trade_exited_event).and_return(exited_trade)
+        allow(described_class).to receive(:new).with(trade_id).and_return(journal)
+
+        expect(described_class.trade_open?(trade_id)).to be false
+      end
     end
 
-    it 'returns false for closed trade in open folder' do
-      File.write(
-        File.join(described_class.open_trades_path, "#{open_trade_id}.jsonl"),
-        '{"trade_id":"open-trade","status":"EXIT"}'
-      )
+    context 'when file does not exist' do
+      it 'returns false' do
+        trade_id = 'nonexistent-trade-123'
+        journal = described_class.new(trade_id)
 
-      expect(described_class.trade_open?(open_trade_id)).to be false
+        allow(journal).to receive(:trade_entered_event).and_raise(Errno::ENOENT)
+        allow(described_class).to receive(:new).with(trade_id).and_return(journal)
+
+        expect(described_class.trade_open?(trade_id)).to be false
+      end
     end
   end
 
-  describe '.open_trade_count' do
-    it 'returns count of files in open trades folder' do
-      expect(described_class.open_trade_count).to eq(0)
+  describe 'file operations' do
+    it 'handles non-existent files gracefully' do
+      non_existent_journal = described_class.new('non-existent-trade')
+      FileUtils.rm_f(non_existent_journal.file_path)
 
-      File.write(File.join(described_class.open_trades_path, 'trade1.jsonl'), '{}')
-      File.write(File.join(described_class.open_trades_path, 'trade2.jsonl'), '{}')
-
-      expect(described_class.open_trade_count).to eq(2)
+      expect { non_existent_journal.trade_history }.to raise_error(Errno::ENOENT)
     end
   end
 
-  describe 'thread safety' do
-    it 'uses mutex for file operations' do
-      mutex = described_class.mutex
-      expect(mutex).to receive(:synchronize).at_least(:once).and_call_original
-
-      journal.save_trade(mock_trade)
-    end
-  end
-
-  describe '#open_state' do
-    let(:mock_open_trade) do
+  describe 'integration with actual file system' do
+    let(:integration_journal) { described_class.new('integration-test') }
+    let(:mock_trade) do
       double('Trade',
-        trade_id: trade_id,
-        status: 'OPEN',
-        order_price: 1.50,
-        order_fees: 1.14,
-        order_commission: 1.30,
-        to_json: '{"trade_id":"test-trade-123","status":"OPEN","order_price":1.50}'
-      )
+        to_json: '{"trade_id":"integration-test","state":"TRADE_ENTERED","timestamp":"2025-07-06T10:00:00Z"}')
     end
 
-    let(:mock_preview_open_trade) do
-      double('Trade',
-        trade_id: trade_id,
-        status: 'PREVIEW_OPEN',
-        order_price: 1.25,
-        order_fees: 1.14,
-        order_commission: 1.30,
-        to_json: '{"trade_id":"test-trade-123","status":"PREVIEW_OPEN","order_price":1.25}'
-      )
-    end
+    it 'can write and read trade data' do
+      integration_journal.log(mock_trade)
 
-    let(:mock_exit_trade) do
-      double('Trade',
-        trade_id: trade_id,
-        status: 'EXIT',
-        order_price: 0.75,
-        order_fees: 1.14,
-        order_commission: 1.30,
-        to_json: '{"trade_id":"test-trade-123","status":"EXIT","order_price":0.75}'
-      )
-    end
-
-    before do
-      allow(Platypi::Trades::Trade).to receive(:from_json) do |json_string|
-        data = JSON.parse(json_string)
-        case data['status']
-        when 'OPEN'
-          mock_open_trade
-        when 'PREVIEW_OPEN'
-          mock_preview_open_trade
-        when 'EXIT'
-          mock_exit_trade
-        end
-      end
-    end
-
-    context 'when trade has OPEN state in history' do
-      before do
-        journal.save_trade(mock_open_trade)
-        journal.save_trade(mock_exit_trade)
-      end
-
-      it 'returns the trade state with OPEN status' do
-        open_state = journal.open_state
-        expect(open_state).to eq(mock_open_trade)
-        expect(open_state.status).to eq('OPEN')
-        expect(open_state.order_price).to eq(1.50)
-      end
-    end
-
-    context 'when trade has PREVIEW_OPEN state in history' do
-      before do
-        journal.save_trade(mock_preview_open_trade)
-        journal.save_trade(mock_exit_trade)
-      end
-
-      it 'returns the trade state with PREVIEW_OPEN status' do
-        open_state = journal.open_state
-        expect(open_state).to eq(mock_preview_open_trade)
-        expect(open_state.status).to eq('PREVIEW_OPEN')
-        expect(open_state.order_price).to eq(1.25)
-      end
-    end
-
-    context 'when trade has no open states in history' do
-      before do
-        journal.save_trade(mock_exit_trade)
-      end
-
-      it 'returns nil' do
-        expect(journal.open_state).to be_nil
-      end
-    end
-
-    context 'when trade history is empty' do
-      it 'returns nil' do
-        expect(journal.open_state).to be_nil
-      end
-    end
-
-    context 'when trade has both OPEN and PREVIEW_OPEN states' do
-      before do
-        journal.save_trade(mock_preview_open_trade)
-        journal.save_trade(mock_open_trade)
-        journal.save_trade(mock_exit_trade)
-      end
-
-      it 'returns the first open state found (PREVIEW_OPEN in this case)' do
-        open_state = journal.open_state
-        expect(open_state).to eq(mock_preview_open_trade)
-        expect(open_state.status).to eq('PREVIEW_OPEN')
-      end
+      content = File.read(integration_journal.file_path)
+      expect(content.strip).to eq(mock_trade.to_json)
     end
   end
 end
