@@ -31,14 +31,14 @@ module Platypi
       nil
     end
 
-    def instruments
-      []
-    end
-
     def to_h
       {
         type: type
       }
+    end
+
+    def nil?
+      true
     end
 
     def to_json(*args)
