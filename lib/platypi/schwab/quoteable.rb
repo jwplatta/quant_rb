@@ -25,13 +25,19 @@ module Platypi
     end
 
     def market_change?
-      return false unless @last_quote
-
-      old_mark = @last_quote.mark
-      check_market
-      return false unless old_mark && @mark
-
-      ((@mark - old_mark).abs / old_mark.to_f) > 0.05
+      if last_quote.nil?
+        check_market
+        false
+      else
+        old_mark = last_quote.mark
+        check_market
+        
+        if old_mark && mark
+          ((@mark - old_mark).abs / old_mark.to_f) > 0.05
+        else
+          false
+        end
+      end
     end
 
     def check_market
