@@ -5,10 +5,10 @@ module Platypi
     class << self
       def from_json(json_string)
         data = JSON.parse(json_string, symbolize_names: true)
-        from_hash(data)
+        from_h(data)
       end
 
-      def from_hash(data)
+      def from_h(data)
         short_leg = data[:short_leg] ? create_option_from_hash(data[:short_leg]) : nil
         long_leg = data[:long_leg] ? create_option_from_hash(data[:long_leg]) : nil
 
