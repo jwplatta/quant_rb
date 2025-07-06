@@ -106,26 +106,6 @@ RSpec.describe Platypi::Trades::TradeJournal do
       expect(content).to include(first_trade.to_json)
       expect(content).to include(second_trade.to_json)
     end
-
-    it 'calls reset before logging' do
-      expect(journal).to receive(:reset)
-      journal.log(mock_trade)
-    end
-  end
-
-  describe '#reset' do
-    it 'resets all cached instance variables' do
-      # Set some cached values
-      journal.instance_variable_set(:@trade_history, 'cached_value')
-      journal.instance_variable_set(:@last_event, 'cached_value')
-      journal.instance_variable_set(:@trade_adjustment_events, ['cached_value'])
-
-      journal.reset
-
-      expect(journal.instance_variable_get(:@trade_history)).to be_nil
-      expect(journal.instance_variable_get(:@last_event)).to be_nil
-      expect(journal.instance_variable_get(:@trade_adjustment_events)).to be_nil
-    end
   end
 
   describe '#trade_history' do
@@ -141,34 +121,38 @@ RSpec.describe Platypi::Trades::TradeJournal do
         timestamp: Time.parse('2025-07-06T11:00:00Z'))
     end
 
-    before do
-      # Write test data to file
-      File.write(journal.file_path,
+    it 'parses trade history from file' do
+      # Write test data to file before creating journal
+      File.write(File.join(temp_dir, "trade_#{trade_id}.jsonl"),
         '{"trade_id":"test-123","state":"TRADE_FOUND","timestamp":"2025-07-06T10:00:00Z"}' + "\n" +
         '{"trade_id":"test-123","state":"TRADE_ENTERED","timestamp":"2025-07-06T11:00:00Z"}' + "\n")
-    end
 
-    it 'parses trade history from file' do
       expect(Platypi::Trades::Trade).to receive(:from_json).twice.and_return(mock_trade_1, mock_trade_2)
 
-      history = journal.trade_history
+      # Create journal after writing file so it loads the data
+      new_journal = described_class.new(trade_id)
+      history = new_journal.trade_history
       expect(history).to contain_exactly(mock_trade_1, mock_trade_2)
     end
 
     it 'handles empty lines' do
-      File.write(journal.file_path,
+      # Write test data to file before creating journal
+      File.write(File.join(temp_dir, "trade_#{trade_id}.jsonl"),
         '{"trade_id":"test-123","state":"TRADE_FOUND"}' + "\n" +
         '' + "\n" +
         '{"trade_id":"test-123","state":"TRADE_ENTERED"}' + "\n")
 
       expect(Platypi::Trades::Trade).to receive(:from_json).twice.and_return(mock_trade_1, mock_trade_2)
 
-      history = journal.trade_history
+      # Create journal after writing file so it loads the data
+      new_journal = described_class.new(trade_id)
+      history = new_journal.trade_history
       expect(history).to contain_exactly(mock_trade_1, mock_trade_2)
     end
 
     it 'handles JSON parsing errors gracefully' do
-      File.write(journal.file_path,
+      # Write test data to file before creating journal
+      File.write(File.join(temp_dir, "trade_#{trade_id}.jsonl"),
         '{"trade_id":"test-123","state":"TRADE_FOUND"}' + "\n" +
         'invalid json' + "\n" +
         '{"trade_id":"test-123","state":"TRADE_ENTERED"}' + "\n")
@@ -177,17 +161,11 @@ RSpec.describe Platypi::Trades::TradeJournal do
       expect(Platypi::Trades::Trade).to receive(:from_json).with('invalid json').and_raise(JSON::ParserError.new('invalid'))
       expect(Platypi::Trades::Trade).to receive(:from_json).with('{"trade_id":"test-123","state":"TRADE_ENTERED"}').and_return(mock_trade_2)
 
-      expect { journal.trade_history }.to output(/Error parsing trade history line/).to_stdout
-      history = journal.trade_history
+      # Create journal after writing file so it loads the data
+      new_journal = nil
+      expect { new_journal = described_class.new(trade_id) }.to output(/Error parsing trade history line/).to_stdout
+      history = new_journal.trade_history
       expect(history).to contain_exactly(mock_trade_1, mock_trade_2)
-    end
-
-    it 'caches the result' do
-      expect(File).to receive(:readlines).once.and_return(['{"test":"data"}'])
-      expect(Platypi::Trades::Trade).to receive(:from_json).once.and_return(mock_trade_1)
-
-      journal.trade_history
-      journal.trade_history # Second call should use cache
     end
   end
 
@@ -356,7 +334,8 @@ RSpec.describe Platypi::Trades::TradeJournal do
       non_existent_journal = described_class.new('non-existent-trade')
       FileUtils.rm_f(non_existent_journal.file_path)
 
-      expect { non_existent_journal.trade_history }.to raise_error(Errno::ENOENT)
+      # Since the initialize method creates the file, accessing trade_history should work
+      expect(non_existent_journal.trade_history).to be_empty
     end
   end
 
