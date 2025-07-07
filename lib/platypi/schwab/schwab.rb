@@ -158,7 +158,7 @@ module Platypi
     def build_order(order_instruction: :open, **strategy_kwargs)
       OrderFactory.build(
         order_instruction: order_instruction,
-        account_number: ENV['SCHWAB_ACCOUNT_NUMBER'],
+        account_number: ENV['SCHWAB_ACCOUNT_NUMBER'], # REVIEW: want to be able to use multiple accounts. pass an account name
         **strategy_kwargs
       )
     end
