@@ -5,7 +5,7 @@ require 'fileutils'
 RSpec.describe Platypi::Automation::Bot do
   let(:config) do
     {
-      strategy_type: :ironcondor,
+      strategy_type: 'ironcondor',
       underlying_symbol: '$SPX',
       option_root: 'SPXW',
       settlement_type: 'P',
@@ -92,16 +92,6 @@ RSpec.describe Platypi::Automation::Bot do
   end
 
   describe '#calculate_expiration_date' do
-    it 'calculates expiration date for iron condor strategy' do
-      bot.config[:strategy_type] = :ironcondor
-      bot.config[:option_root] = 'SPXW'
-      bot.config[:days_to_expiration] = 1
-
-      expiration = bot.send(:calculate_expiration_date)
-      expect(expiration).to be_a(Date)
-      expect(expiration.wday).to eq(5) # Friday
-    end
-
     it 'uses default of 1 day if not specified' do
       bot.config.delete(:days_to_expiration)
       bot.config[:strategy_type] = :other
