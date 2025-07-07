@@ -51,6 +51,13 @@ module Platypi
       }
     end
 
+    def from_h(data)
+      @progress_perc = data[:progress_perc]
+      @current_pnl = data[:current_pnl]
+      @profit_thresh = data[:profit_thresh] if data[:profit_thresh]
+      @loss_thresh = data[:loss_thresh] if data[:loss_thresh]
+    end
+
     private
 
     def calculate_total_credit(trade_history)
