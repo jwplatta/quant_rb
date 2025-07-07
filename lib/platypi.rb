@@ -47,7 +47,6 @@ module Platypi
   require_relative "platypi/search/iron_condor_finder"
 
   # Require trades components
-  require_relative "platypi/trades"
   require_relative "platypi/trades/trade"
   require_relative "platypi/trades/trade_progress"
   require_relative "platypi/trades/trade_journal"
