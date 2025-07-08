@@ -3,25 +3,29 @@ require 'fileutils'
 module Platypi
   module Automation
     class Bot
-      attr_reader :name, :mode, :account,
+      attr_reader :name, :mode, :account_name,
         :current_trade, :running, :config, :sleep_interval
 
-      def initialize(name:, mode: :paper, account: nil, config: {})
+      def initialize(name:, mode: :paper, account_name: nil, config: {})
         @name = name
         @mode = mode
-        @account = account
+        @account_name = account_name
         @config = config
         @running = false
         @current_trade = nil
         @sleep_interval = config[:sleep_interval] || 5
+      end
 
-        restore_current_trade if current_trade_file_exists?
+      def clear_trade
+        clear_current_trade_file
       end
 
       def start
         @running = true
         puts "Starting #{name} bot in #{mode} mode..."
-        puts "Account: #{account}" if account
+        puts "Using Account: #{account_name}" if account_name
+
+        try_restore_current_trade
 
         while @running
           begin
@@ -86,11 +90,11 @@ module Platypi
       end
 
       def create_new_trade
-        expiration_date = calculate_expiration_date
+        expiration_date = find_expiration_date
 
         Platypi::Trades::Trade.new(
           strategy_type: @config[:strategy_type],
-          paper_trading: (@mode == :paper),
+          paper_trading: @mode == :paper,
           underlying_symbol: @config[:underlying_symbol],
           option_root: @config[:option_root],
           settlement_type: @config[:settlement_type],
@@ -102,11 +106,12 @@ module Platypi
           profit_thresh: @config[:profit_target_threshold] || 0.7,
           loss_thresh: @config[:max_loss_threshold] || -2.0,
           max_spread: @config[:max_spread] || 10.0,
-          dist_from_strike: @config[:dist_from_strike] || 0.01
+          dist_from_strike: @config[:dist_from_strike] || 0.01,
+          increment: @config[:increment] || 0.01
         )
       end
 
-      def calculate_expiration_date
+      def find_expiration_date
         days = @config[:days_to_expiration] || 1
         next_weekday(Date.today + days)
       end
@@ -150,18 +155,22 @@ module Platypi
         File.exist?(current_trade_file_path)
       end
 
-      def restore_current_trade
+      def try_restore_current_trade
         trade_id = File.read(current_trade_file_path).strip
-        puts "Found existing trade ID: #{trade_id}"
 
-        if Platypi::Trades::TradeJournal.trade_open?(trade_id)
-          journal = Platypi::Trades::TradeJournal.read_or_init(trade_id)
-          @current_trade = journal.last_event
-          puts "Restored existing trade: #{trade_id}"
-        else
-          puts "Trade #{trade_id} is no longer open, clearing file"
-          clear_current_trade_file
+        unless trade_id.empty?
+          puts "Found existing trade ID: #{trade_id}"
+          trade = Platypi::Trades::Trade.load(trade_id)
+
+          if trade
+            @current_trade = trade
+            puts "Restored existing trade: #{trade_id}"
+          else
+            puts "Trade #{trade_id} is no longer open, clearing file"
+            clear_current_trade_file
+          end
         end
+
       rescue => e
         puts "Error restoring trade: #{e.message}"
         clear_current_trade_file
