@@ -68,7 +68,7 @@ module Platypi
       def send_order_test(strategy, order_instruction: :open)
         order_preview = build_and_preview_order(
           order_instruction: order_instruction,
-          **extract_strategy_kwargs(strategy, order_instruction: order_instruction)
+          **extract_strategy_kwargs(strategy, order_instruction)
         )
         order_preview.status == 'ACCEPTED'
       end
@@ -76,7 +76,7 @@ module Platypi
       def send_preview_order(strategy, order_instruction: :open)
         build_and_preview_order(
           order_instruction: order_instruction,
-          **extract_strategy_kwargs(strategy, order_instruction: order_instruction)
+          **extract_strategy_kwargs(strategy, order_instruction)
         ).then do |order_preview|
           update_order_state_from_preview(order_preview, order_instruction)
           order_preview
@@ -89,7 +89,7 @@ module Platypi
         build_and_replace_order(
           order_id,
           order_instruction: order_instruction,
-          **extract_strategy_kwargs(strategy, order_instruction: order_instruction)
+          **extract_strategy_kwargs(strategy, order_instruction)
         ).then do |order|
           update_order_state_from_order(order, order_instruction)
           order
@@ -99,7 +99,7 @@ module Platypi
       def send_order(strategy, order_instruction: :open)
         build_and_place_order(
           order_instruction: order_instruction,
-          **extract_strategy_kwargs(strategy, order_instruction: order_instruction)
+          **extract_strategy_kwargs(strategy, order_instruction)
         ).then do |order|
           update_order_state_from_order(order, order_instruction)
           order
@@ -179,6 +179,7 @@ module Platypi
 
       def update_order_state_from_preview(order_preview, order_instruction)
         @order_id = order_preview.order_id
+        @order = order_preview
         @order_instruction = order_instruction
         @order_price = order_preview.price
         @order_fees = order_preview.fees
