@@ -18,7 +18,8 @@ module Platypi
         max_spread: 10.0,
         min_credit: 100.0,
         min_open_interest: 0,
-        dist_from_strike: 0.01
+        dist_from_strike: 0.01,
+        increment: 0.01
       )
         create(
           strategy_type: strategy_type,
@@ -26,7 +27,8 @@ module Platypi
           expiration_date: expiration_date,
           quantity: quantity,
           settlement_type: settlement_type,
-          option_root: option_root
+          option_root: option_root,
+          increment: increment
         ).search(
           from_date: from_date,
           to_date: to_date,
@@ -44,7 +46,8 @@ module Platypi
         expiration_date:,
         quantity: 1,
         settlement_type: nil,
-        option_root: nil
+        option_root: nil,
+        increment: 0.01
       )
         unless VALID_STRATEGIES.include?(strategy_type.to_s.downcase)
           raise ArgumentError, "Invalid strategy type: #{strategy_type}. Valid types are: #{VALID_STRATEGIES.join(', ')}"
@@ -57,7 +60,8 @@ module Platypi
             expiration_date: expiration_date,
             quantity: quantity,
             settlement_type: settlement_type,
-            option_root: option_root
+            option_root: option_root,
+            increment: increment
           )
         when 'callspread'
           Platypi::CallSpreadFinder.new(
@@ -65,7 +69,8 @@ module Platypi
             expiration_date: expiration_date,
             quantity: quantity,
             settlement_type: settlement_type,
-            option_root: option_root
+            option_root: option_root,
+            increment: increment
           )
         when 'putspread'
           Platypi::PutSpreadFinder.new(
@@ -73,7 +78,8 @@ module Platypi
             expiration_date: expiration_date,
             quantity: quantity,
             settlement_type: settlement_type,
-            option_root: option_root
+            option_root: option_root,
+            increment: increment
           )
         end
       end
