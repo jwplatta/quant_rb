@@ -5,8 +5,9 @@ module Platypi
   class IronCondorFinder
     include Platypi::Schwab
 
-    attr_reader :underlying_symbol, :expiration_date, :quantity, :expiration_type,
-                :option_root, :settlement_type
+    attr_reader :underlying_symbol, :expiration_date,
+                :quantity, :expiration_type,
+                :option_root, :settlement_type, :increment
 
     def initialize(
       underlying_symbol:,
@@ -14,7 +15,8 @@ module Platypi
       expiration_type: nil,
       settlement_type: nil,
       option_root: nil,
-      quantity: 1
+      quantity: 1,
+      increment: 0.01
     )
       @underlying_symbol = underlying_symbol
       @expiration_date = expiration_date
@@ -22,6 +24,7 @@ module Platypi
       @expiration_type = expiration_type
       @settlement_type = settlement_type
       @option_root = option_root
+      @increment = increment
     end
 
     def search(
@@ -75,7 +78,7 @@ module Platypi
       all_combos = call_spreads.product(put_spreads)
 
       all_combos_with_min_credit = all_combos.select do |call_sprd, put_sprd|
-        (call_sprd.credit + put_sprd.credit) * 100 >= min_credit
+        (call_sprd.credit + put_sprd.credit) * 100 >= min_credit * 100
       end
 
       call_spread, put_spread = all_combos_with_min_credit.max_by do |call_sprd, put_sprd|
@@ -87,8 +90,8 @@ module Platypi
           underlying_symbol: underlying_symbol,
           call_spread: call_spread,
           put_spread: put_spread,
-          expiration_date: expiration_date,
-          quantity: quantity
+          quantity: quantity,
+          increment: increment
         )
       else
         NullStrategy.new
@@ -100,22 +103,24 @@ module Platypi
     def call_spread_finder(short_delta:, max_spread:, min_open_interest:, dist_from_strike:)
       CallSpreadFinder.new(
         underlying_symbol: underlying_symbol,
-        expiration_date: expiration_date,
         quantity: quantity,
         expiration_type: expiration_type,
         settlement_type: settlement_type,
-        option_root: option_root
+        option_root: option_root,
+        increment: increment,
+        expiration_date: expiration_date
       )
     end
 
     def put_spread_finder(short_delta:, max_spread:, min_open_interest:, dist_from_strike:)
       PutSpreadFinder.new(
         underlying_symbol: underlying_symbol,
-        expiration_date: expiration_date,
         quantity: quantity,
         expiration_type: expiration_type,
         settlement_type: settlement_type,
-        option_root: option_root
+        option_root: option_root,
+        increment: increment,
+        expiration_date: expiration_date
       )
     end
   end
