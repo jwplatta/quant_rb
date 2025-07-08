@@ -9,8 +9,8 @@ module Platypi
       end
 
       def from_h(data)
-        short_leg = data[:short_leg] ? create_option_from_hash(data[:short_leg]) : nil
-        long_leg = data[:long_leg] ? create_option_from_hash(data[:long_leg]) : nil
+        short_leg = data[:short_leg] ? PutOption.from_h(data[:short_leg]) : nil
+        long_leg = data[:long_leg] ? PutOption.from_h(data[:long_leg]) : nil
 
         new(
           underlying_symbol: data[:underlying_symbol],
@@ -20,22 +20,6 @@ module Platypi
           round: data[:round] || 2,
           quantity: data[:quantity] || 1
         )
-      end
-
-      def create_option_from_hash(leg_data)
-        PutOption.new(leg_data[:symbol]).tap do |option|
-          option.strike = leg_data[:strike]
-          option.delta = leg_data[:delta]
-          option.mark = leg_data[:mark]
-          option.ask = leg_data[:ask]
-          option.bid = leg_data[:bid]
-
-          # Handle date conversion - it might be a string from JSON
-          expiration_date = leg_data[:expiration_date]
-          option.expiration_date = expiration_date.is_a?(String) ? Date.parse(expiration_date) : expiration_date
-
-          option.open_interest = leg_data[:open_interest]
-        end
       end
     end
 
