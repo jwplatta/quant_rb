@@ -20,40 +20,65 @@ module Platypi
           FileUtils.mkdir_p(base_path) unless Dir.exist?(base_path)
         end
 
-        def read_or_init(trade_id)
-          new(trade_id)
-        end
+        def last_event(trade_id)
+          file_path = File.join(base_path, "trade_#{trade_id}.jsonl")
+          all_events = File.readlines(file_path).map do |line|
+            line = line.strip
+            next if line.empty?
 
-        def trade_open?(trade_id)
-          journal = new(trade_id)
-          journal.trade_exited_event.nil? && !journal.trade_entered_event.nil?
+            begin
+              Platypi::Trades::Trade.from_json(line)
+            rescue JSON::ParserError => e
+              puts "Error parsing trade history line: #{e.message}"
+              nil
+            end
+          end.compact
+
+          if all_events.empty?
+            puts "No trade events found for #{trade_id}."
+            nil
+          else
+            all_events.min_by { |event| event.timestamp }
+          end
         rescue Errno::ENOENT
-          false
+          puts "Trade journal for #{trade_id} does not exist."
+          nil
         end
       end
 
-      def initialize(trade_id)
+      def initialize(trade_id:)
+        raise ArgumentError, 'trade_id must be provided' if trade_id.nil? || trade_id.empty?
+
         @trade_id = trade_id
         @last_event = nil
         @trade_history = []
-        self.class.ensure_directory_exists
         FileUtils.touch(file_path) unless File.exist?(file_path)
-        load_trade_history
       end
 
-      attr_reader :trade_id, :trade_history
+      attr_reader :trade_id
+
+      def trade_open?
+        trade_exited_event.nil? && !journal.trade_entered_event.nil?
+      end
+
+      def trade_exited?
+        !trade_exited_event.nil?
+      end
 
       def log(trade)
         @last_event = trade.clone
-        @trade_history << @last_event
+
+        if @last_event.current_state == 'TRADE_OPEN'
+          progress_perc = (@last_event.progress.progress_perc).round(2)
+          profit_loss = (@last_event.progress.current_pnl).round(2)
+          puts "<#{@last_event.timestamp} - #{@last_event.current_state} - #{progress_perc}% - $#{profit_loss}>"
+        else
+          puts "<#{@last_event.timestamp} - #{@last_event.current_state}>"
+        end
 
         File.open(file_path, 'a') do |file|
-          file.puts(trade.to_json)
+          file.puts(@last_event.to_json)
         end
-      end
-
-      def last_event
-        @last_event ||= trade_history.min_by { |event| event.timestamp }
       end
 
       def trade_entered_event
@@ -75,8 +100,8 @@ module Platypi
         )
       end
 
-      def load_trade_history
-        @trade_history = File.readlines(file_path).map do |line|
+      def trade_history
+        File.readlines(file_path).map do |line|
           line = line.strip
           next if line.empty?
 
