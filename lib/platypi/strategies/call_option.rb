@@ -22,7 +22,7 @@ module Platypi
         from_hash(data)
       end
 
-      def from_hash(data)
+      def from_h(data)
         new(data[:symbol],
             quantity: data[:quantity] || 1,
             increment: data[:increment] || 0.01,
