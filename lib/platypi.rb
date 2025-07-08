@@ -75,8 +75,12 @@ module Platypi
       @config[:mode] = mode
     end
 
-    def set_account(account)
-      @config[:account] = account
+    def set_interval(interval)
+      @config[:sleep_interval] = interval
+    end
+
+    def set_account_name(account_name)
+      @config[:account_name] = account_name
     end
 
     def enter_trade_when(timing)
@@ -117,7 +121,7 @@ module Platypi
       Platypi::Automation::Bot.new(
         name: @config[:name],
         mode: @config[:mode] || :paper,
-        account: @config[:account],
+        account_name: @config[:account_name],
         config: @config
       )
     end
@@ -166,6 +170,10 @@ module Platypi
 
     def set_quantity(quantity)
       @config[:quantity] = quantity
+    end
+
+    def set_increment(increment)
+      @config[:increment] = increment
     end
 
     def build
