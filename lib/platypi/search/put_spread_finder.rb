@@ -5,7 +5,8 @@ module Platypi
   class PutSpreadFinder
     include Platypi::Schwab
 
-    attr_reader :underlying_symbol, :spreads, :short_legs, :expiration_date, :quantity,   :expiration_type, :settlement_type, :option_root
+    attr_reader :underlying_symbol, :spreads, :short_legs, :expiration_date, :quantity,
+      :expiration_type, :settlement_type, :option_root, :increment
 
     def initialize(
       underlying_symbol:,
@@ -13,7 +14,8 @@ module Platypi
       quantity: 1,
       expiration_type: nil,
       settlement_type: nil,
-      option_root: nil
+      option_root: nil,
+      increment: 0.01
     )
       @underlying_symbol = underlying_symbol
       @expiration_date = expiration_date
@@ -23,6 +25,7 @@ module Platypi
       @expiration_type = expiration_type
       @settlement_type = settlement_type
       @option_root = option_root
+      @increment = increment
     end
 
     def search(
@@ -36,13 +39,10 @@ module Platypi
       min_open_interest: 0,
       dist_from_strike: 0.07
     )
-      # Handle both direct option chain and option chain parameters
-      if opt_chain_or_params.respond_to?(:put_opts)
-        # Called from IronCondorFinder with actual option chain data
-        opt_chain = opt_chain_or_params
+      opt_chain = if opt_chain_or_params.respond_to?(:put_opts)
+        opt_chain_or_params
       else
-        # Called independently - load option chain internally with PUT contract type
-        opt_chain = option_chain(
+        option_chain(
           underlying_symbol,
           contract_type: 'PUT',
           from_date: from_date || expiration_date,
@@ -91,6 +91,7 @@ module Platypi
 
         @spreads << PutSpread.new(
           underlying_symbol: underlying_symbol,
+          increment: increment,
           short_leg: short_leg,
           long_leg: long_leg
         )
