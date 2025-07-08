@@ -21,7 +21,6 @@ module Platypi
           underlying_symbol: data[:underlying_symbol],
           call_spread: call_spread,
           put_spread: put_spread,
-          expiration_date: expiration_date,
           increment: data[:increment] || 0.01,
           round: data[:round] || 2,
           quantity: data[:quantity] || 1
@@ -29,18 +28,21 @@ module Platypi
       end
     end
 
-    attr_reader :call_spread, :put_spread, :expiration_date, :underlying_symbol, :quantity
+    attr_reader :call_spread, :put_spread, :underlying_symbol, :quantity
 
     def initialize(
       underlying_symbol:, call_spread:, put_spread:,
-      expiration_date:, increment: 0.01, round: 2, quantity: 1
+      increment: 0.01, round: 2, quantity: 1
     )
       super(increment: increment, round: round)
       @put_spread = put_spread
       @call_spread = call_spread
       @underlying_symbol = underlying_symbol
-      @expiration_date = expiration_date
       @quantity = quantity
+    end
+
+    def expiration_date
+      @expiration_date ||= put_spread.expiration_date || call_spread.expiration_date
     end
 
     def delta
