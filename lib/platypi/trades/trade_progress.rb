@@ -67,7 +67,7 @@ module Platypi
 
       trade_history.each do |event|
         order_manager = event.order_manager
-        quantity = event.quantity
+        quantity = event.strategy.quantity
 
         if opening_event?(event)
           price = order_manager.order_price || 0.0
