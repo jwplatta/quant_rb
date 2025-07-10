@@ -8,6 +8,8 @@ require 'pry'
 module Platypi
   module Trades
     class TradeJournal
+      include Platypi::Loggable
+
       class << self
         def base_path
           ENV.fetch(
@@ -29,19 +31,19 @@ module Platypi
             begin
               Platypi::Trades::Trade.from_json(line)
             rescue JSON::ParserError => e
-              puts "Error parsing trade history line: #{e.message}"
+              logger.error("Error parsing trade history line: #{e.message}")
               nil
             end
           end.compact
 
           if all_events.empty?
-            puts "No trade events found for #{trade_id}."
+            logger.warn("No trade events found for #{trade_id}.")
             nil
           else
             all_events.min_by { |event| event.timestamp }
           end
         rescue Errno::ENOENT
-          puts "Trade journal for #{trade_id} does not exist."
+          logger.error("Trade journal for #{trade_id} does not exist.")
           nil
         end
       end
@@ -65,15 +67,17 @@ module Platypi
         !trade_exited_event.nil?
       end
 
-      def log(trade)
+      def save(trade)
         @last_event = trade.clone
 
         if @last_event.current_state == 'TRADE_OPEN'
           progress_perc = (@last_event.progress.progress_perc).round(2)
           profit_loss = (@last_event.progress.current_pnl).round(2)
-          puts "<#{@last_event.timestamp} - #{@last_event.current_state} - #{progress_perc}% - $#{profit_loss}>"
+          log_trade_state(@last_event.trade_id, @last_event.current_state, "#{progress_perc}% | $#{profit_loss}")
+        elsif @last_event.current_state == 'TRADE_FOUND'
+          log_trade_state(@last_event.trade_id, @last_event.current_state, @last_event.strategy.to_s)
         else
-          puts "<#{@last_event.timestamp} - #{@last_event.current_state}>"
+          log_trade_state(@last_event.trade_id, @last_event.current_state)
         end
 
         File.open(file_path, 'a') do |file|
@@ -108,7 +112,7 @@ module Platypi
           begin
             Platypi::Trades::Trade.from_json(line)
           rescue JSON::ParserError => e
-            puts "Error parsing trade history line: #{e.message}"
+            logger.error("Error parsing trade history line: #{e.message}")
             nil
           end
         end.compact
