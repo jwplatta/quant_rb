@@ -2,7 +2,6 @@
 
 require_relative "platypi/version"
 
-# Load environment variables globally for the gem
 begin
   require 'dotenv'
   Dotenv.load
@@ -14,6 +13,11 @@ end
 
 module Platypi
   class Error < StandardError; end
+
+  # Require configuration first
+  require_relative "platypi/configuration"
+  require_relative 'platypi/logger'
+  require_relative 'platypi/loggable'
 
   # Require schwab data objects first
   require_relative "platypi/schwab/data_objects/account"
