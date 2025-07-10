@@ -106,10 +106,9 @@ module Platypi
     end
 
     def to_s
-      "<#{self.class.name} #{expiration_date}, " \
-        "PUT: #{put_spread.strikes.join('/')}, " \
-        "CALL: #{call_spread.strikes.join('/')}, " \
-        "Credit: #{credit}>"
+      "<#{self.class.name} | #{expiration_date} | #{credit} | " \
+        "PUTSPREAD #{put_spread.strikes.join('/')} | " \
+        "CALLSPREAD #{call_spread.strikes.join('/')}>"
     end
 
     def to_h
