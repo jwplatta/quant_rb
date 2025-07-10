@@ -4,7 +4,7 @@ require_relative 'lib/platypi'
 # frozen_string_literal: true
 
 bot = Platypi.create_bot do
-  set_name 'SPX Weekly Iron Condor Bot'
+  set_name 'SPX 1DTE Bot'
   set_mode :paper
   set_interval 1
 
@@ -18,7 +18,7 @@ bot = Platypi.create_bot do
     set_option_root 'SPXW'
     set_settlement_type 'P'
     set_days_to_expiration 1
-    set_min_credit 0.9
+    set_min_credit 0.5
     set_min_open_interest 0
     set_max_delta 0.07
     set_max_spread 15.0
@@ -28,8 +28,8 @@ bot = Platypi.create_bot do
   end
 
   exit_when do
-    max_loss_threshold 2.5 # 2.5x the credit received
-    profit_target_threshold 0.7 # 70% of the credit received
+    max_loss_threshold 0.00
+    profit_target_threshold 0.00
   end
 
   # NOTE: optional, ignore for now
