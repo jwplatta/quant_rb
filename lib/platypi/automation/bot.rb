@@ -3,6 +3,7 @@ require 'fileutils'
 module Platypi
   module Automation
     class Bot
+      include Platypi::Loggable
       attr_reader :name, :mode, :account_name,
         :current_trade, :running, :config, :sleep_interval
 
@@ -22,8 +23,8 @@ module Platypi
 
       def start
         @running = true
-        puts "Starting #{name} bot in #{mode} mode..."
-        puts "Using Account: #{account_name}" if account_name
+        logger.info("Starting #{name} bot in #{mode} mode...")
+        logger.info("Using Account: #{account_name}") if account_name
 
         try_restore_current_trade
 
@@ -44,18 +45,15 @@ module Platypi
 
       def stop
         @running = false
-        puts "Stopping #{name} bot..."
+        logger.info("Stopping #{name} bot...")
       end
 
       private
 
       def handle_existing_trade
-        puts "Processing existing trade: #{@current_trade.trade_id}"
-
         @current_trade.next
 
         if @current_trade.exited?
-          puts "Trade #{@current_trade.trade_id} completed"
           clear_current_trade_file
           @current_trade = nil
         end
@@ -64,12 +62,12 @@ module Platypi
       def attempt_new_trade
         return unless should_enter_trade?
 
-        puts "Looking for new trading opportunity..."
+        logger.info("Looking for new trading opportunity...")
 
         @current_trade = create_new_trade
         write_current_trade_file
 
-        puts "Created new trade: #{@current_trade.trade_id}"
+        logger.info("Created new trade: #{@current_trade.trade_id}")
       end
 
       def should_enter_trade?
@@ -78,11 +76,11 @@ module Platypi
           true
         when :last_trading_hour
           # TODO: Implement market hours logic
-          puts "Last trading hour entry not implemented yet, defaulting to immediately"
+          logger.warn("Last trading hour entry not implemented yet, defaulting to immediately")
           true
         when :opening
           # TODO: Implement market opening logic
-          puts "Opening entry not implemented yet, defaulting to immediately"
+          logger.warn("Opening entry not implemented yet, defaulting to immediately")
           true
         else
           true
@@ -129,18 +127,18 @@ module Platypi
 
       def write_current_trade_file
         File.write(current_trade_file_path, @current_trade.trade_id)
-        puts "Wrote current trade ID to: #{current_trade_file_path}"
+        logger.debug("Wrote current trade ID to: #{current_trade_file_path}")
       end
 
       def clear_current_trade_file
         if File.exist?(current_trade_file_path)
           File.delete(current_trade_file_path)
-          puts "Cleared current trade file: #{current_trade_file_path}"
+          logger.debug("Cleared current trade file: #{current_trade_file_path}")
         end
       end
 
       def current_trade_file_path
-        File.join(bot_directory, "CURRENT_#{sanitized_bot_name}_TRADE.txt")
+        File.join(bot_directory, "#{sanitized_bot_name}_TRADE.txt")
       end
 
       def sanitized_bot_name
@@ -159,26 +157,26 @@ module Platypi
         trade_id = File.read(current_trade_file_path).strip
 
         unless trade_id.empty?
-          puts "Found existing trade ID: #{trade_id}"
+          logger.info("Found existing trade ID: #{trade_id}")
           trade = Platypi::Trades::Trade.load(trade_id)
 
           if trade
             @current_trade = trade
-            puts "Restored existing trade: #{trade_id}"
+            logger.info("Restored existing trade: #{trade_id}")
           else
-            puts "Trade #{trade_id} is no longer open, clearing file"
+            logger.warn("Trade #{trade_id} is no longer open, clearing file")
             clear_current_trade_file
           end
         end
 
       rescue => e
-        puts "Error restoring trade: #{e.message}"
+        logger.error("Error restoring trade: #{e.message}")
         clear_current_trade_file
       end
 
       def handle_error(e)
-        puts "Error in bot loop: #{e.message}"
-        puts e.backtrace.first(5) if @config[:debug]
+        logger.error("Error in bot loop: #{e.message}")
+        logger.debug(e.backtrace.first(5).join("\n")) if @config[:debug]
         sleep(sleep_interval * 2)
       end
     end
