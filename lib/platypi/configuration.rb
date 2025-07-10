@@ -7,24 +7,6 @@ module Platypi
       @log_file = nil
       @log_to_stdout = true
     end
-
-    def logger
-      @logger ||= create_logger
-    end
-
-    private
-
-    def create_logger
-      outputs = []
-      outputs << $stdout if @log_to_stdout
-      outputs << @log_file if @log_file
-
-      if outputs.length == 1
-        ::Logger.new(outputs.first)
-      else
-        MultiLogger.new(outputs)
-      end
-    end
   end
 
   class << self
@@ -37,7 +19,7 @@ module Platypi
     end
 
     def logger
-      configuration.logger
+      Platypi::Logger.logger
     end
   end
 end
