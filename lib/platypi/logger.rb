@@ -18,56 +18,78 @@ module Platypi
       private
 
       def create_logger
-        logger = ::Logger.new(log_destination)
-        logger.level = log_level
-        logger.formatter = log_formatter
-        logger
-      end
+        config = Platypi.configuration
 
-      def log_destination
-        if ENV['LOG_FILE']
-          File.open(ENV['LOG_FILE'], 'a')
+        # Determine output destination
+        if config.log_file && config.log_to_stdout
+          # For dual output (file + stdout), use a custom approach
+          MultiIOLogger.new(config.log_file, $stdout, config.log_level)
+        elsif config.log_file
+          logger = ::Logger.new(config.log_file)
+          logger.level = log_level_constant(config.log_level)
+          logger.formatter = log_formatter
+          logger
         else
-          $stdout
+          logger = ::Logger.new($stdout)
+          logger.level = log_level_constant(config.log_level)
+          logger.formatter = log_formatter
+          logger
         end
       end
 
-      def log_level
-        case ENV['LOG_LEVEL']&.upcase
-        when 'DEBUG' then ::Logger::DEBUG
-        when 'INFO' then ::Logger::INFO
-        when 'WARN' then ::Logger::WARN
-        when 'ERROR' then ::Logger::ERROR
-        when 'FATAL' then ::Logger::FATAL
+      def log_level_constant(level)
+        case level
+        when :debug then ::Logger::DEBUG
+        when :info then ::Logger::INFO
+        when :warn then ::Logger::WARN
+        when :error then ::Logger::ERROR
+        when :fatal then ::Logger::FATAL
         else ::Logger::INFO
         end
       end
 
       def log_formatter
         proc do |severity, datetime, progname, msg|
-          "[#{datetime.strftime('%Y-%m-%d %H:%M:%S')}] #{severity}: #{msg}]"
+          "[#{datetime.strftime('%Y-%m-%d %H:%M:%S')}] #{severity}: #{msg}\n"
         end
       end
     end
+  end
 
-    def log_debug(msg)
-      Platypi::Logger.logger.debug(msg)
+  class MultiIOLogger
+    def initialize(file_path, stdout, log_level)
+      @file_logger = ::Logger.new(file_path)
+      @stdout_logger = ::Logger.new(stdout)
+
+      level_constant = case log_level
+      when :debug then ::Logger::DEBUG
+      when :info then ::Logger::INFO
+      when :warn then ::Logger::WARN
+      when :error then ::Logger::ERROR
+      when :fatal then ::Logger::FATAL
+      else ::Logger::INFO
+      end
+
+      formatter = proc do |severity, datetime, progname, msg|
+        "[#{datetime.strftime('%Y-%m-%d %H:%M:%S')}] #{severity}: #{msg}\n"
+      end
+
+      @file_logger.level = level_constant
+      @stdout_logger.level = level_constant
+      @file_logger.formatter = formatter
+      @stdout_logger.formatter = formatter
     end
 
-    def log_info(msg)
-      Platypi::Logger.logger.info(msg)
+    [:debug, :info, :warn, :error, :fatal].each do |level|
+      define_method(level) do |message|
+        @file_logger.send(level, message)
+        @stdout_logger.send(level, message)
+      end
     end
 
-    def log_warn(msg)
-      Platypi::Logger.logger.warn(msg)
-    end
-
-    def log_error(msg)
-      Platypi::Logger.logger.error(msg)
-    end
-
-    def log_fatal(msg)
-      Platypi::Logger.logger.fatal(msg)
+    def level=(new_level)
+      @file_logger.level = new_level
+      @stdout_logger.level = new_level
     end
   end
 end
