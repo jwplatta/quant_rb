@@ -3,6 +3,12 @@ require_relative 'lib/platypi'
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
+Platypi.configure do |config|
+  config.log_level = :debug
+  config.log_file = '/tmp/platypi.log'
+  config.log_to_stdout = true
+end
+
 bot = Platypi.create_bot do
   set_name 'SPX 1DTE Bot'
   set_mode :paper
