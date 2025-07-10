@@ -11,6 +11,14 @@ module Platypi
 
     attr_reader :profit_thresh, :loss_thresh, :progress_perc, :current_pnl
 
+    def exit?(strategy, trade_history=[])
+      raise ArgumentError, 'Strategy must be provided' if strategy.nil?
+
+      check_progress(strategy, trade_history)
+
+      progress_perc >= 100 || progress_perc <= -100
+    end
+
     def check_progress(strategy, trade_history)
       strategy.check_market
       current_value = strategy.credit * strategy.quantity * 100.0
@@ -34,12 +42,6 @@ module Platypi
       end
 
       @progress_perc
-    end
-
-    def exit?(strategy, trade_history)
-      check_progress(strategy, trade_history)
-
-      progress_perc >= 100 || progress_perc <= -100
     end
 
     def to_h
