@@ -53,6 +53,12 @@ module Platypi
         order_status == 'ACCEPTED' || @order&.status == 'ACCEPTED'
       end
 
+      def paper_accepted?
+        # NOTE: want to ignore oversold/overbought positions in paper trading
+        oversold_regex = /in an oversold\/overbought position in your account/i
+        order_status == 'ACCEPTED' || (order_status == 'REJECTED' && order_rejects.any? { |msg| oversold_regex.match?(msg) })
+      end
+
       def filled?
         order_status == 'FILLED' || @order&.status == 'FILLED'
       end
@@ -130,6 +136,14 @@ module Platypi
         cancel_order(order_id).then do |success|
           reset_order_state if success
           success
+        end
+      end
+
+      def to_s
+        if order_rejects.any?
+          "<ORDER #{order_id} | #{order_status} | #{order_rejects}>"
+        else
+          "<ORDER #{order_id} | #{order_status} | Price #{order_price} | Fees #{order_fees} | Commission #{order_commission}>"
         end
       end
 
