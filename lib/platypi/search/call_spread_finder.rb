@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 module Platypi
-  # Call spread finder for searching options
   class CallSpreadFinder
     include Platypi::Schwab
 
