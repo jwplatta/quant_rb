@@ -1,7 +1,7 @@
 GIT
   remote: https://github.com/jwplatta/schwab_rb.git
-  revision: e615acea01ec35dfd04321e97488bab401f35b91
-  ref: e615acea01ec35dfd04321e97488bab401f35b91
+  revision: 96641a3d4e80296a7c4fd895c7a2086fe953235f
+  ref: 96641a3d4e80296a7c4fd895c7a2086fe953235f
   specs:
     schwab_rb (0.1.0)
       async (~> 2.18)
