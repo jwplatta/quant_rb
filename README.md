@@ -26,7 +26,7 @@ Help me plan implementing the #bot.rb class that manages the a #trade.rb object.
 - Ultiamtely we want to also implement a DSL like below that will allow us to configure the bot and trade in a more readable way.
 
 ```ruby
-bot = Platypi.create_bot do
+bot = OptionsTrader.create_bot do
   set_name 'SPX Weekly Iron Condor Bot'
   set_mode :paper # :simulation | :live
 

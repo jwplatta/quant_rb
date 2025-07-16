@@ -2,7 +2,7 @@ require 'spec_helper'
 require 'tempfile'
 require 'fileutils'
 
-RSpec.describe Platypi::Automation::Bot do
+RSpec.describe OptionsTrader::Automation::Bot do
   let(:config) do
     {
       strategy_type: 'ironcondor',

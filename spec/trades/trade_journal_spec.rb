@@ -4,7 +4,7 @@ require_relative '../spec_helper'
 require 'fileutils'
 require 'tmpdir'
 
-RSpec.describe Platypi::Trades::TradeJournal do
+RSpec.describe OptionsTrader::Trades::TradeJournal do
   let(:trade_id) { 'test-trade-123' }
   let(:temp_dir) { Dir.mktmpdir }
   let(:journal) { described_class.new(trade_id) }
@@ -36,7 +36,7 @@ RSpec.describe Platypi::Trades::TradeJournal do
         allow(ENV).to receive(:fetch).with('TRADE_JOURNAL_PATH', anything) do |key, default|
           default
         end
-        expected_path = File.join(Dir.home, '.platypi', 'trade_journal')
+        expected_path = File.join(Dir.home, '.OptionsTrader', 'trade_journal')
 
         expect(described_class.base_path).to eq(expected_path)
       end
@@ -127,7 +127,7 @@ RSpec.describe Platypi::Trades::TradeJournal do
         '{"trade_id":"test-123","state":"TRADE_FOUND","timestamp":"2025-07-06T10:00:00Z"}' + "\n" +
         '{"trade_id":"test-123","state":"TRADE_ENTERED","timestamp":"2025-07-06T11:00:00Z"}' + "\n")
 
-      expect(Platypi::Trades::Trade).to receive(:from_json).twice.and_return(mock_trade_1, mock_trade_2)
+      expect(OptionsTrader::Trades::Trade).to receive(:from_json).twice.and_return(mock_trade_1, mock_trade_2)
 
       # Create journal after writing file so it loads the data
       new_journal = described_class.new(trade_id)
@@ -142,7 +142,7 @@ RSpec.describe Platypi::Trades::TradeJournal do
         '' + "\n" +
         '{"trade_id":"test-123","state":"TRADE_ENTERED"}' + "\n")
 
-      expect(Platypi::Trades::Trade).to receive(:from_json).twice.and_return(mock_trade_1, mock_trade_2)
+      expect(OptionsTrader::Trades::Trade).to receive(:from_json).twice.and_return(mock_trade_1, mock_trade_2)
 
       # Create journal after writing file so it loads the data
       new_journal = described_class.new(trade_id)
@@ -157,9 +157,9 @@ RSpec.describe Platypi::Trades::TradeJournal do
         'invalid json' + "\n" +
         '{"trade_id":"test-123","state":"TRADE_ENTERED"}' + "\n")
 
-      expect(Platypi::Trades::Trade).to receive(:from_json).with('{"trade_id":"test-123","state":"TRADE_FOUND"}').and_return(mock_trade_1)
-      expect(Platypi::Trades::Trade).to receive(:from_json).with('invalid json').and_raise(JSON::ParserError.new('invalid'))
-      expect(Platypi::Trades::Trade).to receive(:from_json).with('{"trade_id":"test-123","state":"TRADE_ENTERED"}').and_return(mock_trade_2)
+      expect(OptionsTrader::Trades::Trade).to receive(:from_json).with('{"trade_id":"test-123","state":"TRADE_FOUND"}').and_return(mock_trade_1)
+      expect(OptionsTrader::Trades::Trade).to receive(:from_json).with('invalid json').and_raise(JSON::ParserError.new('invalid'))
+      expect(OptionsTrader::Trades::Trade).to receive(:from_json).with('{"trade_id":"test-123","state":"TRADE_ENTERED"}').and_return(mock_trade_2)
 
       # Create journal after writing file so it loads the data
       new_journal = nil

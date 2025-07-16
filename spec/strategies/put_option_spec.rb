@@ -2,7 +2,7 @@
 
 require 'spec_helper'
 
-RSpec.describe Platypi::PutOption do
+RSpec.describe OptionsTrader::PutOption do
   let(:put_option) { described_class.new('SPY250620P00450000', quantity: 3) }
 
   before do
@@ -104,11 +104,11 @@ RSpec.describe Platypi::PutOption do
 
   describe 'inheritance' do
     it 'inherits from StrategyBase' do
-      expect(put_option).to be_a(Platypi::StrategyBase)
+      expect(put_option).to be_a(OptionsTrader::StrategyBase)
     end
 
     it 'includes Quoteable module' do
-      expect(described_class.included_modules).to include(Platypi::Quoteable)
+      expect(described_class.included_modules).to include(OptionsTrader::Quoteable)
     end
   end
 end

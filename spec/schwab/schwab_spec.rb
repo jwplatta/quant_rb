@@ -1,10 +1,10 @@
 # frozen_string_literal: true
 
-RSpec.describe Platypi::Schwab do
-  # Create a test class that includes the Platypi::Schwab module
+RSpec.describe OptionsTrader::Schwab do
+  # Create a test class that includes the OptionsTrader::Schwab module
   let(:test_class) do
     Class.new do
-      include Platypi::Schwab
+      include OptionsTrader::Schwab
     end
   end
 
@@ -31,7 +31,7 @@ RSpec.describe Platypi::Schwab do
       expect(mock_client).to receive(:get_quote).with('NVDA').and_return(quote_response)
 
       quote = schwab_instance.quote('NVDA')
-      expect(quote).to be_an_instance_of(Platypi::Schwab::DataObjects::EquityQuote)
+      expect(quote).to be_an_instance_of(OptionsTrader::Schwab::DataObjects::EquityQuote)
       expect(quote.symbol).to eq('NVDA')
     end
   end
@@ -52,7 +52,7 @@ RSpec.describe Platypi::Schwab do
       expect(quotes).to be_an_instance_of(Array)
       expect(quotes.size).to eq(2)
 
-      expect(quotes.map(&:class)).to include(Platypi::Schwab::DataObjects::EquityQuote, Platypi::Schwab::DataObjects::IndexQuote)
+      expect(quotes.map(&:class)).to include(OptionsTrader::Schwab::DataObjects::EquityQuote, OptionsTrader::Schwab::DataObjects::IndexQuote)
       expect(quotes.map(&:symbol).sort).to eq(['$SPX', 'NVDA'].sort)
     end
   end
@@ -72,7 +72,7 @@ RSpec.describe Platypi::Schwab do
                                          strike_range: 'OTM',
                                          to_date: Date.today + 30)
 
-      expect(chain).to be_an_instance_of(Platypi::Schwab::DataObjects::OptionChain)
+      expect(chain).to be_an_instance_of(OptionsTrader::Schwab::DataObjects::OptionChain)
     end
 
     it 'uses days_to_expiration when provided' do
@@ -85,7 +85,7 @@ RSpec.describe Platypi::Schwab do
                                          strike_range: 'OTM',
                                          days_to_expiration: 30)
 
-      expect(chain).to be_an_instance_of(Platypi::Schwab::DataObjects::OptionChain)
+      expect(chain).to be_an_instance_of(OptionsTrader::Schwab::DataObjects::OptionChain)
     end
 
     it 'does not cache results between calls' do
@@ -105,8 +105,8 @@ RSpec.describe Platypi::Schwab do
                                           strike_range: 'OTM')
 
       # Both should be option chains but they should be separate instances
-      expect(chain1).to be_an_instance_of(Platypi::Schwab::DataObjects::OptionChain)
-      expect(chain2).to be_an_instance_of(Platypi::Schwab::DataObjects::OptionChain)
+      expect(chain1).to be_an_instance_of(OptionsTrader::Schwab::DataObjects::OptionChain)
+      expect(chain2).to be_an_instance_of(OptionsTrader::Schwab::DataObjects::OptionChain)
     end
 
     it 'does not use caching at all' do
@@ -126,8 +126,8 @@ RSpec.describe Platypi::Schwab do
                                           strike_range: 'OTM')
 
       # Both should be option chains but they should be separate instances
-      expect(chain1).to be_an_instance_of(Platypi::Schwab::DataObjects::OptionChain)
-      expect(chain2).to be_an_instance_of(Platypi::Schwab::DataObjects::OptionChain)
+      expect(chain1).to be_an_instance_of(OptionsTrader::Schwab::DataObjects::OptionChain)
+      expect(chain2).to be_an_instance_of(OptionsTrader::Schwab::DataObjects::OptionChain)
     end
   end
 
@@ -143,7 +143,7 @@ RSpec.describe Platypi::Schwab do
         .and_return(account_response)
 
       account = schwab_instance.account
-      expect(account).to be_an_instance_of(Platypi::Schwab::DataObjects::Account)
+      expect(account).to be_an_instance_of(OptionsTrader::Schwab::DataObjects::Account)
       expect(account.account_number).to eq('11111111')
     end
 
@@ -153,7 +153,7 @@ RSpec.describe Platypi::Schwab do
         .and_return(account_response)
 
       account = schwab_instance.account(fields: 'positions,orders')
-      expect(account).to be_an_instance_of(Platypi::Schwab::DataObjects::Account)
+      expect(account).to be_an_instance_of(OptionsTrader::Schwab::DataObjects::Account)
     end
   end
 
@@ -172,7 +172,7 @@ RSpec.describe Platypi::Schwab do
       transactions = schwab_instance.transactions
       expect(transactions).to be_an_instance_of(Array)
       expect(transactions.size).to eq(2)
-      expect(transactions.first).to be_an_instance_of(Platypi::Schwab::DataObjects::Transaction)
+      expect(transactions.first).to be_an_instance_of(OptionsTrader::Schwab::DataObjects::Transaction)
       expect(transactions.first.type).to eq('TRADE')
       expect(transactions.first.order_id).to eq('1002613435352')
 
@@ -202,7 +202,7 @@ RSpec.describe Platypi::Schwab do
       )
 
       expect(transactions).to be_an_instance_of(Array)
-      expect(transactions.first).to be_an_instance_of(Platypi::Schwab::DataObjects::Transaction)
+      expect(transactions.first).to be_an_instance_of(OptionsTrader::Schwab::DataObjects::Transaction)
 
       # Verify that transfer items are processed correctly
       expect(transactions.first.transfer_items.size).to be > 0
@@ -230,7 +230,7 @@ RSpec.describe Platypi::Schwab do
 
       orders = schwab_instance.account_orders(from_date: from_date, to_date: to_date, status: status)
       expect(orders).to be_an_instance_of(Array)
-      expect(orders.first).to be_an_instance_of(Platypi::Schwab::DataObjects::Order)
+      expect(orders.first).to be_an_instance_of(OptionsTrader::Schwab::DataObjects::Order)
       expect(orders.first.status).to eq('FILLED')
     end
   end
@@ -271,7 +271,7 @@ RSpec.describe Platypi::Schwab do
         .and_return(preview_response)
 
       preview = schwab_instance.preview_order(order_data)
-      expect(preview).to be_an_instance_of(Platypi::Schwab::DataObjects::OrderPreview)
+      expect(preview).to be_an_instance_of(OptionsTrader::Schwab::DataObjects::OrderPreview)
       expect(preview.accepted?).to be true
       expect(preview.commission).to eq(1.3) # 0.65 * 2
       expect(preview.fees).to eq(1.14) # 0.01*2 + 0.56*2
@@ -293,7 +293,7 @@ RSpec.describe Platypi::Schwab do
         .and_return(order_response)
 
       order = schwab_instance.get_order(order_id)
-      expect(order).to be_an_instance_of(Platypi::Schwab::DataObjects::Order)
+      expect(order).to be_an_instance_of(OptionsTrader::Schwab::DataObjects::Order)
       expect(order.order_id.to_s).to eq('1002613435352')
     end
   end

@@ -3,7 +3,7 @@
 require 'spec_helper'
 require 'securerandom'
 
-RSpec.describe Platypi::Trades::Trade do
+RSpec.describe OptionsTrader::Trades::Trade do
   let(:mock_strategy) do
     double('Strategy',
       type: 'ironcondor',
@@ -69,10 +69,10 @@ RSpec.describe Platypi::Trades::Trade do
   end
 
   before do
-    allow(Platypi::Trades::TradeJournal).to receive(:read_or_init).and_return(mock_trade_journal)
-    allow(Platypi::Trades::OrderManager).to receive(:new).and_return(mock_order_manager)
-    allow(Platypi::TradeProgress).to receive(:new).and_return(mock_progress)
-    allow(Platypi::Trades::RiskMonitor).to receive(:new).and_return(mock_risk_monitor)
+    allow(OptionsTrader::Trades::TradeJournal).to receive(:read_or_init).and_return(mock_trade_journal)
+    allow(OptionsTrader::Trades::OrderManager).to receive(:new).and_return(mock_order_manager)
+    allow(OptionsTrader::TradeProgress).to receive(:new).and_return(mock_progress)
+    allow(OptionsTrader::Trades::RiskMonitor).to receive(:new).and_return(mock_risk_monitor)
   end
 
   describe '#to_h' do
@@ -425,7 +425,7 @@ RSpec.describe Platypi::Trades::Trade do
 
     context 'when current_state is NO_TRADE_FOUND' do
       before do
-        trade.instance_variable_set(:@current_state, Platypi::Trades::TRADE_STATES[:no_trade_found])
+        trade.instance_variable_set(:@current_state, OptionsTrader::Trades::TRADE_STATES[:no_trade_found])
       end
 
       it 'calls find_strategy' do
@@ -446,7 +446,7 @@ RSpec.describe Platypi::Trades::Trade do
 
     context 'when current_state is OPEN_ORDER_FAILED' do
       before do
-        trade.instance_variable_set(:@current_state, Platypi::Trades::TRADE_STATES[:open_order_failed])
+        trade.instance_variable_set(:@current_state, OptionsTrader::Trades::TRADE_STATES[:open_order_failed])
       end
 
       it 'calls find_strategy' do
@@ -457,7 +457,7 @@ RSpec.describe Platypi::Trades::Trade do
 
     context 'when current_state is CLOSE_ORDER_FAILED' do
       before do
-        trade.instance_variable_set(:@current_state, Platypi::Trades::TRADE_STATES[:close_order_failed])
+        trade.instance_variable_set(:@current_state, OptionsTrader::Trades::TRADE_STATES[:close_order_failed])
       end
 
       it 'calls send_close_order' do
@@ -468,7 +468,7 @@ RSpec.describe Platypi::Trades::Trade do
 
     context 'when current_state is TRADE_FOUND' do
       before do
-        trade.instance_variable_set(:@current_state, Platypi::Trades::TRADE_STATES[:trade_found])
+        trade.instance_variable_set(:@current_state, OptionsTrader::Trades::TRADE_STATES[:trade_found])
       end
 
       it 'calls send_open_order' do
@@ -479,7 +479,7 @@ RSpec.describe Platypi::Trades::Trade do
 
     context 'when current_state is OPEN_ORDER_SENT' do
       before do
-        trade.instance_variable_set(:@current_state, Platypi::Trades::TRADE_STATES[:open_order_sent])
+        trade.instance_variable_set(:@current_state, OptionsTrader::Trades::TRADE_STATES[:open_order_sent])
       end
 
       it 'calls check_open_order' do
@@ -490,7 +490,7 @@ RSpec.describe Platypi::Trades::Trade do
 
     context 'when current_state is CLOSE_ORDER_SENT' do
       before do
-        trade.instance_variable_set(:@current_state, Platypi::Trades::TRADE_STATES[:close_order_sent])
+        trade.instance_variable_set(:@current_state, OptionsTrader::Trades::TRADE_STATES[:close_order_sent])
       end
 
       it 'calls check_close_order' do
@@ -501,7 +501,7 @@ RSpec.describe Platypi::Trades::Trade do
 
     context 'when current_state is ADJUST_OPEN_ORDER_SENT' do
       before do
-        trade.instance_variable_set(:@current_state, Platypi::Trades::TRADE_STATES[:adjust_open_order_sent])
+        trade.instance_variable_set(:@current_state, OptionsTrader::Trades::TRADE_STATES[:adjust_open_order_sent])
       end
 
       it 'calls check_adjust_open_order' do
@@ -512,7 +512,7 @@ RSpec.describe Platypi::Trades::Trade do
 
     context 'when current_state is ADJUST_CLOSE_ORDER_SENT' do
       before do
-        trade.instance_variable_set(:@current_state, Platypi::Trades::TRADE_STATES[:adjust_close_order_sent])
+        trade.instance_variable_set(:@current_state, OptionsTrader::Trades::TRADE_STATES[:adjust_close_order_sent])
       end
 
       it 'calls check_adjust_close_order' do
@@ -523,7 +523,7 @@ RSpec.describe Platypi::Trades::Trade do
 
     context 'when current_state is ADJUST_EXITED' do
       before do
-        trade.instance_variable_set(:@current_state, Platypi::Trades::TRADE_STATES[:adjust_exited])
+        trade.instance_variable_set(:@current_state, OptionsTrader::Trades::TRADE_STATES[:adjust_exited])
       end
 
       it 'calls send_adjust_open_order' do
@@ -534,7 +534,7 @@ RSpec.describe Platypi::Trades::Trade do
 
     context 'when current_state is TRADE_OPEN' do
       before do
-        trade.instance_variable_set(:@current_state, Platypi::Trades::TRADE_STATES[:trade_open])
+        trade.instance_variable_set(:@current_state, OptionsTrader::Trades::TRADE_STATES[:trade_open])
       end
 
       it 'calls check_trade_progress_and_risk' do
@@ -545,7 +545,7 @@ RSpec.describe Platypi::Trades::Trade do
 
     context 'when current_state is TRADE_ENTERED' do
       before do
-        trade.instance_variable_set(:@current_state, Platypi::Trades::TRADE_STATES[:trade_entered])
+        trade.instance_variable_set(:@current_state, OptionsTrader::Trades::TRADE_STATES[:trade_entered])
       end
 
       it 'calls check_trade_progress_and_risk' do
@@ -556,7 +556,7 @@ RSpec.describe Platypi::Trades::Trade do
 
     context 'when current_state is TRADE_OPEN_AT_RISK' do
       before do
-        trade.instance_variable_set(:@current_state, Platypi::Trades::TRADE_STATES[:trade_open_at_risk])
+        trade.instance_variable_set(:@current_state, OptionsTrader::Trades::TRADE_STATES[:trade_open_at_risk])
       end
 
       it 'calls check_trade_progress_and_risk' do
@@ -567,7 +567,7 @@ RSpec.describe Platypi::Trades::Trade do
 
     context 'when current_state is TRADE_EXITED' do
       before do
-        trade.instance_variable_set(:@current_state, Platypi::Trades::TRADE_STATES[:trade_exited])
+        trade.instance_variable_set(:@current_state, OptionsTrader::Trades::TRADE_STATES[:trade_exited])
       end
 
       it 'does nothing (noop)' do
@@ -604,7 +604,7 @@ RSpec.describe Platypi::Trades::Trade do
 
     context 'ensure block behavior' do
       before do
-        trade.instance_variable_set(:@current_state, Platypi::Trades::TRADE_STATES[:trade_exited])
+        trade.instance_variable_set(:@current_state, OptionsTrader::Trades::TRADE_STATES[:trade_exited])
       end
 
       it 'always updates timestamp to current UTC time' do
@@ -661,71 +661,71 @@ RSpec.describe Platypi::Trades::Trade do
       it 'transitions from NO_TRADE_FOUND to TRADE_FOUND when strategy is found' do
         allow(mock_strategy_finder_factory).to receive(:search).and_return(mock_strategy)
 
-        trade.instance_variable_set(:@current_state, Platypi::Trades::TRADE_STATES[:no_trade_found])
+        trade.instance_variable_set(:@current_state, OptionsTrader::Trades::TRADE_STATES[:no_trade_found])
 
         trade.next
 
-        expect(trade.current_state).to eq(Platypi::Trades::TRADE_STATES[:trade_found])
+        expect(trade.current_state).to eq(OptionsTrader::Trades::TRADE_STATES[:trade_found])
         expect(trade.find_trade_attempts).to eq(0)
       end
 
       it 'transitions from NO_TRADE_FOUND to NO_TRADE_FOUND when no strategy is found' do
         allow(mock_strategy_finder_factory).to receive(:search).and_return(nil)
 
-        trade.instance_variable_set(:@current_state, Platypi::Trades::TRADE_STATES[:no_trade_found])
+        trade.instance_variable_set(:@current_state, OptionsTrader::Trades::TRADE_STATES[:no_trade_found])
         initial_attempts = trade.find_trade_attempts
 
         trade.next
 
-        expect(trade.current_state).to eq(Platypi::Trades::TRADE_STATES[:no_trade_found])
+        expect(trade.current_state).to eq(OptionsTrader::Trades::TRADE_STATES[:no_trade_found])
         expect(trade.find_trade_attempts).to eq(initial_attempts + 1)
       end
 
       it 'transitions from TRADE_FOUND to OPEN_ORDER_SENT when sending open order' do
-        trade.instance_variable_set(:@current_state, Platypi::Trades::TRADE_STATES[:trade_found])
+        trade.instance_variable_set(:@current_state, OptionsTrader::Trades::TRADE_STATES[:trade_found])
 
         trade.next
 
-        expect(trade.current_state).to eq(Platypi::Trades::TRADE_STATES[:open_order_sent])
+        expect(trade.current_state).to eq(OptionsTrader::Trades::TRADE_STATES[:open_order_sent])
         expect(mock_order_manager).to have_received(:send_preview_order).with(mock_strategy, order_instruction: :open)
       end
 
       it 'transitions from OPEN_ORDER_SENT to TRADE_ENTERED when order is filled in paper trading' do
         allow(mock_order_manager).to receive(:filled?).and_return(true)
-        trade.instance_variable_set(:@current_state, Platypi::Trades::TRADE_STATES[:open_order_sent])
+        trade.instance_variable_set(:@current_state, OptionsTrader::Trades::TRADE_STATES[:open_order_sent])
 
         trade.next
 
-        expect(trade.current_state).to eq(Platypi::Trades::TRADE_STATES[:trade_entered])
+        expect(trade.current_state).to eq(OptionsTrader::Trades::TRADE_STATES[:trade_entered])
         expect(trade.working_cnt).to eq(1)
       end
 
       it 'transitions from TRADE_ENTERED to TRADE_OPEN when no exit conditions are met' do
-        trade.instance_variable_set(:@current_state, Platypi::Trades::TRADE_STATES[:trade_entered])
+        trade.instance_variable_set(:@current_state, OptionsTrader::Trades::TRADE_STATES[:trade_entered])
 
         trade.next
 
-        expect(trade.current_state).to eq(Platypi::Trades::TRADE_STATES[:trade_open])
+        expect(trade.current_state).to eq(OptionsTrader::Trades::TRADE_STATES[:trade_open])
         expect(trade.working_cnt).to eq(0)
       end
 
       it 'transitions from TRADE_OPEN to CLOSE_ORDER_SENT when exit conditions are met' do
         allow(mock_progress).to receive(:exit?).and_return(true)
-        trade.instance_variable_set(:@current_state, Platypi::Trades::TRADE_STATES[:trade_open])
+        trade.instance_variable_set(:@current_state, OptionsTrader::Trades::TRADE_STATES[:trade_open])
 
         trade.next
 
-        expect(trade.current_state).to eq(Platypi::Trades::TRADE_STATES[:close_order_sent])
+        expect(trade.current_state).to eq(OptionsTrader::Trades::TRADE_STATES[:close_order_sent])
         expect(mock_order_manager).to have_received(:send_preview_order).with(mock_strategy, order_instruction: :exit)
       end
 
       it 'transitions from CLOSE_ORDER_SENT to TRADE_EXITED when close order is filled' do
         allow(mock_order_manager).to receive(:filled?).and_return(true)
-        trade.instance_variable_set(:@current_state, Platypi::Trades::TRADE_STATES[:close_order_sent])
+        trade.instance_variable_set(:@current_state, OptionsTrader::Trades::TRADE_STATES[:close_order_sent])
 
         trade.next
 
-        expect(trade.current_state).to eq(Platypi::Trades::TRADE_STATES[:trade_exited])
+        expect(trade.current_state).to eq(OptionsTrader::Trades::TRADE_STATES[:trade_exited])
         expect(trade.working_cnt).to eq(1)
       end
     end
@@ -733,21 +733,21 @@ RSpec.describe Platypi::Trades::Trade do
     context 'error handling' do
       it 'transitions to SEND_ORDER_ERROR when send_open_order raises an exception' do
         allow(mock_order_manager).to receive(:send_preview_order).and_raise(StandardError.new('Connection failed'))
-        trade.instance_variable_set(:@current_state, Platypi::Trades::TRADE_STATES[:trade_found])
+        trade.instance_variable_set(:@current_state, OptionsTrader::Trades::TRADE_STATES[:trade_found])
 
         expect { trade.next }.to output(/Error opening trade/).to_stdout
 
-        expect(trade.current_state).to eq(Platypi::Trades::TRADE_STATES[:send_order_error])
+        expect(trade.current_state).to eq(OptionsTrader::Trades::TRADE_STATES[:send_order_error])
       end
 
       it 'transitions to SEND_ORDER_ERROR when send_close_order raises an exception' do
         allow(mock_order_manager).to receive(:send_preview_order).and_raise(StandardError.new('Connection failed'))
         allow(mock_progress).to receive(:exit?).and_return(true)
-        trade.instance_variable_set(:@current_state, Platypi::Trades::TRADE_STATES[:trade_open])
+        trade.instance_variable_set(:@current_state, OptionsTrader::Trades::TRADE_STATES[:trade_open])
 
         expect { trade.next }.to output(/Error exiting trade/).to_stdout
 
-        expect(trade.current_state).to eq(Platypi::Trades::TRADE_STATES[:send_order_error])
+        expect(trade.current_state).to eq(OptionsTrader::Trades::TRADE_STATES[:send_order_error])
       end
     end
 
@@ -783,21 +783,21 @@ RSpec.describe Platypi::Trades::Trade do
       end
 
       it 'transitions to ADJUST_CLOSE_ORDER_SENT when risk is detected and adjustment is available' do
-        trade_with_adjuster.instance_variable_set(:@current_state, Platypi::Trades::TRADE_STATES[:trade_open])
+        trade_with_adjuster.instance_variable_set(:@current_state, OptionsTrader::Trades::TRADE_STATES[:trade_open])
 
         trade_with_adjuster.next
 
-        expect(trade_with_adjuster.current_state).to eq(Platypi::Trades::TRADE_STATES[:adjust_close_order_sent])
+        expect(trade_with_adjuster.current_state).to eq(OptionsTrader::Trades::TRADE_STATES[:adjust_close_order_sent])
         expect(mock_strategy_adjuster).to have_received(:find_new_strategy).with(mock_strategy)
       end
 
       it 'transitions to TRADE_OPEN_AT_RISK when risk is detected but no adjustment is available' do
         allow(mock_strategy_adjuster).to receive(:find_new_strategy).and_return(nil)
-        trade_with_adjuster.instance_variable_set(:@current_state, Platypi::Trades::TRADE_STATES[:trade_open])
+        trade_with_adjuster.instance_variable_set(:@current_state, OptionsTrader::Trades::TRADE_STATES[:trade_open])
 
         trade_with_adjuster.next
 
-        expect(trade_with_adjuster.current_state).to eq(Platypi::Trades::TRADE_STATES[:trade_open_at_risk])
+        expect(trade_with_adjuster.current_state).to eq(OptionsTrader::Trades::TRADE_STATES[:trade_open_at_risk])
       end
     end
   end

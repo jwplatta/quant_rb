@@ -2,7 +2,7 @@
 
 require 'spec_helper'
 
-RSpec.describe Platypi::CallOption do
+RSpec.describe OptionsTrader::CallOption do
   let(:call_option) { described_class.new('SPY250620C00500000', quantity: 5) }
 
   before do
@@ -102,11 +102,11 @@ RSpec.describe Platypi::CallOption do
 
   describe 'inheritance' do
     it 'inherits from StrategyBase' do
-      expect(call_option).to be_a(Platypi::StrategyBase)
+      expect(call_option).to be_a(OptionsTrader::StrategyBase)
     end
 
     it 'includes Quoteable module' do
-      expect(described_class.included_modules).to include(Platypi::Quoteable)
+      expect(described_class.included_modules).to include(OptionsTrader::Quoteable)
     end
   end
 end

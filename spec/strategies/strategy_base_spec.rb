@@ -2,7 +2,7 @@
 
 require 'spec_helper'
 
-RSpec.describe Platypi::StrategyBase do
+RSpec.describe OptionsTrader::StrategyBase do
   let(:strategy) { described_class.new(increment: 0.05, round: 2) }
 
   describe '#initialize' do

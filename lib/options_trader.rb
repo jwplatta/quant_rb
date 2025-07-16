@@ -1,0 +1,205 @@
+# frozen_string_literal: true
+
+require_relative "OptionsTrader/version"
+
+begin
+  require 'dotenv'
+  Dotenv.load
+rescue LoadError
+  # dotenv not available, skip loading
+rescue Errno::ENOENT
+  # .env file not found, continue without it
+end
+
+module OptionsTrader
+  class Error < StandardError; end
+
+  # Require configuration first
+  require_relative "options_trader/configuration"
+  require_relative 'options_trader/logger'
+  require_relative 'options_trader/loggable'
+
+  # Require schwab data objects first
+  require_relative "options_trader/schwab/data_objects/account"
+  require_relative "options_trader/schwab/data_objects/instrument"
+  require_relative "options_trader/schwab/data_objects/option"
+  require_relative "options_trader/schwab/data_objects/option_chain"
+  require_relative "options_trader/schwab/data_objects/order"
+  require_relative "options_trader/schwab/data_objects/order_leg"
+  require_relative "options_trader/schwab/data_objects/order_preview"
+  require_relative "options_trader/schwab/data_objects/position"
+  require_relative "options_trader/schwab/data_objects/quote"
+  require_relative "options_trader/schwab/data_objects/transaction"
+
+  # Require schwab modules (needed by strategies)
+  require_relative "options_trader/schwab/quoteable"
+  require_relative "options_trader/schwab/schwab"
+
+  # Then require strategy components
+  require_relative "options_trader/strategies/strategy_base"
+  require_relative "options_trader/strategies/call_option"
+  require_relative "options_trader/strategies/put_option"
+  require_relative "options_trader/strategies/call_spread"
+  require_relative "options_trader/strategies/put_spread"
+  require_relative "options_trader/strategies/iron_condor"
+  require_relative "options_trader/strategies/null_strategy"
+
+  # Finally require search components
+  require_relative "options_trader/search/strategy_finder_factory"
+  require_relative "options_trader/search/call_spread_finder"
+  require_relative "options_trader/search/put_spread_finder"
+  require_relative "options_trader/search/iron_condor_finder"
+
+  # Require trades components
+  require_relative "options_trader/trades/trade"
+  require_relative "options_trader/trades/trade_progress"
+  require_relative "options_trader/trades/trade_journal"
+  require_relative "options_trader/trades/order_manager"
+  require_relative "options_trader/trades/risk_monitor"
+
+  # Require bots
+  require_relative "options_trader/automation/bot"
+
+  def self.create_bot(&block)
+    builder = BotBuilder.new
+    builder.instance_eval(&block)
+    builder.build
+  end
+
+  class BotBuilder
+    def initialize
+      @config = {}
+    end
+
+    def set_name(name)
+      @config[:name] = name
+    end
+
+    def set_mode(mode)
+      @config[:mode] = mode
+    end
+
+    def set_interval(interval)
+      @config[:sleep_interval] = interval
+    end
+
+    def set_account_name(account_name)
+      @config[:account_name] = account_name
+    end
+
+    def enter_trade_when(timing)
+      @config[:enter_timing] = timing
+    end
+
+    def use_strategy(strategy_type, &block)
+      @config[:strategy_type] = strategy_type
+
+      if block_given?
+        strategy_builder = StrategyBuilder.new
+        strategy_builder.instance_eval(&block)
+        strategy_config = strategy_builder.build
+        @config.merge!(strategy_config)
+      end
+    end
+
+    def exit_when(&block)
+      if block_given?
+        exit_builder = ExitBuilder.new
+        exit_builder.instance_eval(&block)
+        exit_config = exit_builder.build
+        @config.merge!(exit_config)
+      end
+    end
+
+    def adjust_strategy_when(&block)
+      # TODO: Implement strategy adjustment DSL
+      puts "Strategy adjustment DSL not implemented yet"
+    end
+
+    def alert_when(&block)
+      # TODO: Implement alert DSL
+      puts "Alert DSL not implemented yet"
+    end
+
+    def build
+      OptionsTrader::Automation::Bot.new(
+        name: @config[:name],
+        mode: @config[:mode] || :paper,
+        account_name: @config[:account_name],
+        config: @config
+      )
+    end
+  end
+
+  class StrategyBuilder
+    def initialize
+      @config = {}
+    end
+
+    def set_underlying_symbol(symbol)
+      @config[:underlying_symbol] = symbol
+    end
+
+    def set_option_root(root)
+      @config[:option_root] = root
+    end
+
+    def set_settlement_type(type)
+      @config[:settlement_type] = type
+    end
+
+    def set_days_to_expiration(days)
+      @config[:days_to_expiration] = days
+    end
+
+    def set_min_credit(amount)
+      @config[:min_credit] = amount
+    end
+
+    def set_min_open_interest(amount)
+      @config[:min_open_interest] = amount
+    end
+
+    def set_max_delta(delta)
+      @config[:max_delta] = delta
+    end
+
+    def set_max_spread(spread)
+      @config[:max_spread] = spread
+    end
+
+    def set_dist_from_strike(distance)
+      @config[:dist_from_strike] = distance
+    end
+
+    def set_quantity(quantity)
+      @config[:quantity] = quantity
+    end
+
+    def set_increment(increment)
+      @config[:increment] = increment
+    end
+
+    def build
+      @config
+    end
+  end
+
+  class ExitBuilder
+    def initialize
+      @config = {}
+    end
+
+    def max_loss_threshold(multiplier)
+      @config[:max_loss_threshold] = -multiplier.abs # Ensure negative for loss
+    end
+
+    def profit_target_threshold(percentage)
+      @config[:profit_target_threshold] = percentage
+    end
+
+    def build
+      @config
+    end
+  end
+end

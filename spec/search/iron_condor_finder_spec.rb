@@ -2,7 +2,7 @@
 
 require 'spec_helper'
 
-RSpec.describe Platypi::IronCondorFinder do
+RSpec.describe OptionsTrader::IronCondorFinder do
   let(:option_chain_data) do
     JSON.parse(
       File.read(File.join(File.dirname(__FILE__), '..', 'fixtures', 'option_chains', 'SPX_05_20_2025_option_chain.json')),
@@ -10,7 +10,7 @@ RSpec.describe Platypi::IronCondorFinder do
     )
   end
 
-  let(:option_chain) { Platypi::Schwab::DataObjects::OptionChain.build(option_chain_data) }
+  let(:option_chain) { OptionsTrader::Schwab::DataObjects::OptionChain.build(option_chain_data) }
   let(:expiration_date) { Date.new(2025, 5, 20) }
 
   describe '#initialize' do
@@ -69,10 +69,10 @@ RSpec.describe Platypi::IronCondorFinder do
         dist_from_strike: 0.01  # Reduced for test data
       )
 
-      expect(result).to be_a(Platypi::IronCondor)
+      expect(result).to be_a(OptionsTrader::IronCondor)
       expect(result.underlying_symbol).to eq('$SPX')
-      expect(result.call_spread).to be_a(Platypi::CallSpread)
-      expect(result.put_spread).to be_a(Platypi::PutSpread)
+      expect(result.call_spread).to be_a(OptionsTrader::CallSpread)
+      expect(result.put_spread).to be_a(OptionsTrader::PutSpread)
     end
 
     it 'returns iron condor with combined credit from both spreads' do
@@ -86,7 +86,7 @@ RSpec.describe Platypi::IronCondorFinder do
         dist_from_strike: 0.01
       )
 
-      if result.is_a?(Platypi::IronCondor)
+      if result.is_a?(OptionsTrader::IronCondor)
         expect(result.credit).to be > 1.0  # Should be sum of both spreads
         expect(result.call_spread.credit).to be > 0
         expect(result.put_spread.credit).to be > 0
@@ -104,7 +104,7 @@ RSpec.describe Platypi::IronCondorFinder do
         dist_from_strike: 0.01
       )
 
-      if result.is_a?(Platypi::IronCondor)
+      if result.is_a?(OptionsTrader::IronCondor)
         expect(result.call_spread.expiration_date).to eq(result.put_spread.expiration_date)
         expect(result.call_spread.expiration_date).to eq(expiration_date)
       end
@@ -121,11 +121,11 @@ RSpec.describe Platypi::IronCondorFinder do
         dist_from_strike: 0.01
       )
 
-      if result.is_a?(Platypi::IronCondor)
+      if result.is_a?(OptionsTrader::IronCondor)
         expect(result.call_spread.short_leg.delta.abs).to be <= 0.10
         expect(result.put_spread.short_leg.delta.abs).to be <= 0.10
       else
-        expect(result).to be_a(Platypi::NullStrategy)
+        expect(result).to be_a(OptionsTrader::NullStrategy)
       end
     end
 
@@ -140,11 +140,11 @@ RSpec.describe Platypi::IronCondorFinder do
         dist_from_strike: 0.01
       )
 
-      if result.is_a?(Platypi::IronCondor)
+      if result.is_a?(OptionsTrader::IronCondor)
         expect(result.call_spread.spread_width).to be <= 5.0
         expect(result.put_spread.spread_width).to be <= 5.0
       else
-        expect(result).to be_a(Platypi::NullStrategy)
+        expect(result).to be_a(OptionsTrader::NullStrategy)
       end
     end
 
@@ -159,12 +159,12 @@ RSpec.describe Platypi::IronCondorFinder do
         dist_from_strike: 0.01
       )
 
-      if result.is_a?(Platypi::IronCondor)
+      if result.is_a?(OptionsTrader::IronCondor)
         # Total credit should meet the minimum requirement
         total_credit = (result.call_spread.credit + result.put_spread.credit) * 100.0
         expect(total_credit).to be >= 300.0
       else
-        expect(result).to be_a(Platypi::NullStrategy)
+        expect(result).to be_a(OptionsTrader::NullStrategy)
       end
     end
 
@@ -179,7 +179,7 @@ RSpec.describe Platypi::IronCondorFinder do
         dist_from_strike: 0.005  # Very close to current price
       )
 
-      if result.is_a?(Platypi::IronCondor)
+      if result.is_a?(OptionsTrader::IronCondor)
         underlying_price = option_chain.underlying_price
         call_short_strike = result.call_spread.short_leg.strike
         put_short_strike = result.put_spread.short_leg.strike
@@ -190,7 +190,7 @@ RSpec.describe Platypi::IronCondorFinder do
         expect(call_distance).to be >= 0.005
         expect(put_distance).to be >= 0.005
       else
-        expect(result).to be_a(Platypi::NullStrategy)
+        expect(result).to be_a(OptionsTrader::NullStrategy)
       end
     end
 
@@ -214,8 +214,8 @@ RSpec.describe Platypi::IronCondorFinder do
       )
 
       # This test verifies the filtering logic works during the search process
-      if result.is_a?(Platypi::IronCondor)
-        expect(result).to be_a(Platypi::IronCondor)
+      if result.is_a?(OptionsTrader::IronCondor)
+        expect(result).to be_a(OptionsTrader::IronCondor)
       end
     end
 
@@ -239,8 +239,8 @@ RSpec.describe Platypi::IronCondorFinder do
       )
 
       # This test verifies the filtering logic works during the search process
-      if result.is_a?(Platypi::IronCondor)
-        expect(result).to be_a(Platypi::IronCondor)
+      if result.is_a?(OptionsTrader::IronCondor)
+        expect(result).to be_a(OptionsTrader::IronCondor)
       end
     end
 
@@ -264,8 +264,8 @@ RSpec.describe Platypi::IronCondorFinder do
       )
 
       # This test verifies the filtering logic works during the search process
-      if result.is_a?(Platypi::IronCondor)
-        expect(result).to be_a(Platypi::IronCondor)
+      if result.is_a?(OptionsTrader::IronCondor)
+        expect(result).to be_a(OptionsTrader::IronCondor)
       end
     end
 
@@ -279,7 +279,7 @@ RSpec.describe Platypi::IronCondorFinder do
         min_open_interest: 10000,
         dist_from_strike: 0.50
       )
-      expect(result).to be_a(Platypi::NullStrategy)
+      expect(result).to be_a(OptionsTrader::NullStrategy)
     end
 
     it 'returns NullStrategy when no valid put spread found' do
@@ -292,7 +292,7 @@ RSpec.describe Platypi::IronCondorFinder do
         min_open_interest: 10000,
         dist_from_strike: 0.50
       )
-      expect(result).to be_a(Platypi::NullStrategy)
+      expect(result).to be_a(OptionsTrader::NullStrategy)
     end
 
     it 'returns NullStrategy when neither spread can be found' do
@@ -305,7 +305,7 @@ RSpec.describe Platypi::IronCondorFinder do
         min_open_interest: 10000,  # Very high open interest
         dist_from_strike: 0.50     # Very far from strike
       )
-      expect(result).to be_a(Platypi::NullStrategy)
+      expect(result).to be_a(OptionsTrader::NullStrategy)
     end
 
     context 'with different expiration dates' do
@@ -327,7 +327,7 @@ RSpec.describe Platypi::IronCondorFinder do
           max_spread: 20.0,
           min_credit: 50.0
         )
-        expect(result).to be_a(Platypi::NullStrategy)
+        expect(result).to be_a(OptionsTrader::NullStrategy)
       end
     end
 
@@ -335,7 +335,7 @@ RSpec.describe Platypi::IronCondorFinder do
       it 'handles option chain with no call options' do
         empty_call_chain_data = option_chain_data.dup
         empty_call_chain_data[:callExpDateMap] = {}
-        empty_call_chain = Platypi::Schwab::DataObjects::OptionChain.build(empty_call_chain_data)
+        empty_call_chain = OptionsTrader::Schwab::DataObjects::OptionChain.build(empty_call_chain_data)
 
         # Mock the option_chain method
         allow(finder).to receive(:option_chain).and_return(empty_call_chain)
@@ -349,13 +349,13 @@ RSpec.describe Platypi::IronCondorFinder do
           min_open_interest: 0,
           dist_from_strike: 0.01
         )
-        expect(result).to be_a(Platypi::NullStrategy)
+        expect(result).to be_a(OptionsTrader::NullStrategy)
       end
 
       it 'handles option chain with no put options' do
         empty_put_chain_data = option_chain_data.dup
         empty_put_chain_data[:putExpDateMap] = {}
-        empty_put_chain = Platypi::Schwab::DataObjects::OptionChain.build(empty_put_chain_data)
+        empty_put_chain = OptionsTrader::Schwab::DataObjects::OptionChain.build(empty_put_chain_data)
 
         # Mock the option_chain method
         allow(finder).to receive(:option_chain).and_return(empty_put_chain)
@@ -369,7 +369,7 @@ RSpec.describe Platypi::IronCondorFinder do
           min_open_interest: 0,
           dist_from_strike: 0.01
         )
-        expect(result).to be_a(Platypi::NullStrategy)
+        expect(result).to be_a(OptionsTrader::NullStrategy)
       end
 
       it 'handles options with zero or negative marks' do
@@ -388,7 +388,7 @@ RSpec.describe Platypi::IronCondorFinder do
           dist_from_strike: 0.01
         )
 
-        if result.is_a?(Platypi::IronCondor)
+        if result.is_a?(OptionsTrader::IronCondor)
           expect(result.call_spread.short_leg.mark).to be > 0
           expect(result.call_spread.long_leg.mark).to be > 0
           expect(result.put_spread.short_leg.mark).to be > 0
@@ -418,7 +418,7 @@ RSpec.describe Platypi::IronCondorFinder do
         dist_from_strike: 0.03
       )
 
-      expect(call_finder).to be_a(Platypi::CallSpreadFinder)
+      expect(call_finder).to be_a(OptionsTrader::CallSpreadFinder)
       expect(call_finder.underlying_symbol).to eq('$SPX')
       expect(call_finder.expiration_date).to eq(expiration_date)
       expect(call_finder.quantity).to eq(2)
@@ -448,7 +448,7 @@ RSpec.describe Platypi::IronCondorFinder do
         dist_from_strike: 0.03
       )
 
-      expect(put_finder).to be_a(Platypi::PutSpreadFinder)
+      expect(put_finder).to be_a(OptionsTrader::PutSpreadFinder)
       expect(put_finder.underlying_symbol).to eq('$SPX')
       expect(put_finder.expiration_date).to eq(expiration_date)
       expect(put_finder.quantity).to eq(2)
@@ -480,7 +480,7 @@ RSpec.describe Platypi::IronCondorFinder do
         dist_from_strike: 0.01    # 1% from current price
       )
 
-      expect(result).to be_a(Platypi::IronCondor)
+      expect(result).to be_a(OptionsTrader::IronCondor)
       expect(result.credit).to be >= 1.0  # Combined credit should be at least $1.00
       expect(result.call_spread.spread_width).to be <= 15.0
       expect(result.put_spread.spread_width).to be <= 15.0
@@ -502,7 +502,7 @@ RSpec.describe Platypi::IronCondorFinder do
         dist_from_strike: 0.01
       )
 
-      if result.is_a?(Platypi::IronCondor)
+      if result.is_a?(OptionsTrader::IronCondor)
         # Call spread structure: short strike < long strike
         expect(result.call_spread.short_leg.strike).to be < result.call_spread.long_leg.strike
 
@@ -536,7 +536,7 @@ RSpec.describe Platypi::IronCondorFinder do
         dist_from_strike: 0.01
       )
 
-      if result.is_a?(Platypi::IronCondor)
+      if result.is_a?(OptionsTrader::IronCondor)
         # Max profit should be the total credit
         expect(result.max_profit).to eq(result.credit)
 
@@ -606,7 +606,7 @@ RSpec.describe Platypi::IronCondorFinder do
         dist_from_strike: 0.01
       )
 
-      if result.is_a?(Platypi::IronCondor)
+      if result.is_a?(OptionsTrader::IronCondor)
         call_strikes = result.call_spread.strikes.sort
         put_strikes = result.put_spread.strikes.sort
 

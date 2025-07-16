@@ -2,7 +2,7 @@
 
 require 'spec_helper'
 
-RSpec.describe Platypi::TradeProgress do
+RSpec.describe OptionsTrader::TradeProgress do
   let(:default_profit_thresh) { 0.65 }
   let(:default_loss_thresh) { -2.0 }
 

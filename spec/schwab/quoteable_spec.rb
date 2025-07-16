@@ -2,10 +2,10 @@
 
 require 'rspec'
 
-RSpec.describe Platypi::Quoteable do
+RSpec.describe OptionsTrader::Quoteable do
   let(:test_class) do
     Class.new do
-      include Platypi::Quoteable
+      include OptionsTrader::Quoteable
 
       def symbol
         'AAPL'
@@ -15,7 +15,7 @@ RSpec.describe Platypi::Quoteable do
 
   let(:quoteable_instance) { test_class.new }
   let(:mock_quote) do
-    instance_double('Platypi::Schwab::DataObjects::OptionQuote',
+    instance_double('OptionsTrader::Schwab::DataObjects::OptionQuote',
                     strike_price: 150.0,
                     delta: 0.5,
                     mark: 149.5,
@@ -82,7 +82,7 @@ RSpec.describe Platypi::Quoteable do
       expect(new_instance.strike).to be_nil
 
       # Mock a new quote
-      new_quote = instance_double('Platypi::Schwab::DataObjects::OptionQuote',
+      new_quote = instance_double('OptionsTrader::Schwab::DataObjects::OptionQuote',
                                   strike_price: 155.0,
                                   delta: -0.3,
                                   mark: 154.5,
@@ -107,7 +107,7 @@ RSpec.describe Platypi::Quoteable do
     end
 
     it 'handles nil delta gracefully' do
-      quote_with_nil_delta = instance_double('Platypi::Schwab::DataObjects::OptionQuote',
+      quote_with_nil_delta = instance_double('OptionsTrader::Schwab::DataObjects::OptionQuote',
                                              strike_price: 150.0,
                                              delta: nil,
                                              mark: 149.5,
@@ -146,7 +146,7 @@ RSpec.describe Platypi::Quoteable do
       quoteable_instance.instance_variable_set(:@last_quote, mock_quote)
 
       # Mock a new quote with significant price change
-      new_quote = instance_double('Platypi::Schwab::DataObjects::OptionQuote',
+      new_quote = instance_double('OptionsTrader::Schwab::DataObjects::OptionQuote',
                                   strike_price: 150.0,
                                   delta: 0.5,
                                   mark: 160.0,  # More than 5% change from 149.5
@@ -167,7 +167,7 @@ RSpec.describe Platypi::Quoteable do
       quoteable_instance.instance_variable_set(:@last_quote, mock_quote)
 
       # Mock a new quote with small price change
-      new_quote = instance_double('Platypi::Schwab::DataObjects::OptionQuote',
+      new_quote = instance_double('OptionsTrader::Schwab::DataObjects::OptionQuote',
                                   strike_price: 150.0,
                                   delta: 0.5,
                                   mark: 150.0,  # Less than 5% change from 149.5

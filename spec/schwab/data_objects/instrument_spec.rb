@@ -3,7 +3,7 @@
 require 'rspec'
 require 'json'
 
-RSpec.describe Platypi::Schwab::DataObjects::Instrument do
+RSpec.describe OptionsTrader::Schwab::DataObjects::Instrument do
   let(:option_instrument_data) do
     JSON.parse(File.read('spec/fixtures/instrument.json'), symbolize_names: true)
   end
@@ -14,9 +14,9 @@ RSpec.describe Platypi::Schwab::DataObjects::Instrument do
 
   describe '.build' do
     it 'creates an instrument object from option data' do
-      instrument = Platypi::Schwab::DataObjects::Instrument.build(option_instrument_data)
+      instrument = OptionsTrader::Schwab::DataObjects::Instrument.build(option_instrument_data)
 
-      expect(instrument).to be_an_instance_of(Platypi::Schwab::DataObjects::Instrument)
+      expect(instrument).to be_an_instance_of(OptionsTrader::Schwab::DataObjects::Instrument)
       expect(instrument.symbol).to eq('TSLA  250221P00340000')
       expect(instrument.description).to eq('TESLA INC 02/21/2025 $340 Put')
       expect(instrument.asset_type).to eq('OPTION')
@@ -25,9 +25,9 @@ RSpec.describe Platypi::Schwab::DataObjects::Instrument do
     end
 
     it 'creates an instrument object from equity data' do
-      instrument = Platypi::Schwab::DataObjects::Instrument.build(equity_instrument_data)
+      instrument = OptionsTrader::Schwab::DataObjects::Instrument.build(equity_instrument_data)
 
-      expect(instrument).to be_an_instance_of(Platypi::Schwab::DataObjects::Instrument)
+      expect(instrument).to be_an_instance_of(OptionsTrader::Schwab::DataObjects::Instrument)
       expect(instrument.symbol).to eq('TSLA')
       expect(instrument.description).to eq('TESLA INC')
       expect(instrument.asset_type).to eq('EQUITY')
@@ -38,18 +38,18 @@ RSpec.describe Platypi::Schwab::DataObjects::Instrument do
 
   describe '#option?' do
     it 'returns true for option instruments' do
-      instrument = Platypi::Schwab::DataObjects::Instrument.build(option_instrument_data)
+      instrument = OptionsTrader::Schwab::DataObjects::Instrument.build(option_instrument_data)
       expect(instrument.option?).to be true
     end
 
     it 'returns false for equity instruments' do
-      instrument = Platypi::Schwab::DataObjects::Instrument.build(equity_instrument_data)
+      instrument = OptionsTrader::Schwab::DataObjects::Instrument.build(equity_instrument_data)
       expect(instrument.option?).to be false
     end
   end
 end
 
-RSpec.describe Platypi::Schwab::DataObjects::OptionDeliverable do
+RSpec.describe OptionsTrader::Schwab::DataObjects::OptionDeliverable do
   let(:option_deliverable_data) do
     {
       symbol: 'TSLA',
@@ -62,9 +62,9 @@ RSpec.describe Platypi::Schwab::DataObjects::OptionDeliverable do
 
   describe '.build' do
     it 'creates an option deliverable object from raw data' do
-      deliverable = Platypi::Schwab::DataObjects::OptionDeliverable.build(option_deliverable_data)
+      deliverable = OptionsTrader::Schwab::DataObjects::OptionDeliverable.build(option_deliverable_data)
 
-      expect(deliverable).to be_an_instance_of(Platypi::Schwab::DataObjects::OptionDeliverable)
+      expect(deliverable).to be_an_instance_of(OptionsTrader::Schwab::DataObjects::OptionDeliverable)
       expect(deliverable.symbol).to eq('TSLA')
       expect(deliverable.deliverable_units).to eq(100.0)
       expect(deliverable.deliverable_number).to eq(1)
@@ -76,7 +76,7 @@ RSpec.describe Platypi::Schwab::DataObjects::OptionDeliverable do
 
   describe '#to_h' do
     it 'converts the option deliverable object back to a hash with the same structure as the input data' do
-      deliverable = Platypi::Schwab::DataObjects::OptionDeliverable.build(option_deliverable_data)
+      deliverable = OptionsTrader::Schwab::DataObjects::OptionDeliverable.build(option_deliverable_data)
       deliverable_hash = deliverable.to_h
 
       expect(deliverable_hash[:symbol]).to eq(option_deliverable_data[:symbol])
@@ -89,7 +89,7 @@ RSpec.describe Platypi::Schwab::DataObjects::OptionDeliverable do
   end
 end
 
-RSpec.describe Platypi::Schwab::DataObjects::Asset do
+RSpec.describe OptionsTrader::Schwab::DataObjects::Asset do
   let(:asset_data) do
     {
       assetType: 'FUTURE',
@@ -109,9 +109,9 @@ RSpec.describe Platypi::Schwab::DataObjects::Asset do
 
   describe '.build' do
     it 'creates an asset object from raw data' do
-      asset = Platypi::Schwab::DataObjects::Asset.build(asset_data)
+      asset = OptionsTrader::Schwab::DataObjects::Asset.build(asset_data)
 
-      expect(asset).to be_an_instance_of(Platypi::Schwab::DataObjects::Asset)
+      expect(asset).to be_an_instance_of(OptionsTrader::Schwab::DataObjects::Asset)
       expect(asset.asset_type).to eq('FUTURE')
       expect(asset.status).to eq('ACTIVE')
       expect(asset.symbol).to eq('ESZ3')
@@ -129,7 +129,7 @@ RSpec.describe Platypi::Schwab::DataObjects::Asset do
 
   describe '#to_h' do
     it 'converts the asset object back to a hash with the same structure as the input data' do
-      asset = Platypi::Schwab::DataObjects::Asset.build(asset_data)
+      asset = OptionsTrader::Schwab::DataObjects::Asset.build(asset_data)
       asset_hash = asset.to_h
 
       expect(asset_hash[:assetType]).to eq(asset_data[:assetType])

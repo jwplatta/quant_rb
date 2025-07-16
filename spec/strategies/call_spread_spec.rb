@@ -2,7 +2,7 @@
 
 require 'spec_helper'
 
-RSpec.describe Platypi::CallSpread do
+RSpec.describe OptionsTrader::CallSpread do
   let(:short_leg) do
     double('CallOption',
       symbol: 'SPY250620C00500000',
@@ -155,7 +155,7 @@ RSpec.describe Platypi::CallSpread do
 
   describe '#to_s' do
     it 'returns formatted string representation' do
-      expected = "<Platypi::CallSpread #{Date.new(2025, 6, 20)}, " \
+      expected = "<OptionsTrader::CallSpread #{Date.new(2025, 6, 20)}, " \
                  "SPY250620C00500000, 500.0, " \
                  "SPY250620C00510000, 510.0>"
 
@@ -240,7 +240,7 @@ RSpec.describe Platypi::CallSpread do
 
   describe 'inheritance' do
     it 'inherits from StrategyBase' do
-      expect(call_spread).to be_a(Platypi::StrategyBase)
+      expect(call_spread).to be_a(OptionsTrader::StrategyBase)
     end
   end
 
@@ -329,7 +329,7 @@ RSpec.describe Platypi::CallSpread do
       it 'reconstructs CallSpread from hash' do
         spread = described_class.from_h(call_spread_hash)
 
-        expect(spread).to be_a(Platypi::CallSpread)
+        expect(spread).to be_a(OptionsTrader::CallSpread)
         expect(spread.underlying_symbol).to eq('SPY')
         expect(spread.quantity).to eq(3)
         expect(spread.increment).to eq(0.01)
@@ -339,12 +339,12 @@ RSpec.describe Platypi::CallSpread do
       it 'reconstructs option legs from hash data' do
         spread = described_class.from_h(call_spread_hash)
 
-        expect(spread.short_leg).to be_a(Platypi::CallOption)
+        expect(spread.short_leg).to be_a(OptionsTrader::CallOption)
         expect(spread.short_leg.symbol).to eq('SPY250620C00500000')
         expect(spread.short_leg.strike).to eq(500.0)
         expect(spread.short_leg.mark).to eq(3.50)
 
-        expect(spread.long_leg).to be_a(Platypi::CallOption)
+        expect(spread.long_leg).to be_a(OptionsTrader::CallOption)
         expect(spread.long_leg.symbol).to eq('SPY250620C00510000')
         expect(spread.long_leg.strike).to eq(510.0)
         expect(spread.long_leg.mark).to eq(2.00)
@@ -358,7 +358,7 @@ RSpec.describe Platypi::CallSpread do
         json_string = call_spread_hash.to_json
         spread = described_class.from_json(json_string)
 
-        expect(spread).to be_a(Platypi::CallSpread)
+        expect(spread).to be_a(OptionsTrader::CallSpread)
         expect(spread.underlying_symbol).to eq('SPY')
         expect(spread.quantity).to eq(3)
       end

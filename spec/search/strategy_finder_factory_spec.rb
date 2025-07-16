@@ -2,7 +2,7 @@
 
 require 'spec_helper'
 
-RSpec.describe Platypi::StrategyFinderFactory do
+RSpec.describe OptionsTrader::StrategyFinderFactory do
   describe '.create' do
     let(:underlying_symbol) { 'SPX' }
     let(:expiration_date) { '2025-07-04' }
@@ -24,7 +24,7 @@ RSpec.describe Platypi::StrategyFinderFactory do
       it 'creates an IronCondorFinder for ironcondor strategy' do
         finder = described_class.create(strategy_type: 'ironcondor', **base_params)
 
-        expect(finder).to be_a(Platypi::IronCondorFinder)
+        expect(finder).to be_a(OptionsTrader::IronCondorFinder)
         expect(finder.underlying_symbol).to eq(underlying_symbol)
         expect(finder.expiration_date).to eq(expiration_date)
         expect(finder.quantity).to eq(quantity)
@@ -35,7 +35,7 @@ RSpec.describe Platypi::StrategyFinderFactory do
       it 'creates a CallSpreadFinder for callspread strategy' do
         finder = described_class.create(strategy_type: 'callspread', **base_params)
 
-        expect(finder).to be_a(Platypi::CallSpreadFinder)
+        expect(finder).to be_a(OptionsTrader::CallSpreadFinder)
         expect(finder.underlying_symbol).to eq(underlying_symbol)
         expect(finder.expiration_date).to eq(expiration_date)
         expect(finder.quantity).to eq(quantity)
@@ -46,7 +46,7 @@ RSpec.describe Platypi::StrategyFinderFactory do
       it 'creates a PutSpreadFinder for putspread strategy' do
         finder = described_class.create(strategy_type: 'putspread', **base_params)
 
-        expect(finder).to be_a(Platypi::PutSpreadFinder)
+        expect(finder).to be_a(OptionsTrader::PutSpreadFinder)
         expect(finder.underlying_symbol).to eq(underlying_symbol)
         expect(finder.expiration_date).to eq(expiration_date)
         expect(finder.quantity).to eq(quantity)
@@ -55,15 +55,15 @@ RSpec.describe Platypi::StrategyFinderFactory do
       end
 
       it 'handles case-insensitive strategy types' do
-        expect(described_class.create(strategy_type: 'IRONCONDOR', **base_params)).to be_a(Platypi::IronCondorFinder)
-        expect(described_class.create(strategy_type: 'CallSpread', **base_params)).to be_a(Platypi::CallSpreadFinder)
-        expect(described_class.create(strategy_type: 'PutSpread', **base_params)).to be_a(Platypi::PutSpreadFinder)
+        expect(described_class.create(strategy_type: 'IRONCONDOR', **base_params)).to be_a(OptionsTrader::IronCondorFinder)
+        expect(described_class.create(strategy_type: 'CallSpread', **base_params)).to be_a(OptionsTrader::CallSpreadFinder)
+        expect(described_class.create(strategy_type: 'PutSpread', **base_params)).to be_a(OptionsTrader::PutSpreadFinder)
       end
 
       it 'handles symbol strategy types' do
-        expect(described_class.create(strategy_type: :ironcondor, **base_params)).to be_a(Platypi::IronCondorFinder)
-        expect(described_class.create(strategy_type: :callspread, **base_params)).to be_a(Platypi::CallSpreadFinder)
-        expect(described_class.create(strategy_type: :putspread, **base_params)).to be_a(Platypi::PutSpreadFinder)
+        expect(described_class.create(strategy_type: :ironcondor, **base_params)).to be_a(OptionsTrader::IronCondorFinder)
+        expect(described_class.create(strategy_type: :callspread, **base_params)).to be_a(OptionsTrader::CallSpreadFinder)
+        expect(described_class.create(strategy_type: :putspread, **base_params)).to be_a(OptionsTrader::PutSpreadFinder)
       end
     end
 
@@ -118,7 +118,7 @@ RSpec.describe Platypi::StrategyFinderFactory do
 
         finder = described_class.create(**minimal_params)
 
-        expect(finder).to be_a(Platypi::IronCondorFinder)
+        expect(finder).to be_a(OptionsTrader::IronCondorFinder)
         expect(finder.underlying_symbol).to eq(underlying_symbol)
         expect(finder.expiration_date).to eq(expiration_date)
         expect(finder.quantity).to eq(1)
