@@ -5,12 +5,12 @@ default: &default
 
 production:
   <<: *default
-  database: db/platypi.sqlite3
+  database: db/OptionsTrader.sqlite3
 
 development:
   <<: *default
-  database: db/platypi_dev.sqlite3
+  database: db/OptionsTrader_dev.sqlite3
 
 test:
   <<: *default
-  database: db/platypi_test.sqlite3
+  database: db/OptionsTrader_test.sqlite3

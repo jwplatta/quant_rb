@@ -2,7 +2,7 @@
 
 require 'spec_helper'
 
-RSpec.describe Platypi::PutSpread do
+RSpec.describe OptionsTrader::PutSpread do
   let(:short_leg) do
     double('PutOption',
       symbol: 'SPY250620P00450000',
@@ -224,7 +224,7 @@ RSpec.describe Platypi::PutSpread do
 
   describe '#to_s' do
     it 'returns formatted string representation' do
-      expected = "<Platypi::PutSpread #{Date.new(2025, 6, 20)}, " \
+      expected = "<OptionsTrader::PutSpread #{Date.new(2025, 6, 20)}, " \
                  "SPY250620P00450000, 450.0, " \
                  "SPY250620P00440000, 440.0>"
 
@@ -309,7 +309,7 @@ RSpec.describe Platypi::PutSpread do
 
   describe 'inheritance' do
     it 'inherits from StrategyBase' do
-      expect(put_spread).to be_a(Platypi::StrategyBase)
+      expect(put_spread).to be_a(OptionsTrader::StrategyBase)
     end
 
     it 'responds to StrategyBase methods' do
@@ -405,7 +405,7 @@ RSpec.describe Platypi::PutSpread do
       it 'reconstructs PutSpread from hash' do
         spread = described_class.from_h(put_spread_hash)
 
-        expect(spread).to be_a(Platypi::PutSpread)
+        expect(spread).to be_a(OptionsTrader::PutSpread)
         expect(spread.underlying_symbol).to eq('SPY')
         expect(spread.quantity).to eq(2)
         expect(spread.increment).to eq(0.01)
@@ -415,12 +415,12 @@ RSpec.describe Platypi::PutSpread do
       it 'reconstructs option legs from hash data' do
         spread = described_class.from_h(put_spread_hash)
 
-        expect(spread.short_leg).to be_a(Platypi::PutOption)
+        expect(spread.short_leg).to be_a(OptionsTrader::PutOption)
         expect(spread.short_leg.symbol).to eq('SPY250620P00450000')
         expect(spread.short_leg.strike).to eq(450.0)
         expect(spread.short_leg.mark).to eq(2.75)
 
-        expect(spread.long_leg).to be_a(Platypi::PutOption)
+        expect(spread.long_leg).to be_a(OptionsTrader::PutOption)
         expect(spread.long_leg.symbol).to eq('SPY250620P00440000')
         expect(spread.long_leg.strike).to eq(440.0)
         expect(spread.long_leg.mark).to eq(1.50)
@@ -434,7 +434,7 @@ RSpec.describe Platypi::PutSpread do
         json_string = put_spread_hash.to_json
         spread = described_class.from_json(json_string)
 
-        expect(spread).to be_a(Platypi::PutSpread)
+        expect(spread).to be_a(OptionsTrader::PutSpread)
         expect(spread.underlying_symbol).to eq('SPY')
         expect(spread.quantity).to eq(2)
       end

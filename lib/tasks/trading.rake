@@ -1,8 +1,8 @@
 # frozen_string_literal: true
 
 require 'dotenv'
-require_relative '../platypi'
-require_relative '../platypi/bots/spx_weekly'
+require_relative '../options_trader'
+require_relative '../options_trader/bots/spx_weekly'
 
 Dotenv.load
 
@@ -13,7 +13,7 @@ namespace :trading do
 
     begin
       # Initialize the SPX Weekly bot in preview mode
-      bot = Platypi::SPXWeekly.new(mode: :preview)
+      bot = OptionsTrader::SPXWeekly.new(mode: :preview)
 
       # Set up signal handling for graceful shutdown
       Signal.trap('INT') do

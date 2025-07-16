@@ -2,7 +2,7 @@
 
 require 'spec_helper'
 
-RSpec.describe Platypi::CallSpreadFinder do
+RSpec.describe OptionsTrader::CallSpreadFinder do
   let(:option_chain_data) do
     JSON.parse(
       File.read(File.join(File.dirname(__FILE__), '..', 'fixtures', 'option_chains', 'SPX_05_20_2025_option_chain.json')),
@@ -10,7 +10,7 @@ RSpec.describe Platypi::CallSpreadFinder do
     )
   end
 
-  let(:option_chain) { Platypi::Schwab::DataObjects::OptionChain.build(option_chain_data) }
+  let(:option_chain) { OptionsTrader::Schwab::DataObjects::OptionChain.build(option_chain_data) }
   let(:expiration_date) { Date.new(2025, 5, 20) }
 
   describe '#initialize' do
@@ -66,10 +66,10 @@ RSpec.describe Platypi::CallSpreadFinder do
           dist_from_strike: 0.01
         )
 
-        expect(result).to be_a(Platypi::CallSpread)
+        expect(result).to be_a(OptionsTrader::CallSpread)
         expect(result.underlying_symbol).to eq('$SPX')
-        expect(result.short_leg).to be_a(Platypi::CallOption)
-        expect(result.long_leg).to be_a(Platypi::CallOption)
+        expect(result.short_leg).to be_a(OptionsTrader::CallOption)
+        expect(result.long_leg).to be_a(OptionsTrader::CallOption)
       end
 
       it 'returns multiple spreads when return_spreads is true' do
@@ -84,7 +84,7 @@ RSpec.describe Platypi::CallSpreadFinder do
         )
 
         expect(results).to be_an(Array)
-        expect(results.all? { |spread| spread.is_a?(Platypi::CallSpread) }).to be true
+        expect(results.all? { |spread| spread.is_a?(OptionsTrader::CallSpread) }).to be true
         expect(results.length).to be > 0
       end
     end
@@ -111,7 +111,7 @@ RSpec.describe Platypi::CallSpreadFinder do
           from_date: expiration_date,
           to_date: expiration_date
         )
-        expect(result).to be_a(Platypi::CallSpread)
+        expect(result).to be_a(OptionsTrader::CallSpread)
       end
     end
 
@@ -126,10 +126,10 @@ RSpec.describe Platypi::CallSpreadFinder do
           dist_from_strike: 0.01
         )
 
-        if result.is_a?(Platypi::CallSpread)
+        if result.is_a?(OptionsTrader::CallSpread)
           expect(result.short_leg.delta.abs).to be <= 0.10
         else
-          expect(result).to be_a(Platypi::NullStrategy)
+          expect(result).to be_a(OptionsTrader::NullStrategy)
         end
       end
 
@@ -143,10 +143,10 @@ RSpec.describe Platypi::CallSpreadFinder do
           dist_from_strike: 0.01
         )
 
-        if result.is_a?(Platypi::CallSpread)
+        if result.is_a?(OptionsTrader::CallSpread)
           expect(result.spread_width).to be <= 5.0
         else
-          expect(result).to be_a(Platypi::NullStrategy)
+          expect(result).to be_a(OptionsTrader::NullStrategy)
         end
       end
 
@@ -160,10 +160,10 @@ RSpec.describe Platypi::CallSpreadFinder do
           dist_from_strike: 0.01
         )
 
-        if result.is_a?(Platypi::CallSpread)
+        if result.is_a?(OptionsTrader::CallSpread)
           expect(result.credit * 100.0).to be >= 200.0
         else
-          expect(result).to be_a(Platypi::NullStrategy)
+          expect(result).to be_a(OptionsTrader::NullStrategy)
         end
       end
 
@@ -177,13 +177,13 @@ RSpec.describe Platypi::CallSpreadFinder do
           dist_from_strike: 0.005  # Very close to current price
         )
 
-        if result.is_a?(Platypi::CallSpread)
+        if result.is_a?(OptionsTrader::CallSpread)
           underlying_price = option_chain.underlying_price
           short_strike = result.short_leg.strike
           distance = ((underlying_price - short_strike) / underlying_price).abs
           expect(distance).to be >= 0.005
         else
-          expect(result).to be_a(Platypi::NullStrategy)
+          expect(result).to be_a(OptionsTrader::NullStrategy)
         end
       end
     end
@@ -211,8 +211,8 @@ RSpec.describe Platypi::CallSpreadFinder do
 
         # Note: The Option objects may not have expiration_type accessors
         # This test verifies the filtering logic works during the search process
-        if result.is_a?(Platypi::CallSpread)
-          expect(result).to be_a(Platypi::CallSpread)
+        if result.is_a?(OptionsTrader::CallSpread)
+          expect(result).to be_a(OptionsTrader::CallSpread)
         end
       end
 
@@ -228,8 +228,8 @@ RSpec.describe Platypi::CallSpreadFinder do
 
         # Note: The Option objects may not have settlement_type accessors
         # This test verifies the filtering logic works during the search process
-        if result.is_a?(Platypi::CallSpread)
-          expect(result).to be_a(Platypi::CallSpread)
+        if result.is_a?(OptionsTrader::CallSpread)
+          expect(result).to be_a(OptionsTrader::CallSpread)
         end
       end
 
@@ -245,8 +245,8 @@ RSpec.describe Platypi::CallSpreadFinder do
 
         # Note: The Option objects may not have option_root accessors
         # This test verifies the filtering logic works during the search process
-        if result.is_a?(Platypi::CallSpread)
-          expect(result).to be_a(Platypi::CallSpread)
+        if result.is_a?(OptionsTrader::CallSpread)
+          expect(result).to be_a(OptionsTrader::CallSpread)
         end
       end
     end
@@ -262,7 +262,7 @@ RSpec.describe Platypi::CallSpreadFinder do
           dist_from_strike: 0.50     # Very far from strike
         )
 
-        expect(result).to be_a(Platypi::NullStrategy)
+        expect(result).to be_a(OptionsTrader::NullStrategy)
       end
 
       it 'handles nil option chain' do
@@ -275,7 +275,7 @@ RSpec.describe Platypi::CallSpreadFinder do
           max_spread: 20.0
         )
 
-        expect(result).to be_a(Platypi::NullStrategy)
+        expect(result).to be_a(OptionsTrader::NullStrategy)
       end
     end
   end
@@ -298,7 +298,7 @@ RSpec.describe Platypi::CallSpreadFinder do
         dist_from_strike: 0.01
       )
 
-      if result.is_a?(Platypi::CallSpread)
+      if result.is_a?(OptionsTrader::CallSpread)
         # Call spread structure: short strike < long strike
         expect(result.short_leg.strike).to be < result.long_leg.strike
 
@@ -337,7 +337,7 @@ RSpec.describe Platypi::CallSpreadFinder do
         dist_from_strike: 0.01
       )
 
-      if result.is_a?(Platypi::CallSpread)
+      if result.is_a?(OptionsTrader::CallSpread)
         expect(result.short_leg.quantity).to eq(2)
         expect(result.long_leg.quantity).to eq(2)
       end

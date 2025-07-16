@@ -1,4 +1,4 @@
-# Persistence Layer for Platypi Trading App
+# Persistence Layer for OptionsTrader Trading App
 
 This document outlines how to use the new SQLite-based persistence layer with ActiveRecord.
 

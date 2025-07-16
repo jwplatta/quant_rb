@@ -3,7 +3,7 @@
 require 'spec_helper'
 require 'schwab_rb'
 
-RSpec.describe Platypi::Schwab::OrderFactory do
+RSpec.describe OptionsTrader::Schwab::OrderFactory do
   describe '.build' do
     let(:account_number) { '123456789' }
     let(:quantity) { 1 }

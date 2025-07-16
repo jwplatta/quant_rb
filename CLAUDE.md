@@ -1,9 +1,9 @@
-# Platypi Project Guide
+# OptionsTrader Project Guide
 
 ## Build/Lint/Test Commands
 - `bundle install` - Install dependencies
 - `rake db:init` - Initialize database
-- `rake db:migrate` - Run database migrations 
+- `rake db:migrate` - Run database migrations
 - `rake db:reset` - Reset database
 - `bundle exec rspec` - Run all tests
 - `bundle exec rspec spec/path/to/file_spec.rb` - Run specific test file
@@ -32,7 +32,7 @@
 - Implemented and fixed Transaction and TransferItem tests
 - Fixed transaction data transformation in the Schwab#transactions method
 - Fixed the OrderPreview test by updating the fixture to match the Schwab API response format
-- Fixed the get_order test by properly handling JSON parsing and string/integer comparison 
+- Fixed the get_order test by properly handling JSON parsing and string/integer comparison
 - Fixed DataObjects::Transaction test to align with the Schwab API response format
 - All Schwab mixin tests are now passing
 - Remaining future work:

@@ -1,6 +1,6 @@
 require 'spec_helper'
 
-RSpec.describe Platypi::Trades::OrderManager do
+RSpec.describe OptionsTrader::Trades::OrderManager do
   let(:order_manager) { described_class.new }
   let(:order_manager_with_id) { described_class.new(order_id: 'test-order-123') }
 

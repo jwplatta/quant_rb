@@ -5,7 +5,7 @@ require 'csv'
 require 'date'
 require 'gruff'
 require 'fileutils'
-require_relative '../platypi'
+require_relative '../OptionsTrader'
 
 Trade = Struct.new(
   :opening,
@@ -13,7 +13,7 @@ Trade = Struct.new(
 )
 
 class SchwabClient
-  include Platypi::Schwab
+  include OptionsTrader::Schwab
 end
 
 schwab_client = SchwabClient.new
@@ -198,13 +198,16 @@ namespace :schwab do
     end
   end
 
-  desc 'Print transactions'
-  task :puts_transactions do
+  desc 'Print Monthly Transactions'
+  task :puts_monthly_transactions do
+    today = Date.today
     transactions = schwab_client.transactions(
-      from_date: Date.today - 30,
-      to_date: Date.today,
+      from_date: Date.new(today.year, today.month, 1),
+      to_date: today,
       transaction_types: ['TRADE']
     )
+
+    binding.pry
     File.open('data/orders/transactions.json', 'w') do |file|
       file << JSON.pretty_generate({
         transactions: transactions.map(&:to_h)
@@ -227,14 +230,12 @@ namespace :schwab do
     g = Gruff::Bar.new(800)
     g.title = "Monthy Progress for #{year}"
     g.title_font_size = 20
-
     g.theme = {
       colors: %w[#006400 #DC143C #CCCCCC],
       marker_color: '#666666',
       font_color: '#333333',
       background_colors: %w[#ffffff #ffffff]
     }
-
     g.data(:amounts, amounts)
 
     g.hide_line_markers = false
@@ -564,21 +565,21 @@ def find_trade(
 )
   finder = case trade_type
            when 'iron_condor'
-             Platypi::IronCondorFinder.new(
+             OptionsTrader::IronCondorFinder.new(
                underlying_symbol: underlying,
                expiration_date: end_date,
                quantity: quantity,
                settlement_type: settlement_type
              )
            when 'call_spread'
-             Platypi::CallSpreadFinder.new(
+             OptionsTrader::CallSpreadFinder.new(
                underlying_symbol: underlying,
                expiration_date: end_date,
                quantity: quantity,
                settlement_type: settlement_type
              )
            when 'put_spread'
-             Platypi::PutSpreadFinder.new(
+             OptionsTrader::PutSpreadFinder.new(
                underlying_symbol: underlying,
                expiration_date: end_date,
                quantity: quantity,

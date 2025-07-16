@@ -2,7 +2,7 @@
 
 require 'rspec'
 
-RSpec.describe Platypi::Schwab::DataObjects::QuoteFactory do
+RSpec.describe OptionsTrader::Schwab::DataObjects::QuoteFactory do
   let(:option_quote_data) do
     JSON.parse(
       File.read(
@@ -32,29 +32,29 @@ RSpec.describe Platypi::Schwab::DataObjects::QuoteFactory do
 
   describe '.build' do
     it 'creates an OptionQuote for option data' do
-      quote = Platypi::Schwab::DataObjects::QuoteFactory.build(option_quote_data)
-      expect(quote).to be_an_instance_of(Platypi::Schwab::DataObjects::OptionQuote)
+      quote = OptionsTrader::Schwab::DataObjects::QuoteFactory.build(option_quote_data)
+      expect(quote).to be_an_instance_of(OptionsTrader::Schwab::DataObjects::OptionQuote)
       expect(quote.symbol).to eq('NVDA  250307P00095000')
       expect(quote.asset_main_type).to eq('OPTION')
     end
 
     it 'creates an EquityQuote for equity data' do
-      quote = Platypi::Schwab::DataObjects::QuoteFactory.build(equity_quote_data)
-      expect(quote).to be_an_instance_of(Platypi::Schwab::DataObjects::EquityQuote)
+      quote = OptionsTrader::Schwab::DataObjects::QuoteFactory.build(equity_quote_data)
+      expect(quote).to be_an_instance_of(OptionsTrader::Schwab::DataObjects::EquityQuote)
       expect(quote.symbol).to eq('NVDA')
       expect(quote.asset_main_type).to eq('EQUITY')
     end
 
     it 'creates an IndexQuote for index data' do
-      quote = Platypi::Schwab::DataObjects::QuoteFactory.build(index_quote_data)
-      expect(quote).to be_an_instance_of(Platypi::Schwab::DataObjects::IndexQuote)
+      quote = OptionsTrader::Schwab::DataObjects::QuoteFactory.build(index_quote_data)
+      expect(quote).to be_an_instance_of(OptionsTrader::Schwab::DataObjects::IndexQuote)
       expect(quote.symbol).to eq('$SPX')
       expect(quote.asset_main_type).to eq('INDEX')
     end
   end
 end
 
-RSpec.describe Platypi::Schwab::DataObjects::OptionQuote do
+RSpec.describe OptionsTrader::Schwab::DataObjects::OptionQuote do
   let(:raw_data) do
     JSON.parse(
       File.read(
@@ -66,7 +66,7 @@ RSpec.describe Platypi::Schwab::DataObjects::OptionQuote do
 
   describe 'initialization' do
     it 'creates an option quote with correct attributes' do
-      quote = Platypi::Schwab::DataObjects::QuoteFactory.build(raw_data)
+      quote = OptionsTrader::Schwab::DataObjects::QuoteFactory.build(raw_data)
 
       expect(quote.symbol).to eq('NVDA  250307P00095000')
       expect(quote.asset_main_type).to eq('OPTION')
@@ -85,7 +85,7 @@ RSpec.describe Platypi::Schwab::DataObjects::OptionQuote do
   end
 end
 
-RSpec.describe Platypi::Schwab::DataObjects::EquityQuote do
+RSpec.describe OptionsTrader::Schwab::DataObjects::EquityQuote do
   let(:raw_data) do
     JSON.parse(
       File.read(
@@ -97,7 +97,7 @@ RSpec.describe Platypi::Schwab::DataObjects::EquityQuote do
 
   describe 'initialization' do
     it 'creates an equity quote with correct attributes' do
-      quote = Platypi::Schwab::DataObjects::QuoteFactory.build(raw_data)
+      quote = OptionsTrader::Schwab::DataObjects::QuoteFactory.build(raw_data)
 
       expect(quote.symbol).to eq('NVDA')
       expect(quote.asset_main_type).to eq('EQUITY')
@@ -112,7 +112,7 @@ RSpec.describe Platypi::Schwab::DataObjects::EquityQuote do
   end
 end
 
-RSpec.describe Platypi::Schwab::DataObjects::IndexQuote do
+RSpec.describe OptionsTrader::Schwab::DataObjects::IndexQuote do
   let(:raw_data) do
     JSON.parse(
       File.read(
@@ -124,7 +124,7 @@ RSpec.describe Platypi::Schwab::DataObjects::IndexQuote do
 
   describe 'initialization' do
     it 'creates an index quote with correct attributes' do
-      quote = Platypi::Schwab::DataObjects::QuoteFactory.build(raw_data)
+      quote = OptionsTrader::Schwab::DataObjects::QuoteFactory.build(raw_data)
 
       expect(quote.symbol).to eq('$SPX')
       expect(quote.asset_main_type).to eq('INDEX')

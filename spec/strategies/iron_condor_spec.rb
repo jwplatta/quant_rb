@@ -2,7 +2,7 @@
 
 require 'spec_helper'
 
-RSpec.describe Platypi::IronCondor do
+RSpec.describe OptionsTrader::IronCondor do
   let(:put_spread) do
     double('PutSpread',
       delta: -0.15,
@@ -255,7 +255,7 @@ RSpec.describe Platypi::IronCondor do
 
   describe '#to_s' do
     it 'returns formatted string representation' do
-      expected = "<Platypi::IronCondor #{Date.new(2025, 6, 20)}, " \
+      expected = "<OptionsTrader::IronCondor #{Date.new(2025, 6, 20)}, " \
                  "PUT: 450.0/440.0, " \
                  "CALL: 500.0/510.0, " \
                  "Credit: 2.75>"
@@ -268,7 +268,7 @@ RSpec.describe Platypi::IronCondor do
       allow(call_spread).to receive(:strikes).and_return([505.0, 515.0])
       allow(iron_condor).to receive(:credit).and_return(3.25)
 
-      expected = "<Platypi::IronCondor #{Date.new(2025, 6, 20)}, " \
+      expected = "<OptionsTrader::IronCondor #{Date.new(2025, 6, 20)}, " \
                  "PUT: 455.0/445.0, " \
                  "CALL: 505.0/515.0, " \
                  "Credit: 3.25>"
@@ -279,7 +279,7 @@ RSpec.describe Platypi::IronCondor do
 
   describe 'inheritance' do
     it 'inherits from StrategyBase' do
-      expect(iron_condor).to be_a(Platypi::StrategyBase)
+      expect(iron_condor).to be_a(OptionsTrader::StrategyBase)
     end
 
     it 'responds to StrategyBase methods' do
@@ -510,7 +510,7 @@ RSpec.describe Platypi::IronCondor do
       it 'reconstructs IronCondor from hash' do
         condor = described_class.from_h(iron_condor_hash)
 
-        expect(condor).to be_a(Platypi::IronCondor)
+        expect(condor).to be_a(OptionsTrader::IronCondor)
         expect(condor.underlying_symbol).to eq('SPY')
         expect(condor.quantity).to eq(3)
         expect(condor.increment).to eq(0.01)
@@ -521,8 +521,8 @@ RSpec.describe Platypi::IronCondor do
       it 'reconstructs nested spread objects' do
         condor = described_class.from_h(iron_condor_hash)
 
-        expect(condor.put_spread).to be_a(Platypi::PutSpread)
-        expect(condor.call_spread).to be_a(Platypi::CallSpread)
+        expect(condor.put_spread).to be_a(OptionsTrader::PutSpread)
+        expect(condor.call_spread).to be_a(OptionsTrader::CallSpread)
 
         expect(condor.put_spread.underlying_symbol).to eq('SPY')
         expect(condor.call_spread.underlying_symbol).to eq('SPY')
@@ -534,7 +534,7 @@ RSpec.describe Platypi::IronCondor do
         json_string = iron_condor_hash.to_json
         condor = described_class.from_json(json_string)
 
-        expect(condor).to be_a(Platypi::IronCondor)
+        expect(condor).to be_a(OptionsTrader::IronCondor)
         expect(condor.underlying_symbol).to eq('SPY')
         expect(condor.quantity).to eq(3)
       end
