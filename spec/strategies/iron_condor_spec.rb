@@ -14,6 +14,7 @@ RSpec.describe OptionsTrader::IronCondor do
       spread_width: 10.0,
       market_change?: false,
       check_market: nil,
+      expiration_date: Date.new(2025, 6, 20),
       instruments: [
         { symbol: 'SPY250620P00450000', long_short: 'SHORT', put_call: 'PUT' },
         { symbol: 'SPY250620P00440000', long_short: 'LONG', put_call: 'PUT' }
@@ -32,6 +33,7 @@ RSpec.describe OptionsTrader::IronCondor do
       spread_width: 10.0,
       market_change?: false,
       check_market: nil,
+      expiration_date: Date.new(2025, 6, 20),
       instruments: [
         { symbol: 'SPY250620C00500000', long_short: 'SHORT', put_call: 'CALL' },
         { symbol: 'SPY250620C00510000', long_short: 'LONG', put_call: 'CALL' }
@@ -44,7 +46,6 @@ RSpec.describe OptionsTrader::IronCondor do
       underlying_symbol: 'SPY',
       call_spread: call_spread,
       put_spread: put_spread,
-      expiration_date: Date.new(2025, 6, 20),
       quantity: 2
     )
   end
@@ -54,7 +55,6 @@ RSpec.describe OptionsTrader::IronCondor do
       expect(iron_condor.underlying_symbol).to eq('SPY')
       expect(iron_condor.call_spread).to eq(call_spread)
       expect(iron_condor.put_spread).to eq(put_spread)
-      expect(iron_condor.expiration_date).to eq(Date.new(2025, 6, 20))
       expect(iron_condor.quantity).to eq(2)
     end
 
@@ -63,7 +63,6 @@ RSpec.describe OptionsTrader::IronCondor do
         underlying_symbol: 'SPY',
         call_spread: call_spread,
         put_spread: put_spread,
-        expiration_date: Date.new(2025, 6, 20)
       )
 
       expect(condor.quantity).to eq(1)
@@ -76,7 +75,6 @@ RSpec.describe OptionsTrader::IronCondor do
         underlying_symbol: 'SPY',
         call_spread: call_spread,
         put_spread: put_spread,
-        expiration_date: Date.new(2025, 6, 20),
         increment: 0.05,
         round: 3
       )
@@ -255,10 +253,9 @@ RSpec.describe OptionsTrader::IronCondor do
 
   describe '#to_s' do
     it 'returns formatted string representation' do
-      expected = "<OptionsTrader::IronCondor #{Date.new(2025, 6, 20)}, " \
-                 "PUT: 450.0/440.0, " \
-                 "CALL: 500.0/510.0, " \
-                 "Credit: 2.75>"
+      expected = "<OptionsTrader::IronCondor | #{Date.new(2025, 6, 20)} | 2.75 | " \
+                 "PUTSPREAD 450.0/440.0 | " \
+                 "CALLSPREAD 500.0/510.0>"
 
       expect(iron_condor.to_s).to eq(expected)
     end
@@ -268,10 +265,9 @@ RSpec.describe OptionsTrader::IronCondor do
       allow(call_spread).to receive(:strikes).and_return([505.0, 515.0])
       allow(iron_condor).to receive(:credit).and_return(3.25)
 
-      expected = "<OptionsTrader::IronCondor #{Date.new(2025, 6, 20)}, " \
-                 "PUT: 455.0/445.0, " \
-                 "CALL: 505.0/515.0, " \
-                 "Credit: 3.25>"
+      expected = "<OptionsTrader::IronCondor | #{Date.new(2025, 6, 20)} | 3.25 | " \
+                 "PUTSPREAD 455.0/445.0 | " \
+                 "CALLSPREAD 505.0/515.0>"
 
       expect(iron_condor.to_s).to eq(expected)
     end
@@ -318,6 +314,7 @@ RSpec.describe OptionsTrader::IronCondor do
         spread_width: 10.0,
         market_change?: false,
         check_market: nil,
+        expiration_date: Date.new(2025, 6, 20),
         instruments: [
           { symbol: 'SPY250620P00450000', long_short: 'SHORT', put_call: 'PUT' },
           { symbol: 'SPY250620P00440000', long_short: 'LONG', put_call: 'PUT' }
@@ -363,6 +360,7 @@ RSpec.describe OptionsTrader::IronCondor do
         spread_width: 10.0,
         market_change?: false,
         check_market: nil,
+        expiration_date: Date.new(2025, 6, 20),
         instruments: [
           { symbol: 'SPY250620C00500000', long_short: 'SHORT', put_call: 'CALL' },
           { symbol: 'SPY250620C00510000', long_short: 'LONG', put_call: 'CALL' }
@@ -402,7 +400,6 @@ RSpec.describe OptionsTrader::IronCondor do
         underlying_symbol: 'SPY',
         call_spread: call_spread_with_to_h,
         put_spread: put_spread_with_to_h,
-        expiration_date: Date.new(2025, 6, 20),
         quantity: 2
       )
     end
@@ -412,7 +409,6 @@ RSpec.describe OptionsTrader::IronCondor do
         type: 'ironcondor',
         quantity: 3,
         underlying_symbol: 'SPY',
-        expiration_date: Date.new(2025, 6, 20),
         round: 2,
         increment: 0.01,
         put_spread: {
@@ -480,7 +476,6 @@ RSpec.describe OptionsTrader::IronCondor do
         expect(result[:type]).to eq('ironcondor')
         expect(result[:quantity]).to eq(2)
         expect(result[:underlying_symbol]).to eq('SPY')
-        expect(result[:expiration_date]).to eq(Date.new(2025, 6, 20))
         expect(result[:round]).to eq(2)
         expect(result[:increment]).to eq(0.01)
       end
@@ -544,7 +539,6 @@ RSpec.describe OptionsTrader::IronCondor do
           underlying_symbol: 'TEST',
           call_spread: call_spread_with_to_h,
           put_spread: put_spread_with_to_h,
-          expiration_date: Date.new(2025, 7, 18),
           quantity: 5,
           increment: 0.05,
           round: 3

@@ -13,7 +13,6 @@ module OptionsTrader
         put_spread = PutSpread.from_h(data[:put_spread])
         call_spread = CallSpread.from_h(data[:call_spread])
 
-        # Handle date conversion - it might be a string from JSON
         expiration_date = data[:expiration_date]
         expiration_date = Date.parse(expiration_date) if expiration_date.is_a?(String)
 
@@ -116,7 +115,6 @@ module OptionsTrader
         type: type,
         quantity: quantity,
         underlying_symbol: underlying_symbol,
-        expiration_date: expiration_date,
         round: round,
         increment: increment,
         put_spread: put_spread.to_h,
