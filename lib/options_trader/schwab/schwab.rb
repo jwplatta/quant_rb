@@ -26,6 +26,7 @@ module OptionsTrader
 
     def set_account(account_name)
       @account_name = account_name
+      @current_account = nil
     end
 
     def current_account_name
@@ -34,6 +35,21 @@ module OptionsTrader
 
     def current_account
       @current_account ||= Accounts.new(current_account_name)
+    end
+
+    def available_accounts
+      Accounts.account_names
+    end
+
+    def account_exists?(account_name)
+      Accounts.accounts.key?(account_name.to_s)
+    end
+
+    def switch_account(account_name)
+      unless account_exists?(account_name)
+        raise "Account '#{account_name}' not found. Available accounts: #{available_accounts.join(', ')}"
+      end
+      set_account(account_name)
     end
 
     def reset_client
