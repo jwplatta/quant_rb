@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 RSpec.describe OptionsTrader::Schwab do
-  # Create a test class that includes the OptionsTrader::Schwab module
   let(:test_class) do
     Class.new do
       include OptionsTrader::Schwab
@@ -9,16 +8,12 @@ RSpec.describe OptionsTrader::Schwab do
   end
 
   let(:schwab_instance) { test_class.new }
-
-  # Mock the SchwabRb client
   let(:mock_client) { double('SchwabRb::Client') }
 
   before do
-    # Stub the client method to return our mock client
     allow(schwab_instance).to receive(:client).and_return(mock_client)
     allow(schwab_instance).to receive(:account_hash).and_return('ABC123XYZ')
 
-    # Clear the cache before each test
     test_class.clear_option_chain_cache if test_class.respond_to?(:clear_option_chain_cache)
   end
 
@@ -94,17 +89,13 @@ RSpec.describe OptionsTrader::Schwab do
         .with('ACME', {contract_type: 'CALL', strike_range: 'OTM', to_date: nil})
         .and_return(option_chain_response)
 
-      # First call
       chain1 = schwab_instance.option_chain('ACME',
                                           contract_type: 'CALL',
                                           strike_range: 'OTM')
-
-      # Second call with same params should not use cache
       chain2 = schwab_instance.option_chain('ACME',
                                           contract_type: 'CALL',
                                           strike_range: 'OTM')
 
-      # Both should be option chains but they should be separate instances
       expect(chain1).to be_an_instance_of(OptionsTrader::Schwab::DataObjects::OptionChain)
       expect(chain2).to be_an_instance_of(OptionsTrader::Schwab::DataObjects::OptionChain)
     end
@@ -115,17 +106,14 @@ RSpec.describe OptionsTrader::Schwab do
         .with('ACME', {contract_type: 'CALL', strike_range: 'OTM', to_date: nil})
         .and_return(option_chain_response)
 
-      # First call
       chain1 = schwab_instance.option_chain('ACME',
                                           contract_type: 'CALL',
                                           strike_range: 'OTM')
 
-      # Second call should hit the API again
       chain2 = schwab_instance.option_chain('ACME',
                                           contract_type: 'CALL',
                                           strike_range: 'OTM')
 
-      # Both should be option chains but they should be separate instances
       expect(chain1).to be_an_instance_of(OptionsTrader::Schwab::DataObjects::OptionChain)
       expect(chain2).to be_an_instance_of(OptionsTrader::Schwab::DataObjects::OptionChain)
     end
@@ -164,7 +152,6 @@ RSpec.describe OptionsTrader::Schwab do
     end
 
     it 'fetches and returns transactions' do
-      # Allow specific method call with empty hash
       expect(mock_client).to receive(:get_transactions)
         .with('ABC123XYZ')
         .and_return(transactions_response)
@@ -175,8 +162,6 @@ RSpec.describe OptionsTrader::Schwab do
       expect(transactions.first).to be_an_instance_of(OptionsTrader::Schwab::DataObjects::Transaction)
       expect(transactions.first.type).to eq('TRADE')
       expect(transactions.first.order_id).to eq('1002613435352')
-
-      # Verify the transfer items
       expect(transactions.first.transfer_items).to be_an_instance_of(Array)
       expect(transactions.first.transfer_items.first.instrument.symbol).to eq('MRVL  250321C00155000')
     end
@@ -203,11 +188,7 @@ RSpec.describe OptionsTrader::Schwab do
 
       expect(transactions).to be_an_instance_of(Array)
       expect(transactions.first).to be_an_instance_of(OptionsTrader::Schwab::DataObjects::Transaction)
-
-      # Verify that transfer items are processed correctly
       expect(transactions.first.transfer_items.size).to be > 0
-
-      # Check if fees are extracted correctly
       fee_items = transactions.first.transfer_items.select(&:fee_type)
       expect(fee_items).not_to be_empty
     end
@@ -280,7 +261,6 @@ RSpec.describe OptionsTrader::Schwab do
 
   describe '#get_order' do
     let(:order_response) do
-      # Extract the first order from the array as a hash
       order_data = JSON.parse(File.read('spec/fixtures/orders.json'), symbolize_names: true).first
       instance_double('Response', body: order_data.to_json)
     end
@@ -312,6 +292,61 @@ RSpec.describe OptionsTrader::Schwab do
 
       result = schwab_instance.cancel_order(order_id)
       expect(result).to be true
+    end
+  end
+
+  describe 'account management' do
+    before do
+      OptionsTrader.configuration.add_account('main', '12345678')
+      OptionsTrader.configuration.add_account('trading', '87654321')
+      OptionsTrader::Schwab::Accounts.instance_variable_set(:@accounts, nil)
+      OptionsTrader::Schwab::Accounts.instance_variable_set(:@account_hashes, nil)
+    end
+
+    describe '#set_account' do
+      it 'sets the current account name' do
+        schwab_instance.set_account('main')
+        expect(schwab_instance.current_account_name).to eq('main')
+      end
+    end
+
+    describe '#current_account_name' do
+      it 'returns the current account name when set' do
+        schwab_instance.set_account('trading')
+        expect(schwab_instance.current_account_name).to eq('trading')
+      end
+
+      it 'raises an error when no account is set' do
+        expect {
+          schwab_instance.current_account_name
+        }.to raise_error("No account set. Call set_account(account_name) first.")
+      end
+    end
+
+    describe '#current_account' do
+      it 'returns an Accounts instance for the current account' do
+        schwab_instance.set_account('main')
+        account = schwab_instance.current_account
+
+        expect(account).to be_an_instance_of(OptionsTrader::Schwab::Accounts)
+        expect(account.account_number).to eq('12345678')
+      end
+    end
+
+    describe '#build_order (account integration)' do
+      before do
+        schwab_instance.set_account('trading')
+
+        allow(OptionsTrader::Schwab::OrderFactory).to receive(:build).and_return({})
+      end
+
+      it 'uses the current account number when building orders' do
+        expect(OptionsTrader::Schwab::OrderFactory).to receive(:build).with(
+          hash_including(account_number: '87654321')
+        )
+
+        schwab_instance.build_order(order_instruction: :open)
+      end
     end
   end
 end
