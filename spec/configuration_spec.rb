@@ -76,13 +76,6 @@ RSpec.describe OptionsTrader::Configuration do
     end
   end
 
-  describe '#default_account' do
-    it 'can set and get the default account' do
-      config.default_account = 'main'
-      expect(config.default_account).to eq('main')
-    end
-  end
-
   describe '#remove_account' do
     before do
       config.add_account('main', '12345678')
@@ -99,13 +92,12 @@ RSpec.describe OptionsTrader::Configuration do
   describe '#clear_accounts' do
     before do
       config.add_account('main', '12345678')
-      config.default_account = 'main'
+      allow(ENV).to receive(:select).and_return({})
     end
 
-    it 'clears all accounts and default account' do
+    it 'clears all accounts' do
       config.clear_accounts
       expect(config.account_names).to be_empty
-      expect(config.default_account).to be_nil
     end
   end
 end
@@ -125,23 +117,16 @@ RSpec.describe OptionsTrader do
       expect(OptionsTrader.account_exists?('main')).to be true
       expect(OptionsTrader.account_exists?('unknown')).to be false
     end
-
-    it 'allows setting a default account' do
-      OptionsTrader.default_account = 'main'
-      expect(OptionsTrader.default_account).to eq('main')
-    end
   end
 
   describe '.configure' do
     it 'allows configuration via block' do
       OptionsTrader.configure do |config|
         config.add_account('main', '12345678')
-        config.default_account = 'main'
         config.log_level = :debug
       end
 
       expect(OptionsTrader.account_number('main')).to eq('12345678')
-      expect(OptionsTrader.default_account).to eq('main')
       expect(OptionsTrader.configuration.log_level).to eq(:debug)
     end
   end

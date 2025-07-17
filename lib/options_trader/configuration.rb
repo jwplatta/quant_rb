@@ -1,14 +1,25 @@
 module OptionsTrader
   class Configuration
-    attr_accessor :log_level, :log_file, :log_to_stdout, :default_account
-    attr_reader :accounts
+    class << self
+      def load
+        new.tap do |config|
+          config.load_accounts_from_env
+        end
+      end
+    end
+
+    attr_accessor :log_level, :log_file, :log_to_stdout
+
+    def accounts
+      load_from_env_if_empty
+      @accounts
+    end
 
     def initialize
       @log_level = :info
       @log_file = nil
       @log_to_stdout = true
       @accounts = {}
-      @default_account = nil
     end
 
     def add_account(name, account_number)
@@ -29,15 +40,15 @@ module OptionsTrader
     end
 
     def account_number(name)
-      @accounts[name.to_s]
+      accounts[name.to_s]
     end
 
     def account_names
-      @accounts.keys
+      accounts.keys
     end
 
     def account_exists?(name)
-      @accounts.key?(name.to_s)
+      accounts.key?(name.to_s)
     end
 
     def remove_account(name)
@@ -46,10 +57,16 @@ module OptionsTrader
 
     def clear_accounts
       @accounts.clear
-      @default_account = nil
+    end
+
+    private
+
+    def load_from_env_if_empty
+      load_accounts_from_env if @accounts.empty?
     end
   end
 
+  # NOTE: OptionsTrader.configure
   class << self
     def configure
       yield configuration
@@ -63,16 +80,16 @@ module OptionsTrader
       OptionsTrader::Logger.logger
     end
 
+    def load_accounts_from_env
+      configuration.load_accounts_from_env
+    end
+
     def add_account(name, account_number)
       configuration.add_account(name, account_number)
     end
 
     def add_accounts(accounts_hash)
       configuration.add_accounts(accounts_hash)
-    end
-
-    def load_accounts_from_env
-      configuration.load_accounts_from_env
     end
 
     def account_number(name)
@@ -87,12 +104,12 @@ module OptionsTrader
       configuration.account_exists?(name)
     end
 
-    def default_account
-      configuration.default_account
+    def remove_account(name)
+      configuration.remove_account(name)
     end
 
-    def default_account=(name)
-      configuration.default_account = name
+    def clear_accounts
+      configuration.clear_accounts
     end
   end
 end
