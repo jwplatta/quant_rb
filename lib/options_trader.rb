@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require_relative "OptionsTrader/version"
+require_relative "options_trader/version"
 
 begin
   require 'dotenv'
