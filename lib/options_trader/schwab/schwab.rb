@@ -8,6 +8,7 @@ require_relative 'data_objects/transaction'
 require_relative 'data_objects/order'
 require_relative 'data_objects/order_preview'
 require_relative 'orders/order_factory'
+require_relative 'accounts'
 
 module OptionsTrader
   module Schwab
@@ -25,6 +26,14 @@ module OptionsTrader
 
     def set_account(account_name)
       @account_name = account_name
+    end
+
+    def current_account_name
+      @account_name || raise("No account set. Call set_account(account_name) first.")
+    end
+
+    def current_account
+      @current_account ||= Accounts.new(current_account_name)
     end
 
     def reset_client
@@ -134,11 +143,7 @@ module OptionsTrader
     end
 
     def account_hash
-      return @account_hash if @account_hash
-
-      @account_hash = client.get_account_numbers.then do |resp|
-        JSON.parse(resp.body).first['hashValue']
-      end
+      current_account.account_hash(client)
     end
 
     def build_and_preview_order(order_instruction: :open, **strategy_kwargs)
@@ -162,7 +167,7 @@ module OptionsTrader
     def build_order(order_instruction: :open, **strategy_kwargs)
       OrderFactory.build(
         order_instruction: order_instruction,
-        account_number: ENV['SCHWAB_ACCOUNT_NUMBER'], # REVIEW: want to be able to use multiple accounts. pass an account name
+        account_number: current_account.account_number,
         **strategy_kwargs
       )
     end
