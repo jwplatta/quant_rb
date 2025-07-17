@@ -11,7 +11,8 @@ RSpec.describe OptionsTrader::Schwab::Accounts do
 
   describe '.load_accounts' do
     it 'raises an error when no accounts are configured' do
-      # Configuration should be empty (cleared in before block)
+      allow(ENV).to receive(:select).and_return({})
+
       expect {
         described_class.send(:load_accounts)
       }.to raise_error("No accounts configured. Please register accounts using OptionsTrader.add_account(name, number) or OptionsTrader.configure { |config| config.add_account(name, number) }")
