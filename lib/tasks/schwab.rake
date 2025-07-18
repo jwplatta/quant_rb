@@ -5,7 +5,7 @@ require 'csv'
 require 'date'
 require 'gruff'
 require 'fileutils'
-require_relative '../OptionsTrader'
+require_relative '../options_trader'
 
 Trade = Struct.new(
   :opening,
@@ -26,17 +26,6 @@ namespace :schwab do
     sh "ruby #{script_path}"
 
     puts 'Token refreshed'
-  end
-
-  desc 'Get Quote'
-  task :get_quote, [:symbol] => :environment do |_t, args|
-    symbol = args[:symbol]
-    quote = schwab_client.quote(symbol)
-
-    puts "\n########\nSymbol: #{quote.symbol}\n########\n"
-    puts "Description: #{quote.description}"
-    puts "Mark: #{quote.mark}"
-    puts "Delta: #{quote.delta}"
   end
 
   desc 'Find Options Trade'
@@ -139,10 +128,21 @@ namespace :schwab do
   end
 
   desc 'Show Account'
-  task :print_account do
+  task :print_account, [:account_name] => :environment do |_t, args|
+    account_name = args[:account_name]
+
+    if account_name
+      schwab_client.set_account(account_name)
+      puts "Using account: #{account_name}"
+    else
+      puts "No account specified. Please provide an account name as a parameter."
+      puts "Available accounts: #{schwab_client.available_accounts.join(', ')}"
+      exit
+    end
+
     account = schwab_client.account(fields: 'positions')
     account_summary = """
-    Account Summary:
+    Account Summary for #{account_name}:
     Cash Balance: #{account.current_balances.cash_balance}
     Liquidation Value: #{account.current_balances.liquidation_value}
     w/ Equity: #{account.current_balances.equity}
@@ -150,7 +150,7 @@ namespace :schwab do
     """
     puts account_summary
     puts "\n-----------------------------------\n"
-    puts "\nPOSITIONs:"
+    puts "\nPOSITIONS:"
 
     account.positions.each do |position|
       if position.instrument.asset_type == 'EQUITY'
@@ -180,8 +180,36 @@ namespace :schwab do
         --------------------------------------------------------------
         """
         puts position_sum
+      elsif ['FIXED_INCOME', 'COLLECTIVE_INVESTMENT'].include?(position.instrument.asset_type)
+        position_sum = """
+        Symbol: #{position.instrument.symbol}
+        Description: #{position.instrument.description}
+        Average Price: #{position.average_price}
+        Market Value: #{position.market_value}
+        Long Quantity: #{position.long_quantity}
+        Short Quantity: #{position.short_quantity}
+        """
+        puts position_sum
       else
         puts "Unknown asset type: #{position.instrument.asset_type}"
+        puts position.instrument.inspect
+      end
+    end
+  end
+
+  desc 'List available accounts'
+  task :list_accounts => :environment do
+    accounts = schwab_client.available_accounts
+    if accounts.empty?
+      puts "No accounts configured. Please configure accounts using:"
+      puts "OptionsTrader.configure do |config|"
+      puts "  config.add_account('account_name', 'account_number')"
+      puts "end"
+    else
+      puts "Available accounts:"
+      accounts.each do |account_name|
+        account_number = OptionsTrader.account_number(account_name)
+        puts "  #{account_name}: #{account_number}"
       end
     end
   end
@@ -198,67 +226,35 @@ namespace :schwab do
     end
   end
 
-  desc 'Print Monthly Transactions'
-  task :puts_monthly_transactions do
-    today = Date.today
-    transactions = schwab_client.transactions(
-      from_date: Date.new(today.year, today.month, 1),
-      to_date: today,
-      transaction_types: ['TRADE']
-    )
-
-    binding.pry
-    File.open('data/orders/transactions.json', 'w') do |file|
-      file << JSON.pretty_generate({
-        transactions: transactions.map(&:to_h)
-      })
-    end
-    # CSV.open('all_trades.csv', 'w', write_headers: true, headers: headers) do |csv|
-    #   rows.each do |row|
-    #     csv << row
-    #   end
-    # end
-  end
-
   desc 'Monthly Report'
-  task :monthly_report, [:year] => :environment do |_t, args|
-    year = args[:year] || Date.today.year
+  task :monthly_report, [:year, :account_name] => :environment do |_t, args|
+    year = args[:year].to_i || Date.today.year
+    account_name = args[:account_name]
+
+    if account_name
+      schwab_client.set_account(account_name)
+      puts "Using account: #{account_name}"
+    else
+      puts "No account specified. Please provide an account name as a parameter."
+      puts "Available accounts: #{schwab_client.available_accounts.join(', ')}"
+      exit
+    end
+
     totals = monthly_totals(schwab_client, year)
-    dates = totals.map { |entry| entry.first.strftime("%b %d, %Y") }
-    amounts = totals.map { |entry| entry[1] }
 
-    g = Gruff::Bar.new(800)
-    g.title = "Monthy Progress for #{year}"
-    g.title_font_size = 20
-    g.theme = {
-      colors: %w[#006400 #DC143C #CCCCCC],
-      marker_color: '#666666',
-      font_color: '#333333',
-      background_colors: %w[#ffffff #ffffff]
-    }
-    g.data(:amounts, amounts)
+    chart = OptionsTrader::Charts::MonthlyProgress.new
+    filepath = chart.generate(totals, year: year, account_name: account_name)
 
-    g.hide_line_markers = false
-
-    g.y_axis_label = 'Amount ($)'
-    g.x_axis_label = 'Date'
-
-    g.show_labels_for_bar_values = true
-
-    g.label_rotation = -45
-
-    g.marker_font_size = 14
-    g.legend_font_size = 12
-    g.hide_legend = true
-
-    g.write("tmp/monthly_report_#{year}.png")
+    puts "Monthly report saved to #{filepath}"
   end
 
   desc 'Plot option open interest for a given symbol, expiration date, and strike range'
   task :plot_open_interest, %i[
-    symbol expiration_date
-    min_strike max_strike
+    symbol
     contract_type
+    expiration_date
+    min_strike
+    max_strike
   ] => :environment do |_t, args|
     symbol = if args.symbol
                args.symbol
@@ -293,6 +289,8 @@ namespace :schwab do
       to_date: expiration_date
     )
 
+    binding.pry
+
     if opt_chain.nil?
       puts "No option chain found for #{symbol} on #{expiration_date}"
       exit
@@ -322,50 +320,15 @@ namespace :schwab do
 
     options = options.sort_by(&:strike)
 
-    strikes = options.map(&:strike)
-    open_interests = options.map(&:open_interest)
+    chart = OptionsTrader::Charts::OpenInterest.new
+    result = chart.generate(
+      options,
+      symbol: symbol,
+      contract_type: contract_type,
+      expiration_date: expiration_date
+    )
 
-    g = Gruff::Bar.new(800)
-    g.title = "Open Interest for #{symbol} #{contract_type}s - Exp: #{expiration_date}"
-    g.title_font_size = 20
-
-    g.theme = {
-      colors: contract_type == 'CALL' ? ['#006400'] : ['#DC143C'],
-      marker_color: '#666666',
-      font_color: '#333333',
-      background_colors: %w[#ffffff #ffffff]
-    }
-
-    g.data(:open_interest, open_interests)
-    g.labels = strikes.each_with_index.map { |strike, i| [i, strike.to_s] }.to_h
-
-    g.hide_line_markers = false
-
-    g.y_axis_label = 'Open Interest'
-    g.x_axis_label = 'Strike Price'
-
-    g.show_labels_for_bar_values = true
-
-    g.label_rotation = -45
-
-    g.marker_font_size = 14
-    g.legend_font_size = 12
-    g.hide_legend = true
-
-    FileUtils.mkdir_p('tmp')
-
-    output_path = "tmp/#{symbol}_#{contract_type.downcase}_open_interest_#{expiration_date}.png"
-    g.write(output_path)
-
-    puts "Open interest plot created at #{output_path}"
-
-    puts "\nOpen Interest Summary:"
-    puts "-" * 50
-    puts "Strike | Open Interest"
-    puts "-" * 50
-    options.each do |opt|
-      puts "#{opt.strike.to_s.ljust(6)} | #{opt.open_interest}"
-    end
+    puts "Open interest plot created at #{result[:filepath]}"
   end
 
   desc 'Print Trades'
@@ -411,7 +374,6 @@ namespace :schwab do
 
     total = amount_dtls.sum { |_, _, amount| amount }.round(2)
     puts "\n############\nTotal Amount: #{total}"
-    binding.pry
   end
 
   desc 'Print Trade Status'
