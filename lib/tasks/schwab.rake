@@ -240,10 +240,8 @@ namespace :schwab do
       exit
     end
 
-    totals = monthly_totals(schwab_client, year)
-
-    chart = OptionsTrader::Charts::MonthlyProgress.new
-    filepath = chart.generate(totals, year: year, account_name: account_name)
+    chart = OptionsTrader::Charts::MonthlyProgress.new(schwab_client)
+    filepath = chart.generate(year: year, account_name: account_name)
 
     puts "Monthly report saved to #{filepath}"
   end
@@ -471,40 +469,6 @@ namespace :schwab do
     )
 
     puts "Account orders exported to: #{filepath}"
-  end
-end
-
-def monthly_totals(schwab_client, year)
-  first_and_last_dates_of_month(year).map do |first_date, last_date|
-    orders = schwab_client.account_orders(
-      from_date: first_date,
-      to_date: last_date,
-      status: 'FILLED'
-    )
-
-    transactions = schwab_client.transactions(
-      from_date: first_date,
-      to_date: last_date,
-      transaction_types: ['TRADE']
-    )
-
-    order_details = build_order_details(orders, transactions)
-
-    total_amount = order_details.sum do |_, order_instruments|
-      order_instruments.sum do |_, details|
-        details[:net_amounts].sum
-      end
-    end
-
-    [first_date, total_amount]
-  end
-end
-
-def first_and_last_dates_of_month(year)
-  (1..12).map do |month|
-    first_date = Date.new(year, month, 1)
-    last_date = Date.new(year, month, -1) + 1
-    [first_date, last_date]
   end
 end
 
