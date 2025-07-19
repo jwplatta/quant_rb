@@ -289,8 +289,6 @@ namespace :schwab do
       to_date: expiration_date
     )
 
-    binding.pry
-
     if opt_chain.nil?
       puts "No option chain found for #{symbol} on #{expiration_date}"
       exit
@@ -446,6 +444,33 @@ namespace :schwab do
     puts "Order Net Amount: #{order_net_amount.round(2)}"
     puts "Current Credit/Debit: #{curr_credit_debit.round(2)}"
     # puts "Position progress: #{exit_progress(order_net_amount, curr_credit_debit).round(2)}%"
+  end
+
+  desc 'Export account orders to CSV'
+  task :export_account_orders, [:start_days, :end_days, :account_name] => :environment do |_t, args|
+    from_date = Date.today - (args[:start_days] || 30).to_i
+    to_date = Date.today - (args[:end_days] || 0).to_i
+    account_name = args[:account_name]
+
+    if account_name
+      schwab_client.set_account(account_name)
+      puts "Using account: #{account_name}"
+    else
+      puts "No account specified. Please provide an account name as a parameter."
+      puts "Available accounts: #{schwab_client.available_accounts.join(', ')}"
+      exit
+    end
+
+    puts "Exporting account orders from #{from_date} to #{to_date} for account #{account_name}"
+
+    exporter = OptionsTrader::Exports::AccountOrders.new(schwab_client)
+    filepath = exporter.export(
+      from_date: from_date,
+      to_date: to_date,
+      account_name: account_name
+    )
+
+    puts "Account orders exported to: #{filepath}"
   end
 end
 
