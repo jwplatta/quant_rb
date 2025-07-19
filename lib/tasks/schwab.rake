@@ -226,22 +226,39 @@ namespace :schwab do
     end
   end
 
-  desc 'Monthly Report'
-  task :monthly_report, [:year, :account_name] => :environment do |_t, args|
+  desc 'Monthly Report - supports single account or multiple accounts (comma-separated)'
+  task :monthly_report, [:year, :accounts] => :environment do |_t, args|
     year = args[:year].to_i || Date.today.year
-    account_name = args[:account_name]
+    accounts_arg = args[:accounts]
 
-    if account_name
-      schwab_client.set_account(account_name)
-      puts "Using account: #{account_name}"
-    else
-      puts "No account specified. Please provide an account name as a parameter."
+    unless accounts_arg
+      puts "No accounts specified. Please provide account name(s) as a parameter."
+      puts "Examples:"
+      puts "  Single account:    rake schwab:monthly_report[2025,main]"
+      puts "  Multiple accounts: rake schwab:monthly_report[2025,\"main,trading,ira\"]"
       puts "Available accounts: #{schwab_client.available_accounts.join(', ')}"
       exit
     end
 
-    chart = OptionsTrader::Charts::MonthlyProgress.new(schwab_client)
-    filepath = chart.generate(year: year, account_name: account_name)
+    account_names = accounts_arg.split('|').map(&:strip)
+    available_accounts = schwab_client.available_accounts
+    invalid_accounts = account_names - available_accounts
+
+    unless invalid_accounts.empty?
+      puts "Invalid accounts: #{invalid_accounts.join(', ')}"
+      puts "Available accounts: #{available_accounts.join(', ')}"
+      exit
+    end
+    
+    chart = OptionsTrader::Charts::MonthlyProgress.new(schwab_client, account_names: account_names)
+    filepath = chart.generate(year: year)
+
+    # Display appropriate message
+    if account_names.size == 1
+      puts "Using account: #{account_names.first}"
+    else
+      puts "Using accounts: #{account_names.join(', ')}"
+    end
 
     puts "Monthly report saved to #{filepath}"
   end
