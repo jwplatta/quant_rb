@@ -9,18 +9,17 @@ module OptionsTrader
       end
 
       def export(from_date:, to_date:, account_name:)
+
         orders = @schwab_client.account_orders(
           from_date: from_date,
           to_date: to_date,
           status: 'FILLED'
         )
-
         transactions = @schwab_client.transactions(
           from_date: from_date,
           to_date: to_date,
           transaction_types: ['TRADE']
         )
-
         order_details = build_order_details(orders, transactions)
 
         FileUtils.mkdir_p('tmp')
@@ -29,30 +28,75 @@ module OptionsTrader
         filepath = File.join('tmp', filename)
 
         CSV.open(filepath, 'w', write_headers: true, headers: csv_headers) do |csv|
-          order_details.each do |order_id, order_instruments|
-            trade_date = order_instruments.first[1][:trade_dates].first
-
-            order_net_amount = order_instruments.sum do |instrument_id, details|
+          order_details.each do |order_id, transaction_details_array|
+            # Calculate order net amount from all transactions
+            order_net_amount = transaction_details_array.sum do |details|
               details[:net_amounts].sum
             end
 
-            order_instruments.each do |instrument_id, details|
+            # Write order header line
+            csv << [
+              order_id,
+              '', # Trade Date
+              "ORDER #{order_id}",
+              '', # Quantity
+              '', # Put/Call
+              '', # Position Effect
+              '', # Cost
+              '', # Fees & Commissions
+              '', # Net Amount
+              order_net_amount.round(2)
+            ]
+
+            # Write transaction detail lines
+            transaction_details_array.each do |details|
               details[:net_amounts].each_with_index do |net_amount, index|
                 csv << [
-                  order_id,
+                  '', # Order ID (empty for transaction lines)
                   details[:trade_dates][index]&.strftime('%Y-%m-%d'),
                   details[:description],
                   details[:quantity],
                   details[:put_call],
                   details[:position_effect],
-                  details[:costs][index] || 0,
-                  details[:fees_and_commissions][index] || 0,
-                  net_amount,
-                  order_net_amount.round(2)
+                  (details[:costs][index] || 0).round(2),
+                  (details[:fees_and_commissions][index] || 0).round(2),
+                  net_amount.round(2),
+                  '' # Order Net Amount (empty for transaction lines)
                 ]
               end
             end
+
+            # Calculate totals for order summary
+            total_quantity = transaction_details_array.sum { |details| details[:quantity] }
+            total_cost = transaction_details_array.sum { |details| details[:costs].sum }
+            total_fees = transaction_details_array.sum { |details| details[:fees_and_commissions].sum }
+
+            # Write order summary line
+            csv << [
+              '', # Order ID (empty for summary line)
+              '', # Trade Date
+              "ORDER #{order_id} SUMMARY",
+              total_quantity,
+              '', # Put/Call
+              '', # Position Effect
+              total_cost.round(2),
+              total_fees.round(2),
+              order_net_amount.round(2),
+              '' # Order Net Amount (empty for summary line)
+            ]
+
+            # Add blank line between orders for readability
+            csv << ['', '', '', '', '', '', '', '', '', '']
           end
+
+          # Calculate export totals
+          export_total_net_amount = order_details.sum do |order_id, transaction_details_array|
+            transaction_details_array.sum { |details| details[:net_amounts].sum }
+          end
+
+          # Add export summary at the bottom
+          csv << ['', '', '', '', '', '', '', '', '', '']
+          csv << ['', '', 'EXPORT SUMMARY', '', '', '', '', '', export_total_net_amount.round(2), '']
         end
 
         filepath
@@ -96,13 +140,12 @@ module OptionsTrader
             ]
           end.to_h
 
-          transactions.select { |t| t.order_id == order.order_id }.each do |t|
-            fees_and_commissions = t.transfer_items.select { |ti| !ti.fee_type.nil? }
-            fees_and_commissions_sum = fees_and_commissions.map(&:cost).sum
-
+          transactions.select { |t| t.order_id == order.order_id }.map do |t|
             asset = t.transfer_items.find { |ti| ti.instrument.asset_type == "OPTION" }
-
             next unless asset
+
+            fees_and_commissions = t.transfer_items.select { |ti| !ti.fee_type.nil? }
+            fees_and_commissions_sum = fees_and_commissions.sum(&:cost)
 
             order_instruments[asset.instrument.instrument_id][:costs] << asset.cost
             order_instruments[asset.instrument.instrument_id][:fees_and_commissions] << fees_and_commissions_sum
@@ -110,7 +153,7 @@ module OptionsTrader
             order_instruments[asset.instrument.instrument_id][:net_amounts] << t.net_amount
           end
 
-          [order.order_id, order_instruments]
+          [order.order_id, order_instruments.map { |instrument_id, details| details }]
         end.to_h
       end
     end
