@@ -63,6 +63,9 @@ module OptionsTrader
   # Require charts
   require_relative "options_trader/charts"
 
+  # Require exports
+  require_relative "options_trader/exports/account_orders"
+
   def self.create_bot(&block)
     builder = BotBuilder.new
     builder.instance_eval(&block)
