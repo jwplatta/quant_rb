@@ -3,23 +3,35 @@
 module OptionsTrader
   module Charts
     class MonthlyProgress < Base
-      def initialize(schwab_client)
+      def initialize(schwab_client, account_names: [])
         @schwab_client = schwab_client
+        @account_names = Array(account_names)
         super()
       end
 
-      def generate(year:, account_name:)
-        data = monthly_totals(year)
+      def generate(year:, account_name: nil)
+        accounts_to_process = account_name ? [account_name] : @account_names
+
+        raise ArgumentError, "No accounts specified for monthly progress chart" if accounts_to_process.empty?
+
+        if accounts_to_process.size == 1
+          data = monthly_totals_for_account(year, accounts_to_process.first)
+          account_display_name = accounts_to_process.first
+        else
+          data = aggregated_monthly_totals(year, accounts_to_process)
+          account_display_name = "Combined (#{accounts_to_process.join(', ')})"
+        end
+
         validate_data!(data)
 
         dates = data.map { |entry| entry.first.strftime("%b") }
         amounts = data.map { |entry| entry[1] }
 
-        chart = create_chart(year, account_name)
+        chart = create_chart(year, account_display_name)
         configure_data(chart, amounts, dates)
         configure_chart_options(chart)
 
-        filename = "monthly_report_#{year}_#{account_name}.png"
+        filename = generate_filename(year, accounts_to_process)
         filepath = File.join(output_dir, filename)
         chart.write(filepath)
 
@@ -27,6 +39,36 @@ module OptionsTrader
       end
 
       private
+
+      def generate_filename(year, account_names)
+        if account_names.size == 1
+          "monthly_report_#{year}_#{account_names.first}.png"
+        else
+          "monthly_report_#{year}_combined_#{account_names.join('_')}.png"
+        end
+      end
+
+      def aggregated_monthly_totals(year, account_names)
+        account_totals = account_names.map do |account_name|
+          monthly_totals_for_account(year, account_name)
+        end
+
+        # Aggregate the totals by month
+        first_and_last_dates_of_month(year).map.with_index do |(first_date, _), month_index|
+          total_amount = account_totals.sum do |account_monthly_data|
+            # Get the amount for this month from each account's data
+            account_monthly_data[month_index][1] # [date, amount] - we want the amount
+          end
+
+          [first_date, total_amount]
+        end
+      end
+
+      def monthly_totals_for_account(year, account_name)
+        @schwab_client.set_account(account_name)
+
+        monthly_totals(year)
+      end
 
       def validate_data!(data)
         raise ArgumentError, "Data cannot be empty" if data.empty?
@@ -46,9 +88,9 @@ module OptionsTrader
         end
       end
 
-      def create_chart(year, account_name)
+      def create_chart(year, account_display_name)
         chart = Gruff::Bar.new(width)
-        chart.title = "Monthly Progress for #{year} (#{account_name})"
+        chart.title = "Monthly Progress for #{year} (#{account_display_name})"
         chart.title_font_size = 20
         chart.theme = default_theme
         chart
