@@ -10,7 +10,7 @@ RSpec.describe OptionsTrader::IronCondorFinder do
     )
   end
 
-  let(:option_chain) { OptionsTrader::Schwab::DataObjects::OptionChain.build(option_chain_data) }
+  let(:option_chain) { SchwabRb::DataObjects::OptionChain.build(option_chain_data) }
   let(:expiration_date) { Date.new(2025, 5, 20) }
 
   describe '#initialize' do
@@ -335,7 +335,7 @@ RSpec.describe OptionsTrader::IronCondorFinder do
       it 'handles option chain with no call options' do
         empty_call_chain_data = option_chain_data.dup
         empty_call_chain_data[:callExpDateMap] = {}
-        empty_call_chain = OptionsTrader::Schwab::DataObjects::OptionChain.build(empty_call_chain_data)
+        empty_call_chain = SchwabRb::DataObjects::OptionChain.build(empty_call_chain_data)
 
         # Mock the option_chain method
         allow(finder).to receive(:option_chain).and_return(empty_call_chain)
@@ -355,7 +355,7 @@ RSpec.describe OptionsTrader::IronCondorFinder do
       it 'handles option chain with no put options' do
         empty_put_chain_data = option_chain_data.dup
         empty_put_chain_data[:putExpDateMap] = {}
-        empty_put_chain = OptionsTrader::Schwab::DataObjects::OptionChain.build(empty_put_chain_data)
+        empty_put_chain = SchwabRb::DataObjects::OptionChain.build(empty_put_chain_data)
 
         # Mock the option_chain method
         allow(finder).to receive(:option_chain).and_return(empty_put_chain)
