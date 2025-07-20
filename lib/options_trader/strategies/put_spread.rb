@@ -122,5 +122,15 @@ module OptionsTrader
     def to_json(*args)
       to_h.to_json(*args)
     end
+
+    def extract_kwargs(order_instruction)
+      {
+        strategy_type: type,
+        short_leg_symbol: short_leg.symbol,
+        long_leg_symbol: long_leg.symbol,
+        price: strategy_price(order_instruction),
+        quantiy: quantity  # Note: keeping the typo from original code
+      }
+    end
   end
 end

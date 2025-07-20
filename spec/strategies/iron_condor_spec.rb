@@ -15,6 +15,8 @@ RSpec.describe OptionsTrader::IronCondor do
       market_change?: false,
       check_market: nil,
       expiration_date: Date.new(2025, 6, 20),
+      short_leg: double('PutOption', symbol: 'SPY250620P00450000'),
+      long_leg: double('PutOption', symbol: 'SPY250620P00440000'),
       instruments: [
         { symbol: 'SPY250620P00450000', long_short: 'SHORT', put_call: 'PUT' },
         { symbol: 'SPY250620P00440000', long_short: 'LONG', put_call: 'PUT' }
@@ -34,6 +36,8 @@ RSpec.describe OptionsTrader::IronCondor do
       market_change?: false,
       check_market: nil,
       expiration_date: Date.new(2025, 6, 20),
+      short_leg: double('CallOption', symbol: 'SPY250620C00500000'),
+      long_leg: double('CallOption', symbol: 'SPY250620C00510000'),
       instruments: [
         { symbol: 'SPY250620C00500000', long_short: 'SHORT', put_call: 'CALL' },
         { symbol: 'SPY250620C00510000', long_short: 'LONG', put_call: 'CALL' }
@@ -553,6 +557,40 @@ RSpec.describe OptionsTrader::IronCondor do
         expect(reconstructed.round).to eq(original_condor.round)
         expect(reconstructed.expiration_date).to eq(original_condor.expiration_date)
       end
+    end
+  end
+
+  describe '#extract_kwargs' do
+    it 'returns correct kwargs for :open instruction' do
+      allow(iron_condor).to receive(:strategy_price).with(:open).and_return(2.75)
+      
+      kwargs = iron_condor.extract_kwargs(:open)
+      
+      expect(kwargs).to eq({
+        strategy_type: 'ironcondor',
+        put_short_symbol: 'SPY250620P00450000',
+        put_long_symbol: 'SPY250620P00440000',
+        call_short_symbol: 'SPY250620C00500000',
+        call_long_symbol: 'SPY250620C00510000',
+        price: 2.75,
+        quantity: 2
+      })
+    end
+
+    it 'returns correct kwargs for :exit instruction' do
+      allow(iron_condor).to receive(:strategy_price).with(:exit).and_return(1.35)
+      
+      kwargs = iron_condor.extract_kwargs(:exit)
+      
+      expect(kwargs).to eq({
+        strategy_type: 'ironcondor',
+        put_short_symbol: 'SPY250620P00450000',
+        put_long_symbol: 'SPY250620P00440000',
+        call_short_symbol: 'SPY250620C00500000',
+        call_long_symbol: 'SPY250620C00510000',
+        price: 1.35,
+        quantity: 2
+      })
     end
   end
 end
