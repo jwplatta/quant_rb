@@ -60,9 +60,6 @@ module OptionsTrader
   # Require bots
   require_relative "options_trader/automation/bot"
 
-  # Require charts
-  require_relative "options_trader/charts"
-
   # Require exports
   require_relative "options_trader/exports/account_orders"
 

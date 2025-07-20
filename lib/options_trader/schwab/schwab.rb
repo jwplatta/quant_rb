@@ -1,12 +1,6 @@
 # frozen_string_literal: true
 
 require 'schwab_rb'
-require_relative 'data_objects/quote'
-require_relative 'data_objects/option_chain'
-require_relative 'data_objects/account'
-require_relative 'data_objects/transaction'
-require_relative 'data_objects/order'
-require_relative 'data_objects/order_preview'
 require_relative 'orders/order_factory'
 require_relative 'accounts'
 
@@ -57,32 +51,11 @@ module OptionsTrader
     end
 
     def quote(symbol)
-      client.get_quote(symbol).then do |resp|
-        parsed_data = JSON.parse(resp.body, symbolize_names: true)
-
-        # The QuoteFactory expects data in the format: { symbol => quote_data }
-        unless parsed_data.is_a?(Hash) && parsed_data.size == 1 && parsed_data.values.first.is_a?(Hash)
-          raise "Unexpected quote data format: #{parsed_data.inspect}"
-        end
-
-        DataObjects::QuoteFactory.build(parsed_data)
-      end
+      client.get_quote(symbol, return_data_objects: true)
     end
 
     def quotes(symbols)
-      client.get_quotes(symbols).then do |resp|
-        parsed_data = JSON.parse(resp.body, symbolize_names: true)
-
-        if parsed_data[:errors]&.any?
-          raise "Error fetching quotes: #{parsed_data[:errors]}"
-        end
-        # REVIEW: The QuoteFactory expects data in the format: { symbol => quote_data }
-        # and the Schwab API should return data in this format
-        parsed_data.map do |symbol, quote_data|
-          quote_hash = { symbol => quote_data }
-          DataObjects::QuoteFactory.build(quote_hash)
-        end
-      end
+      client.get_quotes(symbols, return_data_objects: true)
     end
 
     def option_chain(
@@ -110,17 +83,11 @@ module OptionsTrader
         **kwargs
       ).then do |resp|
         JSON.parse(resp.body, symbolize_names: true)
-      end.then do |data|
-        DataObjects::OptionChain.build(data)
       end
     end
 
     def account(fields: nil)
-      client.get_account(account_hash, fields: fields).then do |resp|
-        JSON.parse(resp.body, symbolize_names: true)
-      end.then do |data|
-        DataObjects::Account.build(data)
-      end
+      client.get_account(account_hash, fields: fields, return_data_objects: true)
     end
 
     def transactions(from_date: nil, to_date: nil, transaction_types: nil, symbol: nil)
@@ -132,16 +99,12 @@ module OptionsTrader
 
       client.get_transactions(account_hash, **kwargs).then do |resp|
         JSON.parse(resp.body, symbolize_names: true)
-      end.then do |transactions|
-        transactions.map { |t| DataObjects::Transaction.build(t) }
       end
     end
 
     def transaction(activity_id: nil)
       client.get_transaction(account_hash, activity_id).then do |resp|
         JSON.parse(resp.body, symbolize_names: true)
-      end.then do |data|
-        DataObjects::Transaction.build(data)
       end
     end
 
@@ -153,8 +116,6 @@ module OptionsTrader
         status: status
       ).then do |resp|
         JSON.parse(resp.body, symbolize_names: true)
-      end.then do |orders|
-        orders.map { |o| DataObjects::Order.build(o) }
       end
     end
 
@@ -193,8 +154,6 @@ module OptionsTrader
         File.open('order_preview.json', 'w') { |f| f.write(resp.body) }
 
         JSON.parse(resp.body, symbolize_names: true)
-      end.then do |data|
-        DataObjects::OrderPreview.build(data)
       end
     end
 
@@ -207,15 +166,13 @@ module OptionsTrader
       ).then do |orders|
         JSON.parse(orders.body, symbolize_names: true)
       end.then do |orders|
-        DataObjects::Order.build(orders.first)
+        orders.first
       end
     end
 
     def get_order(order_id)
       client.get_order(order_id, account_hash).then do |resp|
         JSON.parse(resp.body, symbolize_names: true)
-      end.then do |data|
-        DataObjects::Order.build(data)
       end
     end
 
