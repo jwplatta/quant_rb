@@ -80,10 +80,9 @@ module OptionsTrader
 
       client.get_option_chain(
         symbol,
+        return_data_objects: true,
         **kwargs
-      ).then do |resp|
-        JSON.parse(resp.body, symbolize_names: true)
-      end
+      )
     end
 
     def account(fields: nil)
@@ -97,15 +96,11 @@ module OptionsTrader
       kwargs[:transaction_types] = transaction_types if transaction_types
       kwargs[:symbol] = symbol if symbol
 
-      client.get_transactions(account_hash, **kwargs).then do |resp|
-        JSON.parse(resp.body, symbolize_names: true)
-      end
+      client.get_transactions(account_hash, return_data_objects: true, **kwargs)
     end
 
     def transaction(activity_id: nil)
-      client.get_transaction(account_hash, activity_id).then do |resp|
-        JSON.parse(resp.body, symbolize_names: true)
-      end
+      client.get_transaction(account_hash, activity_id, return_data_objects: true)
     end
 
     def account_orders(from_date: nil, to_date: Date.today, status: 'FILLED')
@@ -113,10 +108,9 @@ module OptionsTrader
         account_hash,
         from_entered_datetime: from_date,
         to_entered_datetime: to_date,
-        status: status
-      ).then do |resp|
-        JSON.parse(resp.body, symbolize_names: true)
-      end
+        status: status,
+        return_data_objects: true
+      )
     end
 
     def account_hash
@@ -150,10 +144,9 @@ module OptionsTrader
     end
 
     def preview_order(order)
-      client.preview_order(account_hash, order).then do |resp|
-        File.open('order_preview.json', 'w') { |f| f.write(resp.body) }
-
-        JSON.parse(resp.body, symbolize_names: true)
+      client.preview_order(account_hash, order, return_data_objects: true).then do |preview_data|
+        File.open('order_preview.json', 'w') { |f| f.write(preview_data.to_h.to_json) }
+        preview_data
       end
     end
 
@@ -162,18 +155,15 @@ module OptionsTrader
         account_hash,
         status: SchwabRb::Order::Statuses::PENDING_ACTIVATION,
         from_entered_datetime: from_entered_datetime,
-        to_entered_datetime: DateTime.now + 1
+        to_entered_datetime: DateTime.now + 1,
+        return_data_objects: true
       ).then do |orders|
-        JSON.parse(orders.body, symbolize_names: true)
-      end.then do |orders|
         orders.first
       end
     end
 
     def get_order(order_id)
-      client.get_order(order_id, account_hash).then do |resp|
-        JSON.parse(resp.body, symbolize_names: true)
-      end
+      client.get_order(order_id, account_hash, return_data_objects: true)
     end
 
     def place_order(order)
