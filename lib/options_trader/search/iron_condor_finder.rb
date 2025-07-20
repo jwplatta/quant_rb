@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 module OptionsTrader
-  # Iron condor finder for searching options
   class IronCondorFinder
     include OptionsTrader::Schwab
 
