@@ -464,29 +464,29 @@ RSpec.describe OptionsTrader::PutSpread do
 
     it 'returns correct kwargs for :open instruction' do
       allow(put_spread_for_kwargs).to receive(:strategy_price).with(:open).and_return(1.25)
-      
+
       kwargs = put_spread_for_kwargs.extract_kwargs(:open)
-      
+
       expect(kwargs).to eq({
         strategy_type: 'putspread',
         short_leg_symbol: 'SPY250620P00450000',
         long_leg_symbol: 'SPY250620P00440000',
         price: 1.25,
-        quantiy: 2  # Note: keeping typo from original
+        quantity: 2
       })
     end
 
     it 'returns correct kwargs for :exit instruction' do
       allow(put_spread_for_kwargs).to receive(:strategy_price).with(:exit).and_return(0.60)
-      
+
       kwargs = put_spread_for_kwargs.extract_kwargs(:exit)
-      
+
       expect(kwargs).to eq({
         strategy_type: 'putspread',
         short_leg_symbol: 'SPY250620P00450000',
         long_leg_symbol: 'SPY250620P00440000',
         price: 0.60,
-        quantiy: 2  # Note: keeping typo from original
+        quantity: 2
       })
     end
   end

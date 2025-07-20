@@ -129,7 +129,7 @@ module OptionsTrader
         short_leg_symbol: short_leg.symbol,
         long_leg_symbol: long_leg.symbol,
         price: strategy_price(order_instruction),
-        quantiy: quantity  # Note: keeping the typo from original code
+        quantity: quantity
       }
     end
   end

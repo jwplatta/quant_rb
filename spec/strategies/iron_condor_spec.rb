@@ -563,9 +563,9 @@ RSpec.describe OptionsTrader::IronCondor do
   describe '#extract_kwargs' do
     it 'returns correct kwargs for :open instruction' do
       allow(iron_condor).to receive(:strategy_price).with(:open).and_return(2.75)
-      
+
       kwargs = iron_condor.extract_kwargs(:open)
-      
+
       expect(kwargs).to eq({
         strategy_type: 'ironcondor',
         put_short_symbol: 'SPY250620P00450000',
@@ -579,9 +579,9 @@ RSpec.describe OptionsTrader::IronCondor do
 
     it 'returns correct kwargs for :exit instruction' do
       allow(iron_condor).to receive(:strategy_price).with(:exit).and_return(1.35)
-      
+
       kwargs = iron_condor.extract_kwargs(:exit)
-      
+
       expect(kwargs).to eq({
         strategy_type: 'ironcondor',
         put_short_symbol: 'SPY250620P00450000',
