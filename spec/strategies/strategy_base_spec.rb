@@ -41,4 +41,30 @@ RSpec.describe OptionsTrader::StrategyBase do
       expect(strategy.nearest_increment(1.2345)).to eq(1.230)
     end
   end
+
+  describe '#strategy_price' do
+    let(:mock_strategy) do
+      Class.new(described_class) do
+        def credit
+          2.50
+        end
+
+        def debit
+          -1.25
+        end
+      end.new
+    end
+
+    it 'returns credit for :open instruction' do
+      expect(mock_strategy.strategy_price(:open)).to eq(2.50)
+    end
+
+    it 'returns absolute debit for :exit instruction' do
+      expect(mock_strategy.strategy_price(:exit)).to eq(1.25)
+    end
+
+    it 'raises error for unsupported instruction' do
+      expect { mock_strategy.strategy_price(:invalid) }.to raise_error("Unsupported order instruction: invalid")
+    end
+  end
 end

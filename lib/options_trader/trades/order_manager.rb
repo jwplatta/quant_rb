@@ -74,7 +74,7 @@ module OptionsTrader
       def send_order_test(strategy, order_instruction: :open)
         order_preview = build_and_preview_order(
           order_instruction: order_instruction,
-          **extract_strategy_kwargs(strategy, order_instruction)
+          **strategy.extract_kwargs(order_instruction)
         )
         order_preview.status == 'ACCEPTED'
       end
@@ -82,7 +82,7 @@ module OptionsTrader
       def send_preview_order(strategy, order_instruction: :open)
         build_and_preview_order(
           order_instruction: order_instruction,
-          **extract_strategy_kwargs(strategy, order_instruction)
+          **strategy.extract_kwargs(order_instruction)
         ).then do |order_preview|
           update_order_state_from_preview(order_preview, order_instruction)
           order_preview
@@ -95,7 +95,7 @@ module OptionsTrader
         build_and_replace_order(
           order_id,
           order_instruction: order_instruction,
-          **extract_strategy_kwargs(strategy, order_instruction)
+          **strategy.extract_kwargs(order_instruction)
         ).then do |order|
           update_order_state_from_order(order, order_instruction)
           order
@@ -105,7 +105,7 @@ module OptionsTrader
       def send_order(strategy, order_instruction: :open)
         build_and_place_order(
           order_instruction: order_instruction,
-          **extract_strategy_kwargs(strategy, order_instruction)
+          **strategy.extract_kwargs(order_instruction)
         ).then do |order|
           update_order_state_from_order(order, order_instruction)
           order
@@ -218,41 +218,6 @@ module OptionsTrader
           @order_price = order.price
           @order_fees = order.fees
           @order_commission = order.commission
-        end
-      end
-
-      def extract_strategy_kwargs(strategy, order_instruction)
-        case strategy.type
-        when 'callspread', 'putspread'
-          {
-            strategy_type: strategy.type,
-            short_leg_symbol: strategy.short_leg.symbol,
-            long_leg_symbol: strategy.long_leg.symbol,
-            price: strategy_price(strategy, order_instruction),
-            quantiy: strategy.quantity
-          }
-        when 'ironcondor'
-          {
-            strategy_type: strategy.type,
-            put_short_symbol: strategy.put_spread.short_leg.symbol,
-            put_long_symbol: strategy.put_spread.long_leg.symbol,
-            call_short_symbol: strategy.call_spread.short_leg.symbol,
-            call_long_symbol: strategy.call_spread.long_leg.symbol,
-            price: strategy_price(strategy, order_instruction),
-            quantity: strategy.quantity
-          }
-        else
-          raise "Unsupported strategy type: #{strategy.type}"
-        end
-      end
-
-      def strategy_price(strategy, order_instruction)
-        if order_instruction == :open
-          strategy.credit
-        elsif order_instruction == :exit
-          strategy.debit.abs
-        else
-          raise "Unsupported order instruction: #{order_instruction}"
         end
       end
     end

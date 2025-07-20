@@ -375,4 +375,34 @@ RSpec.describe OptionsTrader::CallSpread do
       end
     end
   end
+
+  describe '#extract_kwargs' do
+    it 'returns correct kwargs for :open instruction' do
+      allow(call_spread).to receive(:strategy_price).with(:open).and_return(1.50)
+      
+      kwargs = call_spread.extract_kwargs(:open)
+      
+      expect(kwargs).to eq({
+        strategy_type: 'callspread',
+        short_leg_symbol: 'SPY250620C00500000',
+        long_leg_symbol: 'SPY250620C00510000',
+        price: 1.50,
+        quantiy: 2  # Note: keeping typo from original
+      })
+    end
+
+    it 'returns correct kwargs for :exit instruction' do
+      allow(call_spread).to receive(:strategy_price).with(:exit).and_return(0.75)
+      
+      kwargs = call_spread.extract_kwargs(:exit)
+      
+      expect(kwargs).to eq({
+        strategy_type: 'callspread',
+        short_leg_symbol: 'SPY250620C00500000',
+        long_leg_symbol: 'SPY250620C00510000',
+        price: 0.75,
+        quantiy: 2  # Note: keeping typo from original
+      })
+    end
+  end
 end

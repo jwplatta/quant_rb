@@ -17,5 +17,15 @@ module OptionsTrader
     def nearest_increment(value)
       ((value / increment).round * increment).round(round)
     end
+
+    def strategy_price(order_instruction)
+      if order_instruction == :open
+        credit
+      elsif order_instruction == :exit
+        debit.abs
+      else
+        raise "Unsupported order instruction: #{order_instruction}"
+      end
+    end
   end
 end

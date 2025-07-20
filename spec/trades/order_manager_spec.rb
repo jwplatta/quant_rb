@@ -185,4 +185,18 @@ RSpec.describe OptionsTrader::Trades::OrderManager do
       expect(order_manager.preview_net_credit_debit).to eq(149.35)
     end
   end
+
+  describe 'strategy integration' do
+    let(:mock_strategy) do
+      double('Strategy', extract_kwargs: { strategy_type: 'test', price: 1.50 })
+    end
+
+    it 'calls extract_kwargs directly on strategy' do
+      expect(mock_strategy).to receive(:extract_kwargs).with(:open).and_return({ strategy_type: 'test', price: 1.50 })
+      
+      allow(order_manager).to receive(:build_and_preview_order).and_return(double('OrderPreview', status: 'ACCEPTED'))
+      
+      order_manager.send_order_test(mock_strategy, order_instruction: :open)
+    end
+  end
 end
