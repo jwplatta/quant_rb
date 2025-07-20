@@ -2,7 +2,7 @@
 
 module OptionsTrader
   module Charts
-    class MonthlyProgress < Base
+    class MonthlyProgress < ChartBase
       def initialize(schwab_client, account_names: [])
         @schwab_client = schwab_client
         @account_names = Array(account_names)

@@ -49,6 +49,7 @@ module OptionsTrader
   require_relative "options_trader/automation/bot"
 
   # Require charts
+  require_relative "options_trader/charts/chart_base"
   require_relative "options_trader/charts/monthly_progress"
 
   # Require exports
