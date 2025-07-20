@@ -19,18 +19,6 @@ module OptionsTrader
   require_relative 'options_trader/logger'
   require_relative 'options_trader/loggable'
 
-  # Require schwab data objects first
-  require_relative "options_trader/schwab/data_objects/account"
-  require_relative "options_trader/schwab/data_objects/instrument"
-  require_relative "options_trader/schwab/data_objects/option"
-  require_relative "options_trader/schwab/data_objects/option_chain"
-  require_relative "options_trader/schwab/data_objects/order"
-  require_relative "options_trader/schwab/data_objects/order_leg"
-  require_relative "options_trader/schwab/data_objects/order_preview"
-  require_relative "options_trader/schwab/data_objects/position"
-  require_relative "options_trader/schwab/data_objects/quote"
-  require_relative "options_trader/schwab/data_objects/transaction"
-
   # Require schwab modules (needed by strategies)
   require_relative "options_trader/schwab/quoteable"
   require_relative "options_trader/schwab/schwab"
@@ -59,6 +47,9 @@ module OptionsTrader
 
   # Require bots
   require_relative "options_trader/automation/bot"
+
+  # Require charts
+  require_relative "options_trader/charts/monthly_progress"
 
   # Require exports
   require_relative "options_trader/exports/account_orders"
