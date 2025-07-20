@@ -5,7 +5,7 @@ require 'fileutils'
 
 module OptionsTrader
   module Charts
-    class Base
+    class ChartBase
       attr_reader :width, :height, :output_dir
 
       def initialize(width: 800, height: 600, output_dir: 'tmp')
