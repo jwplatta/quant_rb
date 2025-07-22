@@ -53,7 +53,6 @@ module OptionsTrader
           monthly_totals_for_account(year, account_name)
         end
 
-        # Aggregate the totals by month
         first_and_last_dates_of_month(year).map.with_index do |(first_date, _), month_index|
           total_amount = account_totals.sum do |account_monthly_data|
             # Get the amount for this month from each account's data
