@@ -31,13 +31,12 @@ module OptionsTrader
         def fetch_account_hash(account_name, client)
           account_number = account_number(account_name)
 
-          client.get_account_numbers.then do |resp|
-            account_data = JSON.parse(resp.body)
-            account_info = account_data.find { |acc| acc['accountNumber'] == account_number }
+          client.get_account_numbers.then do |account_numbers|
+            account_hash = account_numbers.find_hash_value(account_number)
 
-            raise("Account number '#{account_number}' not found in Schwab response") unless account_info
+            raise("Account number '#{account_number}' not found in Schwab response") unless account_hash
 
-            account_info['hashValue']
+            account_hash
           end
         end
       end

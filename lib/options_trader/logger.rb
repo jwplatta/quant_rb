@@ -20,9 +20,7 @@ module OptionsTrader
       def create_logger
         config = OptionsTrader.configuration
 
-        # Determine output destination
         if config.log_file && config.log_to_stdout
-          # For dual output (file + stdout), use a custom approach
           MultiIOLogger.new(config.log_file, $stdout, config.log_level)
         elsif config.log_file
           logger = ::Logger.new(config.log_file)
