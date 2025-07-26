@@ -1,6 +1,10 @@
 # frozen_string_literal: true
 
 require_relative "options_trader/version"
+require "mcp"
+require "mcp/server/transports/stdio_transport"
+require "tmpdir"
+require "schwab_rb"
 
 begin
   require 'dotenv'
@@ -195,6 +199,29 @@ module OptionsTrader
 
     def build
       @config
+    end
+  end
+
+  ################################
+  ### MCP Server Configuration ###
+  ################################
+
+  TOOLS = [].freeze
+
+  class MCPServer
+    def initialize
+      @server = MCP::Server.new(
+        name: "options_trader_mcp_server",
+        version: OptionsTrader::VERSION,
+        tools: TOOLS,
+      )
+    end
+
+    def start
+      puts "🚀 Starting OptionsTrader MCP Server #{OptionsTrader::VERSION}"
+      puts "📊 Available tools: #{TOOLS.map { |tool| tool.name.split('::').last }.join(', ')}"
+      transport = MCP::Server::Transports::StdioTransport.new(@server)
+      transport.open
     end
   end
 end
