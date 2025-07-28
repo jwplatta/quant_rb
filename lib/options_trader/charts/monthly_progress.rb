@@ -141,8 +141,8 @@ module OptionsTrader
 
       def first_and_last_dates_of_month(year)
         (1..12).map do |month|
-          first_date = Date.new(year, month, 1).to_datetime.change({ hour: 0, min: 0, sec: 0 })
-          last_date = Date.new(year, month, -1).to_datetime.change({ hour: 23, min: 59, sec: 59 })
+          first_date = DateTime.new(year, month, 1, 0, 0, 0)
+          last_date = DateTime.new(year, month, -1, 23, 59, 59)
           [first_date, last_date]
         end
       end
