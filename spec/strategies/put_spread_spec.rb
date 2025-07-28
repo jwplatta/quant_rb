@@ -468,7 +468,7 @@ RSpec.describe OptionsTrader::PutSpread do
       kwargs = put_spread_for_kwargs.extract_kwargs(:open)
 
       expect(kwargs).to eq({
-        strategy_type: 'putspread',
+        strategy_type: 'vertical',
         short_leg_symbol: 'SPY250620P00450000',
         long_leg_symbol: 'SPY250620P00440000',
         price: 1.25,
@@ -482,7 +482,7 @@ RSpec.describe OptionsTrader::PutSpread do
       kwargs = put_spread_for_kwargs.extract_kwargs(:exit)
 
       expect(kwargs).to eq({
-        strategy_type: 'putspread',
+        strategy_type: 'vertical',
         short_leg_symbol: 'SPY250620P00450000',
         long_leg_symbol: 'SPY250620P00440000',
         price: 0.60,

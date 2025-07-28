@@ -21,7 +21,7 @@ module OptionsTrader
               order_instruction: options[:order_instruction] || :open,
               quantity: options[:quantity] || 1
             )
-          when 'callspread', 'putspread'
+          when 'vertical'
             VerticalOrder.build(
               short_leg_symbol: options[:short_leg_symbol],
               long_leg_symbol: options[:long_leg_symbol],
