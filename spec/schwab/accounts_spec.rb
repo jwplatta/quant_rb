@@ -69,10 +69,10 @@ RSpec.describe OptionsTrader::Schwab::Accounts do
 
   describe '.account_hash' do
     let(:account_numbers_response) do
-      instance_double('Response', body: [
-        { 'accountNumber' => '12345678', 'hashValue' => 'ABC123' },
-        { 'accountNumber' => '87654321', 'hashValue' => 'XYZ789' }
-      ].to_json)
+      mock_account_numbers = double('AccountNumbers')
+      allow(mock_account_numbers).to receive(:find_hash_value).with('12345678').and_return('ABC123')
+      allow(mock_account_numbers).to receive(:find_hash_value).with('87654321').and_return('XYZ789')
+      mock_account_numbers
     end
 
     before do
@@ -101,11 +101,10 @@ RSpec.describe OptionsTrader::Schwab::Accounts do
 
     it 'raises an error when account number is not found in Schwab response' do
       # Mock response that doesn't include our account
-      response = instance_double('Response', body: [
-        { 'accountNumber' => '99999999', 'hashValue' => 'OTHER123' }
-      ].to_json)
+      mock_account_numbers = double('AccountNumbers')
+      allow(mock_account_numbers).to receive(:find_hash_value).with('12345678').and_return(nil)
 
-      allow(mock_client).to receive(:get_account_numbers).and_return(response)
+      allow(mock_client).to receive(:get_account_numbers).and_return(mock_account_numbers)
 
       expect {
         described_class.account_hash('main', mock_client)
@@ -128,9 +127,9 @@ RSpec.describe OptionsTrader::Schwab::Accounts do
 
     describe '#account_hash' do
       let(:account_numbers_response) do
-        instance_double('Response', body: [
-          { 'accountNumber' => '12345678', 'hashValue' => 'ABC123' }
-        ].to_json)
+        mock_account_numbers = double('AccountNumbers')
+        allow(mock_account_numbers).to receive(:find_hash_value).with('12345678').and_return('ABC123')
+        mock_account_numbers
       end
 
       it 'returns the account hash for the instance account name' do
