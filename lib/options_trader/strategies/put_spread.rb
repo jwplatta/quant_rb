@@ -125,7 +125,7 @@ module OptionsTrader
 
     def extract_kwargs(order_instruction)
       {
-        strategy_type: type,
+        strategy_type: 'vertical',
         short_leg_symbol: short_leg.symbol,
         long_leg_symbol: long_leg.symbol,
         price: strategy_price(order_instruction),

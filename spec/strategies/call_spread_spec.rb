@@ -383,7 +383,7 @@ RSpec.describe OptionsTrader::CallSpread do
       kwargs = call_spread.extract_kwargs(:open)
 
       expect(kwargs).to eq({
-        strategy_type: 'callspread',
+        strategy_type: 'vertical',
         short_leg_symbol: 'SPY250620C00500000',
         long_leg_symbol: 'SPY250620C00510000',
         price: 1.50,
@@ -397,7 +397,7 @@ RSpec.describe OptionsTrader::CallSpread do
       kwargs = call_spread.extract_kwargs(:exit)
 
       expect(kwargs).to eq({
-        strategy_type: 'callspread',
+        strategy_type: 'vertical',
         short_leg_symbol: 'SPY250620C00500000',
         long_leg_symbol: 'SPY250620C00510000',
         price: 0.75,

@@ -72,7 +72,7 @@ RSpec.describe OptionsTrader::Schwab::OrderFactory do
       end
 
       context 'with call spread' do
-        let(:call_spread_options) { vertical_options.merge(strategy_type: 'callspread') }
+        let(:call_spread_options) { vertical_options.merge(strategy_type: 'vertical') }
 
         it 'delegates to VerticalOrder.build with explicit parameters' do
           described_class.build(**call_spread_options)
@@ -101,7 +101,7 @@ RSpec.describe OptionsTrader::Schwab::OrderFactory do
       end
 
       context 'with put spread' do
-        let(:put_spread_options) { vertical_options.merge(strategy_type: 'putspread') }
+        let(:put_spread_options) { vertical_options.merge(strategy_type: 'vertical') }
 
         it 'delegates to VerticalOrder.build with explicit parameters' do
           described_class.build(**put_spread_options)
