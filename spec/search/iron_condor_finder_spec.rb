@@ -467,7 +467,6 @@ RSpec.describe OptionsTrader::IronCondorFinder do
     end
 
     it 'finds realistic iron condors from SPX data' do
-      # Mock the option_chain method
       allow(realistic_finder).to receive(:option_chain).and_return(option_chain)
 
       result = realistic_finder.search(

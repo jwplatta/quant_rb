@@ -77,7 +77,7 @@ module OptionsTrader
       all_combos = call_spreads.product(put_spreads)
 
       all_combos_with_min_credit = all_combos.select do |call_sprd, put_sprd|
-        (call_sprd.credit + put_sprd.credit) * 100 >= min_credit * 100
+        (call_sprd.credit + put_sprd.credit) * 100 >= min_credit
       end
 
       call_spread, put_spread = all_combos_with_min_credit.max_by do |call_sprd, put_sprd|
