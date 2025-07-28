@@ -1,17 +1,3 @@
-GIT
-  remote: https://github.com/jwplatta/schwab_rb.git
-  revision: 0a2daddd628b687b803e2aff0034ae814ab758cc
-  ref: 0a2dadd
-  specs:
-    schwab_rb (0.1.0)
-      async (~> 2.18)
-      dotenv
-      oauth2 (~> 2.0, >= 2.0.9)
-      openssl (~> 3.1)
-      puma (~> 6.5)
-      rackup (~> 2.2)
-      sinatra (~> 4.1.1)
-
 GEM
   remote: https://rubygems.org/
   specs:
@@ -34,6 +20,8 @@ GEM
       securerandom (>= 0.3)
       tzinfo (~> 2.0, >= 2.0.5)
       uri (>= 0.13.1)
+    addressable (2.8.7)
+      public_suffix (>= 2.0.2, < 7.0)
     ast (2.4.3)
     async (2.25.0)
       console (~> 1.29)
@@ -41,6 +29,18 @@ GEM
       io-event (~> 1.11)
       metrics (~> 0.12)
       traces (~> 0.15)
+    async-http (0.89.0)
+      async (>= 2.10.2)
+      async-pool (~> 0.9)
+      io-endpoint (~> 0.14)
+      io-stream (~> 0.6)
+      metrics (~> 0.12)
+      protocol-http (~> 0.49)
+      protocol-http1 (~> 0.30)
+      protocol-http2 (~> 0.22)
+      traces (~> 0.10)
+    async-pool (0.11.0)
+      async (>= 2.0)
     base64 (0.3.0)
     benchmark (0.4.0)
     bigdecimal (3.2.2)
@@ -72,13 +72,22 @@ GEM
     histogram (0.2.4.1)
     i18n (1.14.7)
       concurrent-ruby (~> 1.0)
+    io-endpoint (0.15.2)
     io-event (1.11.2)
+    io-stream (0.10.0)
     json (2.13.0)
+    json-schema (5.2.1)
+      addressable (~> 2.8)
+      bigdecimal (~> 3.1)
+    json_rpc_handler (0.1.1)
     jwt (3.1.2)
       base64
     language_server-protocol (3.17.0.4)
     lint_roller (1.1.0)
     logger (1.7.0)
+    mcp (0.2.0)
+      json-schema (>= 4.1)
+      json_rpc_handler (~> 0.1)
     method_source (1.1.0)
     metrics (0.12.2)
     mini_portile2 (2.8.8)
@@ -107,9 +116,17 @@ GEM
     pkg-config (1.6.2)
     pqueue (2.1.0)
     prism (1.4.0)
+    protocol-hpack (1.5.1)
+    protocol-http (0.51.0)
+    protocol-http1 (0.34.1)
+      protocol-http (~> 0.22)
+    protocol-http2 (0.22.1)
+      protocol-hpack (~> 1.4)
+      protocol-http (~> 0.47)
     pry (0.15.2)
       coderay (~> 1.1)
       method_source (~> 1.0)
+    public_suffix (6.0.2)
     puma (6.6.0)
       nio4r (~> 2.0)
     racc (1.8.1)
@@ -158,6 +175,15 @@ GEM
       prism (~> 1.4)
     ruby-progressbar (1.13.0)
     ruby2_keywords (0.0.5)
+    schwab_rb (0.3.2)
+      async (~> 2.18)
+      async-http (~> 0.82)
+      dotenv
+      oauth2 (~> 2.0, >= 2.0.9)
+      openssl (~> 3.1)
+      puma (~> 6.5)
+      rackup (~> 2.2)
+      sinatra (~> 4.1.1)
     securerandom (0.4.1)
     sinatra (4.1.1)
       logger (>= 1.6.0)
@@ -192,12 +218,13 @@ DEPENDENCIES
   activerecord (~> 8.0, >= 8.0.1)
   dotenv
   gruff
+  mcp
   pqueue
   pry
   rake
   rspec
   rubocop
-  schwab_rb!
+  schwab_rb (~> 0.3.2)
   sqlite3 (~> 2.1)
   timecop
 
