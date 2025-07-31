@@ -7,11 +7,6 @@ require 'gruff'
 require 'fileutils'
 require_relative '../options_trader'
 
-Trade = Struct.new(
-  :opening,
-  :closing
-)
-
 class SchwabClient
   include OptionsTrader::Schwab
 end
@@ -22,20 +17,34 @@ namespace :schwab do
   desc 'Refresh Schwab token'
   task :refresh_token do
     script_path = File.join(Dir.pwd, 'bin', 'refresh_token.rb')
-
     sh "ruby #{script_path}"
-
     puts 'Token refreshed'
   end
 
-  desc 'Find Options Trade'
-  task :find_options_trade, %i[
-    underlying trade_type
-    short_delta max_spread
-    end_date min_credit
-    min_open_interest dist_from_strike
-    quantity settlement_type
+  desc 'Find Options Strategy'
+  task :find_strategy, %i[
+    account_name
+    underlying
+    strategy_type
+    short_delta
+    max_spread
+    min_credit
+    min_open_interest
+    dist_from_strike
+    quantity
+    settlement_type
+    end_date
   ] => :environment do |t, args|
+    account_name = args[:account_name]
+    if account_name
+      schwab_client.set_account(account_name)
+      puts "Using account: #{account_name}"
+    else
+      puts "No account specified. Please provide an account name as a parameter."
+      puts "Available accounts: #{schwab_client.available_accounts.join(', ')}"
+      exit
+    end
+
     underlying = if args.underlying
                    args.underlying
                  else
@@ -43,8 +52,8 @@ namespace :schwab do
                    exit
                  end
 
-    trade_type = if %W[iron_condor call_spread put_spread].include? args.trade_type
-                   args.trade_type
+    strategy_type = if %W[iron_condor call_spread put_spread].include? args.strategy_type
+                   args.strategy_type
                  else
                    puts 'Please provide a valid trade type (iron_condor, call_spread, put_spread)'
                    exit
@@ -59,15 +68,15 @@ namespace :schwab do
     quantity = args.fetch(:quantity, 1).to_i
     settlement_type = args.fetch(:settlement_type, 'P')
 
-    puts "Finding #{trade_type} for #{underlying} on #{end_date} with short delta #{short_delta}, " \
+    puts "Finding #{strategy_type} for #{underlying} on #{end_date} with short delta #{short_delta}, " \
         "max spread #{max_spread}, " \
         "on date #{end_date}, min credit #{min_credit}, " \
         "min open interest #{min_open_interest}, " \
         "dist from strike #{dist_from_strike}, quantity #{quantity}" \
         " and settlement type #{settlement_type}"
 
-    trade = find_trade(
-      trade_type,
+    strategy = find_strategy(
+      strategy_type,
       underlying,
       end_date,
       short_delta,
@@ -79,52 +88,59 @@ namespace :schwab do
       settlement_type
     )
 
-    if trade.type == 'putspread' || trade.type == 'callspread'
+    if strategy.type == 'putspread' || strategy.type == 'callspread'
       puts """
       ###########
-      TRADE FOUND: #{trade.type}
+      STRATEGY FOUND: #{strategy.type}
       ###########
-      short leg symbol: #{trade.short_leg.symbol}
-      short leg strike: #{trade.short_leg.strike}
-      short leg open interest: #{trade.short_leg.open_interest}
+      short leg symbol: #{strategy.short_leg.symbol}
+      short leg strike: #{strategy.short_leg.strike}
+      short leg open interest: #{strategy.short_leg.open_interest}
 
-      long leg symbol: #{trade.long_leg.symbol}
-      long leg strike: #{trade.long_leg.strike}
-      long leg open interest: #{trade.long_leg.open_interest}
+      long leg symbol: #{strategy.long_leg.symbol}
+      long leg strike: #{strategy.long_leg.strike}
+      long leg open interest: #{strategy.long_leg.open_interest}
 
-      expiration date: #{trade.expiration_date}
-      credit/debit: #{trade.credit}
-      spread width: #{trade.spread_width}
-      delta: #{trade.delta}
+      expiration date: #{strategy.expiration_date}
+      credit/debit: #{strategy.credit}
+      spread width: #{strategy.spread_width}
+      delta: #{strategy.delta}
       """
-    elsif trade.type == 'ironcondor'
+    elsif strategy.type == 'ironcondor'
       puts """
       ###########
-      TRADE FOUND: Iron Condor
+      STRATEGY FOUND: Iron Condor
       ###########
-      expiration date: #{trade.expiration_date}
-      credit: #{trade.credit}
-      delta: #{trade.delta}
+      expiration date: #{strategy.expiration_date}
+      credit: #{strategy.credit}
+      delta: #{strategy.delta}
 
       Call Spread:
-      delta: #{trade.call_spread.delta}
-      spread width: #{trade.call_spread.spread_width}
-      short leg symbol: #{trade.call_spread.short_leg.symbol}
-      short leg strike: #{trade.call_spread.short_leg.strike}
-      long leg symbol: #{trade.call_spread.long_leg.symbol}
-      long leg strike: #{trade.call_spread.long_leg.strike}
+      delta: #{strategy.call_spread.delta}
+      spread width: #{strategy.call_spread.spread_width}
+      short leg symbol: #{strategy.call_spread.short_leg.symbol}
+      short leg strike: #{strategy.call_spread.short_leg.strike}
+      long leg symbol: #{strategy.call_spread.long_leg.symbol}
+      long leg strike: #{strategy.call_spread.long_leg.strike}
 
       Put Spread:
-      delta: #{trade.put_spread.delta}
-      spread width: #{trade.put_spread.spread_width}
-      short leg symbol: #{trade.put_spread.short_leg.symbol}
-      short leg strike: #{trade.put_spread.short_leg.strike}
-      long leg symbol: #{trade.put_spread.long_leg.symbol}
-      long leg strike: #{trade.put_spread.long_leg.strike}
+      delta: #{strategy.put_spread.delta}
+      spread width: #{strategy.put_spread.spread_width}
+      short leg symbol: #{strategy.put_spread.short_leg.symbol}
+      short leg strike: #{strategy.put_spread.short_leg.strike}
+      long leg symbol: #{strategy.put_spread.long_leg.symbol}
+      long leg strike: #{strategy.put_spread.long_leg.strike}
       """
     else
-      puts 'No trade found'
+      puts 'No strategy found'
     end
+
+    schwab_client.build_and_preview_order(order_instruction: :open, **strategy.extract_kwargs(:open)).then do |preview_data|
+      File.open('order_preview.json', 'w') { |f| f.write(preview_data.to_h.to_json) }
+      puts "Order preview saved to order_preview.json"
+    end
+  rescue StandardError => e
+    puts "Error finding strategy: #{e.message}"
   end
 
   desc 'Show Account'
@@ -226,34 +242,96 @@ namespace :schwab do
     end
   end
 
+  desc 'Orders and Transactions'
+  task :orders_and_transactions, [:account_name, :start_date, :end_date] => :environment do |_t, args|
+    start_date = args[:start_date] ? Date.parse(args[:start_date]) : Date.today - 30
+    end_date = args[:end_date] ? Date.parse(args[:end_date]).to_datetime.change({ hour: 23, min: 59, sec: 59 }) : Date.today.to_datetime.change({ hour: 23, min: 59, sec: 59 })
+    account_name = args[:account_name]
+
+    schwab_client.set_account(account_name)
+
+    orders = schwab_client.account_orders(
+      from_date: start_date,
+      to_date: end_date,
+      status: 'FILLED'
+    )
+
+    replaced_orders = schwab_client.account_orders(
+      from_date: start_date,
+      to_date: end_date,
+      status: 'REPLACED'
+    )
+
+    orders += replaced_orders
+
+    transactions = schwab_client.transactions(
+      from_date: start_date,
+      to_date: end_date,
+      transaction_types: ['TRADE']
+    )
+
+    order_transactions = orders.map do |order|
+      dtls = []
+      transactions.select { |t| t.order_id == order.order_id }.each do |transaction|
+        transaction.transfer_items.each do |item|
+          if !item.fee_type.nil?
+            dtls << [item.fee_type, "", item.cost, ""]
+          elsif item.instrument.asset_type == 'OPTION'
+            dtls << [item.instrument.symbol, item.instrument.description, item.cost, item.amount]
+          else
+            dtls << [item.instrument.symbol, item.instrument.description, item.cost, item.amount]
+          end
+        end
+      end
+
+      [order.order_id, dtls]
+    end.to_h
+
+    total = order_transactions.sum do |order_id, dtls|
+      dtls.sum { |item| item[2] }
+    end.round(2)
+
+    order_totals = orders.map do |order|
+      order_net_amt = transactions.select { |t| t.order_id == order.order_id }.sum do |transaction|
+        transaction.net_amount
+      end
+
+      [order.order_id, order_net_amt]
+    end.to_h
+
+    net_amount_total = order_totals.sum do |order_id, net_amt|
+      net_amt
+    end.round(2)
+
+    binding.pry
+  end
+
+  desc "Export Transactions by Order"
+  task :export_transactions_by_order, [:account_names, :from_date, :to_date] => :environment do |_t, args|
+    account_names = validate_account_names(schwab_client, args[:account_names])
+
+    from_date = args[:from_date] ? Date.parse(args[:from_date]) : DateTime.new(Date.today.year, Date.today.month, Date.today.day, 0, 0, 0)
+    to_date = args[:to_date] ? Date.parse(args[:to_date]) : DateTime.new(Date.today.year, Date.today.month, Date.today.day, 23, 59, 59)
+
+    out_path = OptionsTrader::Exports::TransactionsByOrder.export(
+      schwab_client: schwab_client,
+      from_date: from_date,
+      to_date: to_date,
+      account_names: account_names
+    )
+
+    puts "Exported to: #{out_path}"
+  end
+
   desc 'Monthly Report - supports single account or multiple accounts (comma-separated)'
   task :monthly_report, [:year, :accounts] => :environment do |_t, args|
     year = args[:year].to_i || Date.today.year
     accounts_arg = args[:accounts]
+    account_names = validate_account_names(schwab_client, accounts_arg)
 
-    unless accounts_arg
-      puts "No accounts specified. Please provide account name(s) as a parameter."
-      puts "Examples:"
-      puts "  Single account:    rake schwab:monthly_report[2025,main]"
-      puts "  Multiple accounts: rake schwab:monthly_report[2025,\"main,trading,ira\"]"
-      puts "Available accounts: #{schwab_client.available_accounts.join(', ')}"
-      exit
-    end
-
-    account_names = accounts_arg.split('|').map(&:strip)
-    available_accounts = schwab_client.available_accounts
-    invalid_accounts = account_names - available_accounts
-
-    unless invalid_accounts.empty?
-      puts "Invalid accounts: #{invalid_accounts.join(', ')}"
-      puts "Available accounts: #{available_accounts.join(', ')}"
-      exit
-    end
-    
     chart = OptionsTrader::Charts::MonthlyProgress.new(schwab_client, account_names: account_names)
     filepath = chart.generate(year: year)
 
-    # Display appropriate message
     if account_names.size == 1
       puts "Using account: #{account_names.first}"
     else
@@ -263,16 +341,16 @@ namespace :schwab do
     puts "Monthly report saved to #{filepath}"
   end
 
-  desc 'Plot option open interest for a given symbol, expiration date, and strike range'
+  desc 'Plot option open interest for a given underlying symbol, expiration date, and strike range'
   task :plot_open_interest, %i[
-    symbol
+    underlying_symbol
     contract_type
     expiration_date
     min_strike
     max_strike
   ] => :environment do |_t, args|
-    symbol = if args.symbol
-               args.symbol
+    underlying_symbol = if args.underlying_symbol
+               args.underlying_symbol
              else
                puts 'Please provide an underlying symbol'
                exit
@@ -343,195 +421,39 @@ namespace :schwab do
 
     puts "Open interest plot created at #{result[:filepath]}"
   end
-
-  desc 'Print Trades'
-  task :print_trades, [:start_days, :end_days] => :environment do |_t, args|
-    # TEST: March 2025 be rake "schwab:print_trades[85,54]"
-    from_date = Date.today - (args[:start_days] || 30).to_i
-    to_date = Date.today - (args[:end_days] || 0).to_i
-    orders = schwab_client.account_orders(
-      from_date: from_date,
-      to_date: to_date,
-      status: 'FILLED'
-    )
-
-    transactions = schwab_client.transactions(
-      from_date: from_date,
-      to_date: to_date,
-      transaction_types: ['TRADE']
-    )
-
-    order_details = build_order_details(orders, transactions)
-
-    amount_dtls = order_details.map do |order_id, order_instruments|
-      trade_date = order_instruments.first[1][:trade_dates].first
-
-      amount = order_instruments.sum do |instrument_id, details|
-        details[:net_amounts].sum
-      end
-
-      instrument_descriptions = order_instruments.map do |instrument_id, details|
-        details[:description]
-      end
-
-      [trade_date, order_id, amount, instrument_descriptions]
-    end.sort_by { |trade_date, _order_id, _amount| trade_date }
-
-    amount_dtls.each do |trade_date, order_id, amount, descriptions|
-      puts "Trade Date: #{trade_date.strftime('%m-%d-%Y')}, Order ID: #{order_id}, Net Amount: #{amount.round(2)}"
-      descriptions.each do |description|
-        puts "\tDescription: #{description}"
-      end
-      puts ""
-    end
-
-    total = amount_dtls.sum { |_, _, amount| amount }.round(2)
-    puts "\n############\nTotal Amount: #{total}"
-  end
-
-  desc 'Print Trade Status'
-  task :trade_statuses, [:order_id] => :environment do |_t, args|
-    order = schwab_client.get_order(args[:order_id])
-
-    if order.nil?
-      puts "Order with ID #{args[:order_id]} not found."
-      exit
-    end
-
-    from_date = order.close_time.change({ hour: 0, min: 0, sec: 0 })
-    to_date = order.close_time.change({ hour: 23, min: 59, sec: 59 })
-
-    transactions = schwab_client.transactions(
-      from_date: from_date,
-      to_date: to_date,
-      transaction_types: ['TRADE'],
-    )
-
-    order_legs = order.order_leg_collection.map do |leg|
-      {
-        instruction: leg.instruction,
-        put_call: leg.instrument.put_call,
-        symbol: leg.instrument.symbol,
-        underlying_symbol: leg.instrument.underlying_symbol,
-        description: leg.instrument.description,
-        position_effect: leg.position_effect,
-        quantity: leg.quantity,
-        debit_credit: 0.0
-      }
-    end
-
-    order_transactions = transactions.select { |t| t.order_id == order.order_id }
-    if order_transactions.empty?
-      puts "No transactions found for order ID #{order.order_id} on #{order.close_time.strftime('%m-%d-%Y')}"
-      exit
-    end
-
-    order_transactions.each do |ot|
-      opt_ti = ot.transfer_items.find { |ti| ti.instrument.asset_type == "OPTION" }
-      order_leg = order_legs.find { |ol| ol[:symbol] == opt_ti.instrument.symbol }
-      order_leg[:net_amount] = ot.net_amount
-    end
-
-    symbols = order_legs.select { |ol| ol[:position_effect] == "OPENING" }.map do |leg|
-      leg[:symbol]
-    end
-
-    quotes = schwab_client.quotes(symbols)
-
-    quotes.each do |quote|
-      order_leg = order_legs.find { |ol| ol[:symbol] == quote.symbol }
-
-      quantity = order_leg[:quantity]
-
-      if order_leg[:instruction] == "SELL_TO_OPEN"
-        order_leg[:mark] = quote.mark
-        order_leg[:debit_credit] = -quote.mark * quantity * 100
-      elsif order_leg[:instruction] == "BUY_TO_OPEN"
-        order_leg[:mark] = quote.mark
-        order_leg[:debit_credit] = quote.mark * quantity * 100
-      end
-    end
-
-    order_net_amount = order_legs.sum { |ol| ol[:net_amount] }
-    curr_credit_debit = order_legs.sum { |ol| ol[:debit_credit] }
-
-    puts "Order ID: #{order.order_id}"
-    puts "Order Net Amount: #{order_net_amount.round(2)}"
-    puts "Current Credit/Debit: #{curr_credit_debit.round(2)}"
-    # puts "Position progress: #{exit_progress(order_net_amount, curr_credit_debit).round(2)}%"
-  end
-
-  desc 'Export account orders to CSV'
-  task :export_account_orders, [:start_days, :end_days, :account_name] => :environment do |_t, args|
-    from_date = Date.today - (args[:start_days] || 30).to_i
-    to_date = Date.today - (args[:end_days] || 0).to_i
-    account_name = args[:account_name]
-
-    if account_name
-      schwab_client.set_account(account_name)
-      puts "Using account: #{account_name}"
-    else
-      puts "No account specified. Please provide an account name as a parameter."
-      puts "Available accounts: #{schwab_client.available_accounts.join(', ')}"
-      exit
-    end
-
-    puts "Exporting account orders from #{from_date} to #{to_date} for account #{account_name}"
-
-    exporter = OptionsTrader::Exports::AccountOrders.new(schwab_client)
-    filepath = exporter.export(
-      from_date: from_date,
-      to_date: to_date,
-      account_name: account_name
-    )
-
-    puts "Account orders exported to: #{filepath}"
-  end
 end
 
-def build_order_details(orders, transactions)
-  orders.map do |order|
-    filled_quantity = order.filled_quantity
-    order_instruments = order.order_leg_collection.map do |leg|
-      [
-        leg.instrument.instrument_id,
-        {
-          order_id: order.order_id,
-          instrument_id: leg.instrument.instrument_id,
-          description: leg.instrument.description,
-          quantity: leg.quantity,
-          put_call: leg.instrument.put_call,
-          position_effect: leg.position_effect,
-          costs: [],
-          fees_and_commissions: [],
-          trade_dates: [],
-          net_amounts: [],
-        }
-      ]
-    end.to_h
+def validate_account_names(client, accounts_arg)
+  unless accounts_arg
+    puts "No accounts specified. Please provide account name(s) as a parameter."
+    puts "Examples:"
+    puts "  Single account:    rake schwab:monthly_report[2025,main]"
+    puts "  Multiple accounts: rake schwab:monthly_report[2025,\"main,trading|ira\"]"
+    puts "Available accounts: #{client.available_accounts.join(', ')}"
+    exit
+  end
 
-    transactions.select { |t| t.order_id == order.order_id }.each do |t|
-      fees_and_commissions = t.transfer_items.select { |ti| !ti.fee_type.nil? }
-      fees_and_commissions_sum = fees_and_commissions.map(&:cost).sum
+  account_names = accounts_arg.split('|').map(&:strip)
+  available_accounts = client.available_accounts
+  invalid_accounts = account_names - available_accounts
 
-      asset = t.transfer_items.find { |ti| ti.instrument.asset_type == "OPTION" }
+  unless invalid_accounts.empty?
+    puts "Invalid accounts: #{invalid_accounts.join(', ')}"
+    puts "Available accounts: #{available_accounts.join(', ')}"
+    exit
+  end
 
-      next unless asset
-
-      order_instruments[asset.instrument.instrument_id][:costs] << asset.cost
-      order_instruments[asset.instrument.instrument_id][:fees_and_commissions] << fees_and_commissions_sum
-      order_instruments[asset.instrument.instrument_id][:trade_dates] << DateTime.parse(t.trade_date)
-      order_instruments[asset.instrument.instrument_id][:net_amounts] << t.net_amount
-    end
-
-    [order.order_id, order_instruments]
-  end.to_h
+  account_names
 end
 
-def find_trade(
-  trade_type, underlying, end_date, short_delta, max_spread, min_credit, min_open_interest, dist_from_strike, quantity, settlement_type
+def find_strategy(
+  strategy_type, underlying,
+  end_date, short_delta,
+  max_spread, min_credit,
+  min_open_interest, dist_from_strike,
+  quantity, settlement_type
 )
-  finder = case trade_type
+  finder = case strategy_type
            when 'iron_condor'
              OptionsTrader::IronCondorFinder.new(
                underlying_symbol: underlying,
@@ -554,7 +476,7 @@ def find_trade(
                settlement_type: settlement_type
              )
            else
-             raise ArgumentError, "Invalid trade type: #{trade_type}"
+             raise ArgumentError, "Invalid strategy type: #{strategy_type}"
            end
 
   finder.search(
