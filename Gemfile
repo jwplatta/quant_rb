@@ -9,7 +9,7 @@ gem 'pry'
 gem 'rake'
 gem 'rspec'
 gem 'rubocop', require: false
-gem 'schwab_rb', '~> 0.3.2'
+gem 'schwab_rb', '~> 0.3.7'
 gem 'sqlite3', '~> 2.1'
 gem 'timecop'
 gem 'gruff'
