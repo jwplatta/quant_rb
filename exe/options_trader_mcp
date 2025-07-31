@@ -15,4 +15,4 @@ unless missing_vars.empty?
   exit 1
 end
 
-OptionsTrader::MCPServer.new.start
+OptionsTrader::MCP::Server.new.start
