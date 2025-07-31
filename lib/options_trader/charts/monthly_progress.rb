@@ -150,24 +150,6 @@ module OptionsTrader
       def build_order_details(orders, transactions)
         orders.map do |order|
           filled_quantity = order.filled_quantity
-          order_instruments = order.order_leg_collection.map do |leg|
-            [
-              leg.instrument.instrument_id,
-              {
-                order_id: order.order_id,
-                instrument_id: leg.instrument.instrument_id,
-                description: leg.instrument.description,
-                quantity: leg.quantity,
-                put_call: leg.instrument.put_call,
-                position_effect: leg.position_effect,
-                costs: [],
-                fees_and_commissions: [],
-                trade_dates: [],
-                net_amounts: [],
-              }
-            ]
-          end.to_h
-
           order_total = transactions.select { |t| t.order_id == order.order_id }.sum do |t|
             asset = t.transfer_items.find { |ti| ti.instrument.asset_type == "OPTION" }
             if asset
@@ -175,14 +157,6 @@ module OptionsTrader
             else
               0.0
             end
-
-            # fees_and_commissions = t.transfer_items.select { |ti| !ti.fee_type.nil? }
-            # fees_and_commissions_sum = fees_and_commissions.sum(&:cost)
-
-            # order_instruments[asset.instrument.instrument_id][:costs] << asset.cost
-            # order_instruments[asset.instrument.instrument_id][:fees_and_commissions] << fees_and_commissions_sum
-            # order_instruments[asset.instrument.instrument_id][:trade_dates] << DateTime.parse(t.trade_date)
-            # order_instruments[asset.instrument.instrument_id][:net_amounts] << t.net_amount
           end
 
           [order.order_id, order_total]
