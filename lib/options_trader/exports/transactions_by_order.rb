@@ -110,7 +110,11 @@ module OptionsTrader
       private
 
       def build_order_details(orders, transactions)
-        orders.map do |order|
+z        options_orders = orders.select do |o|
+          o.order_leg_collection.any? { |ol| ol.order_leg_type == 'OPTION' }
+        end
+
+        options_orders.map do |order|
           order_instruments = order.order_leg_collection.map do |leg|
             [
               leg.instrument_id,
@@ -138,6 +142,8 @@ module OptionsTrader
             order_instruments[t.asset_instrument_id][:fees_and_commissions] += fees_and_commissions
             order_instruments[t.asset_instrument_id][:net_amounts] += t.net_amount
           end
+
+          binding.pry
 
           [order.order_id, order_instruments]
         end.to_h
