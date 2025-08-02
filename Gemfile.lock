@@ -113,6 +113,8 @@ GEM
     parser (3.3.8.0)
       ast (~> 2.4.1)
       racc
+    pg (1.6.0)
+    pg (1.6.0-arm64-darwin)
     pkg-config (1.6.2)
     pqueue (2.1.0)
     prism (1.4.0)
@@ -219,6 +221,7 @@ DEPENDENCIES
   dotenv
   gruff
   mcp
+  pg (~> 1.6)
   pqueue
   pry
   rake

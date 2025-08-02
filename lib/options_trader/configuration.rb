@@ -8,7 +8,8 @@ module OptionsTrader
       end
     end
 
-    attr_accessor :log_level, :log_file, :log_to_stdout
+    attr_accessor :log_level, :log_file, :log_to_stdout,
+                  :database_url, :db_host, :db_port, :db_name, :db_user, :db_password, :db_pool_size
 
     def accounts
       load_from_env_if_empty
@@ -20,6 +21,7 @@ module OptionsTrader
       @log_file = nil
       @log_to_stdout = true
       @accounts = {}
+      load_database_config_from_env
     end
 
     def add_account(name, account_number)
@@ -37,6 +39,16 @@ module OptionsTrader
         account_name = key.gsub('_ACCOUNT', '').downcase
         add_account(account_name, value)
       end
+    end
+
+    def load_database_config_from_env
+      @database_url = ENV['DATABASE_URL']
+      @db_host = ENV['DATABASE_HOST']
+      @db_port = ENV['DATABASE_PORT'] || 5432
+      @db_name = ENV['DATABASE_NAME']
+      @db_user = ENV['DATABASE_USER']
+      @db_password = ENV['DATABASE_PASSWORD']
+      @db_pool_size = (ENV['DB_POOL_SIZE'] || 15).to_i
     end
 
     def account_number(name)
@@ -57,6 +69,10 @@ module OptionsTrader
 
     def clear_accounts
       @accounts.clear
+    end
+
+    def database_configured?
+      !@database_url.nil? || (!@db_host.nil? && !@db_name.nil? && !@db_user.nil?)
     end
 
     private
@@ -110,6 +126,38 @@ module OptionsTrader
 
     def clear_accounts
       configuration.clear_accounts
+    end
+
+    def database_configured?
+      configuration.database_configured?
+    end
+
+    def database_url
+      configuration.database_url
+    end
+
+    def db_host
+      configuration.db_host
+    end
+
+    def db_port
+      configuration.db_port
+    end
+
+    def db_name
+      configuration.db_name
+    end
+
+    def db_user
+      configuration.db_user
+    end
+
+    def db_password
+      configuration.db_password
+    end
+
+    def db_pool_size
+      configuration.db_pool_size
     end
   end
 end
