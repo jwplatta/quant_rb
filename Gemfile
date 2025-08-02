@@ -5,6 +5,7 @@ ruby '3.2.2'
 
 gem 'activerecord', '~> 8.0', '>= 8.0.1'
 gem 'dotenv'
+gem 'pg', '~> 1.6'
 gem 'pry'
 gem 'rake'
 gem 'rspec'
