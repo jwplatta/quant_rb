@@ -57,7 +57,7 @@ module OptionsTrader
   require_relative "options_trader/charts/monthly_progress"
 
   # Require exports
-  require_relative "options_trader/exports/account_orders"
+  require_relative "options_trader/exports/transactions_by_order"
 
   def self.create_bot(&block)
     builder = BotBuilder.new
