@@ -11,6 +11,9 @@ module OptionsTrader
     validates :contract_type, presence: true, inclusion: { in: %w[PUT CALL] }
     validates :valid_time, presence: true
     validates :transaction_time, presence: true
+    validates :underlying_price, numericality: { greater_than: 0 }, allow_nil: true
+    validates :expiration_type, inclusion: { in: %w[W S M Q] }, allow_nil: true
+    validates :volatility, numericality: { greater_than_or_equal_to: 0 }, allow_nil: true
 
     scope :calls, -> { where(contract_type: 'CALL') }
     scope :puts, -> { where(contract_type: 'PUT') }
@@ -75,6 +78,42 @@ module OptionsTrader
 
     def days_to_expiration(from_date = Date.current)
       (expiration_date.to_date - from_date).to_i
+    end
+
+    def weekly_expiration?
+      expiration_type == 'W'
+    end
+
+    def monthly_expiration?
+      expiration_type == 'M'
+    end
+
+    def quarterly_expiration?
+      expiration_type == 'Q'
+    end
+
+    def special_expiration?
+      expiration_type == 'S'
+    end
+
+    def spread_percentage
+      return nil unless bid && ask && mid_price && mid_price > 0
+      (spread / mid_price) * 100
+    end
+
+    def last_vs_mid
+      return nil unless last_price && mid_price
+      last_price - mid_price
+    end
+
+    def volume_to_open_interest_ratio
+      return nil unless volume && open_interest && open_interest > 0
+      volume.to_f / open_interest
+    end
+
+    def price_range_percentage
+      return nil unless high_price && low_price && low_price > 0
+      ((high_price - low_price) / low_price) * 100
     end
   end
 end
