@@ -15,15 +15,37 @@ class CreateOptionChainHistory < ActiveRecord::Migration[8.0]
       t.decimal :mark, precision: 10, scale: 4
       t.decimal :last_price, precision: 10, scale: 4
       
+      # Underlying data
+      t.decimal :underlying_price, precision: 10, scale: 4
+      
       # Greeks
       t.decimal :delta, precision: 8, scale: 6
       t.decimal :theta, precision: 8, scale: 6
       t.decimal :vega, precision: 8, scale: 6
       t.decimal :gamma, precision: 8, scale: 6
+      t.decimal :rho, precision: 8, scale: 6
       
       # Volume/Interest
       t.integer :open_interest
       t.integer :volume
+      t.integer :bid_size
+      t.integer :ask_size
+      
+      # Option data
+      t.string :option_root
+      t.string :expiration_type
+      t.decimal :intrinsic_value, precision: 10, scale: 4
+      t.decimal :extrinsic_value, precision: 10, scale: 4
+      t.decimal :time_value, precision: 10, scale: 4
+      t.decimal :volatility, precision: 8, scale: 6
+      
+      # Price history
+      t.decimal :high_52_week, precision: 10, scale: 4
+      t.decimal :low_52_week, precision: 10, scale: 4
+      t.decimal :high_price, precision: 10, scale: 4
+      t.decimal :low_price, precision: 10, scale: 4
+      t.decimal :open_price, precision: 10, scale: 4
+      t.decimal :close_price, precision: 10, scale: 4
       
       # Bitemporal timestamps
       t.timestamp :valid_time, null: false, index: true
