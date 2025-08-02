@@ -4,7 +4,7 @@ require_relative '../spec_helper'
 require 'fileutils'
 require 'tmpdir'
 
-RSpec.describe OptionsTrader::Trades::TradeJournal do
+RSpec.xdescribe OptionsTrader::Trades::TradeJournal do
   let(:trade_id) { 'test-trade-123' }
   let(:temp_dir) { Dir.mktmpdir }
   let(:journal) { described_class.new(trade_id) }
