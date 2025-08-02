@@ -22,6 +22,7 @@ module OptionsTrader
   require_relative "options_trader/configuration"
   require_relative 'options_trader/logger'
   require_relative 'options_trader/loggable'
+  require_relative "options_trader/db"
 
   # Require schwab modules (needed by strategies)
   require_relative "options_trader/schwab/quoteable"

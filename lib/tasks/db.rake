@@ -3,7 +3,7 @@ require 'active_record'
 namespace :db do
   desc "Initialize database connection"
   task :init do
-    require_relative '../../options_trader'
+    require_relative '../options_trader'
     OptionsTrader::DB.connect!
     puts "Database connection initialized"
   end
