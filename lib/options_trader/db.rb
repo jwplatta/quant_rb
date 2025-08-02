@@ -9,7 +9,8 @@ module OptionsTrader
 
     def self.connected?
       ActiveRecord::Base.connected?
-    rescue
+    rescue ActiveRecord::ConnectionNotEstablished, StandardError => e
+      OptionsTrader.logger.warn("Database connection check failed: #{e.message}")
       false
     end
 
