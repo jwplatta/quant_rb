@@ -1,5 +1,63 @@
 {
   "orderId": 0,
+  "projectedCommission": {
+    "commission": {
+      "commissionLegs": [
+        {
+          "commissionValues": [
+            {
+              "value": 0.0,
+              "type": "BASE_CHARGE"
+            },
+            {
+              "value": 0.65,
+              "type": "COMMISSION"
+            }
+          ]
+        },
+        {
+          "commissionValues": [
+            {
+              "value": 0.0,
+              "type": "BASE_CHARGE"
+            },
+            {
+              "value": 0.65,
+              "type": "COMMISSION"
+            }
+          ]
+        }
+      ]
+    },
+    "fee": {
+      "feeLegs": [
+        {
+          "feeValues": [
+            {
+              "value": 0.01,
+              "type": "OPT_REG_FEE"
+            },
+            {
+              "value": 0.56,
+              "type": "INDEX_OPTION_FEE"
+            }
+          ]
+        },
+        {
+          "feeValues": [
+            {
+              "value": 0.01,
+              "type": "OPT_REG_FEE"
+            },
+            {
+              "value": 0.56,
+              "type": "INDEX_OPTION_FEE"
+            }
+          ]
+        }
+      ]
+    }
+  },
   "orderStrategy": {
     "accountNumber": "11111111",
     "advancedOrderType": "NONE",
