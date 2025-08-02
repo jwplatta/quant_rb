@@ -43,12 +43,12 @@ module OptionsTrader
 
     def load_database_config_from_env
       @database_url = ENV['DATABASE_URL']
-      @db_host = ENV['SUPABASE_DB_HOST'] || ENV['DB_HOST']
-      @db_port = ENV['SUPABASE_DB_PORT'] || ENV['DB_PORT'] || 5432
-      @db_name = ENV['SUPABASE_DB_NAME'] || ENV['DB_NAME']
-      @db_user = ENV['SUPABASE_DB_USER'] || ENV['DB_USER']
-      @db_password = ENV['SUPABASE_DB_PASSWORD'] || ENV['DB_PASSWORD']
-      @db_pool_size = (ENV['DB_POOL_SIZE'] || 5).to_i
+      @db_host = ENV['DATABASE_HOST']
+      @db_port = ENV['DATABASE_PORT'] || 5432
+      @db_name = ENV['DATABASE_NAME']
+      @db_user = ENV['DATABASE_USER']
+      @db_password = ENV['DATABASE_PASSWORD']
+      @db_pool_size = (ENV['DB_POOL_SIZE'] || 15).to_i
     end
 
     def account_number(name)

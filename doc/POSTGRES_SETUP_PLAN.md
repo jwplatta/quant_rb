@@ -66,7 +66,7 @@
         t.string :status
         t.timestamps
       end
-      
+
       add_index :trades, :symbol
       add_index :trades, :status
     end
@@ -120,3 +120,8 @@
 6. Update test configuration
 
 **Note:** No SQLite migration needed since the previous implementation was minimal.
+
+```
+psql -h db.lcnofddpaowcdoqpfxzr.supabase.co -p 5432 -d postgres -U postgres
+psql -h aws-0-us-east-2.pooler.supabase.com -p 6543 -d postgres -U postgres.lcnofddpaowcdoqpfxzr
+```

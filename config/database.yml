@@ -1,16 +1,21 @@
 default: &default
-  adapter: sqlite3
+  adapter: postgresql
+  encoding: unicode
   pool: 5
   timeout: 5000
+  host: <%= ENV['DATABASE_HOST'] || 'localhost' %>
+  port: <%= ENV['DATABASE_PORT'] || 5432 %>
+  username: <%= ENV['DATABASE_USER'] || 'postgres' %>
+  password: <%= ENV['DATABASE_PASSWORD'] %>
 
 production:
   <<: *default
-  database: db/OptionsTrader.sqlite3
+  database: <%= ENV['DATABASE_NAME'] || 'options_trader_production' %>
 
 development:
   <<: *default
-  database: db/OptionsTrader_dev.sqlite3
+  database: <%= ENV['DATABASE_NAME'] || 'options_trader_development' %>
 
 test:
   <<: *default
-  database: db/OptionsTrader_test.sqlite3
+  database: <%= ENV['DATABASE_NAME'] || 'options_trader_test' %>
