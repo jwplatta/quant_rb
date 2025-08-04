@@ -3,7 +3,7 @@
 require 'spec_helper'
 
 RSpec.describe OptionsTrader::OptionChainHistory, type: :model do
-  # Database connection handled by config/environment.rb via spec_helper.rb
+  # NOTE: Database connection handled by config/environment.rb via spec_helper.rb
 
   describe 'database connection' do
     it 'successfully connects to test database' do
@@ -17,7 +17,9 @@ RSpec.describe OptionsTrader::OptionChainHistory, type: :model do
   end
 
   describe '5-minute time bucket queries' do
-    let(:spx_call_symbol) { 'SPX250810C06410' }
+    let(:underlying_symbol) { '$SPX' }
+    let(:spx_call_symbol) { 'SPXW250810C06410' }
+    let(:spx_put_symbol) { 'SPXW250810P06410' }
     let(:call_expiration) { Date.parse('2025-08-10') }
     let(:call_strike) { 6410.00 }
 
@@ -32,10 +34,21 @@ RSpec.describe OptionsTrader::OptionChainHistory, type: :model do
              underlying_price: 6532.15, delta: 0.64, theta: -2.47, vega: 8.95,
              gamma: 0.0046, rho: 0.14, volume: 12)
 
+      create(:spx_6410_put, valid_time: Time.parse('2025-08-01 09:45:00'),
+             mark: 126.75, bid: 125.50, ask: 127.00, last_price: 126.25,
+             underlying_price: 6535.60, delta: -0.63, theta: -2.48, vega: 8.90,
+             gamma: 0.0045, rho: 0.15, volume: 18)
+
       create(:spx_6410_call, valid_time: Time.parse('2025-08-01 10:00:00'),
              mark: 127.00, bid: 125.80, ask: 128.20, last_price: 126.50,
              underlying_price: 6538.92, delta: 0.65, theta: -2.46, vega: 8.92,
              gamma: 0.0045, rho: 0.15, volume: 28)
+
+      create(:spx_6410_put, valid_time: Time.parse('2025-08-01 10:00:00'),
+             mark: 128.50, bid: 127.30, ask: 129.70, last_price: 128.00,
+             underlying_price: 6542.10, delta: -0.64, theta: -2.45,
+             vega: 8.89, gamma: 0.0044, rho: 0.16,
+             volume: 35)
 
       create(:spx_6410_call, valid_time: Time.parse('2025-08-01 10:05:00'),
              mark: 128.50, bid: 127.40, ask: 129.60, last_price: 128.25,
@@ -66,6 +79,7 @@ RSpec.describe OptionsTrader::OptionChainHistory, type: :model do
 
     after do
       described_class.where(symbol: spx_call_symbol).delete_all
+      described_class.where(symbol: spx_put_symbol).delete_all
     end
 
     it 'retrieves exact time bucket data at 10:00 AM on August 1st' do
@@ -137,6 +151,19 @@ RSpec.describe OptionsTrader::OptionChainHistory, type: :model do
       # Verify delta progression
       deltas = daily_prices.map { |_, _, _, delta| delta }
       expect(deltas).to eq([0.64, 0.65, 0.66, 0.67, 0.68])
+    end
+
+    fit 'reconstructs option chain history for specific expiration date' do
+      start_time = Time.parse('2025-08-01 10:00:00')
+      end_time = Time.parse('2025-08-01 10:04:59')
+      expiration_date = Date.parse('2025-08-10')
+
+      daily_records = described_class
+        .where(underlying_symbol: underlying_symbol, expiration_date: expiration_date)
+        .where('valid_time BETWEEN ? AND ?', start_time, end_time)
+        .order(valid_time: :asc)
+
+      expect(daily_records.count).to eq(2)
     end
   end
 end
