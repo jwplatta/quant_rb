@@ -110,7 +110,7 @@ module OptionsTrader
       private
 
       def build_order_details(orders, transactions)
-z        options_orders = orders.select do |o|
+        options_orders = orders.select do |o|
           o.order_leg_collection.any? { |ol| ol.order_leg_type == 'OPTION' }
         end
 
@@ -142,8 +142,6 @@ z        options_orders = orders.select do |o|
             order_instruments[t.asset_instrument_id][:fees_and_commissions] += fees_and_commissions
             order_instruments[t.asset_instrument_id][:net_amounts] += t.net_amount
           end
-
-          binding.pry
 
           [order.order_id, order_instruments]
         end.to_h
