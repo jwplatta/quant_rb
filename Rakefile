@@ -17,8 +17,3 @@ namespace :db do
   task drop: :environment
   task schema: :environment
 end
-
-namespace :persistence do
-  task test: :environment
-  task example: :environment
-end
