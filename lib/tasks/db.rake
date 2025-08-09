@@ -1,40 +1,30 @@
 require 'active_record'
+require 'pry'
 
 namespace :db do
   desc "Initialize database connection"
   task :init do
-    require_relative '../options_trader'
-    OptionsTrader::DB.connect!
+    require_relative '../../config/environment'
     puts "Database connection initialized"
   end
 
   desc "Create database"
   task :create => :init do
-    config = OptionsTrader::DB.send(:build_config)
-    
-    if config[:url]
-      # Parse URL to get database name and connection without database
-      uri = URI.parse(config[:url])
-      db_name = uri.path[1..-1] # Remove leading slash
-      base_url = config[:url].gsub(/\/#{db_name}(\?.*)?$/, '/postgres')
-      
-      ActiveRecord::Base.establish_connection(url: base_url)
-      ActiveRecord::Base.connection.create_database(db_name)
-    else
-      db_name = config[:database]
-      admin_config = config.merge(database: 'postgres')
-      
-      ActiveRecord::Base.establish_connection(admin_config)
-      ActiveRecord::Base.connection.create_database(db_name)
-    end
-    
-    puts "Database '#{db_name || 'from URL'}' created successfully"
+    config = ActiveRecord::Base.connection_db_config.configuration_hash
+    db_name = config[:database]
+    admin_config = config.merge(database: 'postgres')
+
+    ActiveRecord::Base.establish_connection(admin_config)
+    ActiveRecord::Base.connection.create_database(db_name)
+
+    puts "Database '#{db_name}' created successfully"
   rescue ActiveRecord::DatabaseAlreadyExists
     puts "Database already exists"
   end
 
   desc "Run database migrations"
   task :migrate => :init do
+    ActiveRecord::Base.connection_pool.disconnect!
     ActiveRecord::MigrationContext.new("db/migrate").migrate
     puts "Database migrated successfully"
   end
@@ -45,25 +35,39 @@ namespace :db do
     puts "Last migration rolled back"
   end
 
+  desc "Rollback the last migration manually"
+  task :rollback_manual => :init do
+    # Get the last migration version
+    result = ActiveRecord::Base.connection.execute(
+      "SELECT version FROM schema_migrations ORDER BY version DESC LIMIT 1"
+    )
+
+    if result.any?
+      last_version = result.first['version']
+      puts "Rolling back migration version: #{last_version}"
+
+      # Remove it from schema_migrations
+      ActiveRecord::Base.connection.execute(
+        "DELETE FROM schema_migrations WHERE version = '#{last_version}'"
+      )
+
+      puts "Migration #{last_version} manually rolled back from schema_migrations"
+      puts "Note: You may need to manually drop/alter tables if needed"
+    else
+      puts "No migrations found to rollback"
+    end
+  end
+
   desc "Drop database"
   task :drop => :init do
-    config = OptionsTrader::DB.send(:build_config)
-    
-    if config[:url]
-      uri = URI.parse(config[:url])
-      db_name = uri.path[1..-1]
-      base_url = config[:url].gsub(/\/#{db_name}(\?.*)?$/, '/postgres')
-      
-      ActiveRecord::Base.establish_connection(url: base_url)
-      ActiveRecord::Base.connection.drop_database(db_name)
-    else
-      db_name = config[:database]
-      admin_config = config.merge(database: 'postgres')
-      
-      ActiveRecord::Base.establish_connection(admin_config)
-      ActiveRecord::Base.connection.drop_database(db_name)
-    end
-    
+    # Get the current database configuration from ActiveRecord
+    config = ActiveRecord::Base.connection_db_config.configuration_hash
+    db_name = config[:database]
+    admin_config = config.merge(database: 'postgres')
+
+    ActiveRecord::Base.establish_connection(admin_config)
+    ActiveRecord::Base.connection.drop_database(db_name)
+
     puts "Database dropped successfully"
   end
 

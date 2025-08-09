@@ -42,6 +42,19 @@ module OptionsTrader
         .order(:symbol, :expiration_date, :strike, :contract_type, valid_time: :desc)
     end
 
+    def self.for_underlying_at_bitemporal_time(underlying_symbol, at_time = Time.current)
+      # Use a subquery to get the latest record for each symbol as of the specified time
+      subquery = for_underlying(underlying_symbol)
+        .where('valid_time <= ?', at_time)
+        .where('transaction_time <= ?', at_time)
+        .select('DISTINCT ON (symbol) *')
+        .order(:symbol, valid_time: :desc, transaction_time: :desc)
+
+      # PostgreSQL requires an alias for subqueries used in FROM
+      from("(#{subquery.to_sql}) AS option_chain_history")
+        .order(:expiration_date, :strike, :contract_type)
+    end
+
     def call?
       contract_type == 'CALL'
     end

@@ -11,15 +11,12 @@ require 'logger'
 FileUtils.mkdir_p('db')
 
 # Configure environment (development is default)
-ENV['RACK_ENV'] ||= 'development'
+# RAILS_ENV takes precedence over RACK_ENV for consistency with Rails/RSpec
+current_env = ENV['RAILS_ENV'] || ENV['RACK_ENV'] || 'development'
+ENV['RACK_ENV'] = current_env
 
-# Load database configuration from config/database.yml
 db_config_file = File.expand_path('database.yml', __dir__)
 db_config = YAML.load(ERB.new(File.read(db_config_file)).result, aliases: true)
 
-# Set up the database connection
-ActiveRecord::Base.logger = Logger.new($stdout)
-ActiveRecord::Base.establish_connection(db_config[ENV['RACK_ENV']])
-
-# Require model files
-Dir["#{File.dirname(__FILE__)}/../models/*.rb"].each { |file| require file }
+# TODO: ActiveRecord::Base.logger = Logger.new($stdout)
+ActiveRecord::Base.establish_connection(db_config[current_env])

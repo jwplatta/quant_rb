@@ -3,6 +3,7 @@ default: &default
   encoding: unicode
   pool: 5
   timeout: 5000
+  prepared_statements: false
   host: <%= ENV['DATABASE_HOST'] || 'localhost' %>
   port: <%= ENV['DATABASE_PORT'] || 5432 %>
   username: <%= ENV['DATABASE_USER'] || 'postgres' %>
@@ -10,12 +11,20 @@ default: &default
 
 production:
   <<: *default
-  database: <%= ENV['DATABASE_NAME'] || 'options_trader_production' %>
+  database: <%= ENV['DATABASE_NAME'] || 'postgres' %>
 
 development:
   <<: *default
-  database: <%= ENV['DATABASE_NAME'] || 'options_trader_development' %>
+  database: <%= ENV['DATABASE_NAME'] || 'options_trader_db_dev' %>
 
 test:
-  <<: *default
-  database: <%= ENV['DATABASE_NAME'] || 'options_trader_test' %>
+  adapter: postgresql
+  encoding: unicode
+  pool: 5
+  timeout: 5000
+  prepared_statements: false
+  database: options_trader_db_test
+  username: postgres
+  password:
+  host: localhost
+  port: 5432
