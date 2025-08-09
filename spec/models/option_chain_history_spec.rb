@@ -153,7 +153,7 @@ RSpec.describe OptionsTrader::OptionChainHistory, type: :model do
       expect(deltas).to eq([0.64, 0.65, 0.66, 0.67, 0.68])
     end
 
-    fit 'reconstructs option chain history for specific expiration date' do
+    it 'reconstructs option chain history for specific expiration date' do
       start_time = Time.parse('2025-08-01 10:00:00')
       end_time = Time.parse('2025-08-01 10:04:59')
       expiration_date = Date.parse('2025-08-10')
