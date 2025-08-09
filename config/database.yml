@@ -1,7 +1,7 @@
 default: &default
   adapter: postgresql
   encoding: unicode
-  pool: 5
+  pool: 15
   timeout: 5000
   prepared_statements: false
   host: <%= ENV['DATABASE_HOST'] || 'localhost' %>
