@@ -9,6 +9,8 @@ require "schwab_rb"
 begin
   require 'dotenv'
   Dotenv.load
+
+  require_relative '../config/environment'
 rescue LoadError
   # dotenv not available, skip loading
 rescue Errno::ENOENT
@@ -22,7 +24,6 @@ module OptionsTrader
   require_relative "options_trader/configuration"
   require_relative 'options_trader/logger'
   require_relative 'options_trader/loggable'
-  require_relative "options_trader/db"
 
   # Require schwab modules (needed by strategies)
   require_relative "options_trader/schwab/quoteable"
@@ -59,6 +60,12 @@ module OptionsTrader
 
   # Require exports
   require_relative "options_trader/exports/transactions_by_order"
+
+  # Require job workers
+  require_relative "options_trader/workers/sample_options_chain"
+
+  # Require models
+  require_relative "options_trader/models/option_chain_history"
 
   def self.create_bot(&block)
     builder = BotBuilder.new

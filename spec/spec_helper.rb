@@ -15,9 +15,30 @@
 # it.
 #
 # See https://rubydoc.info/gems/rspec-core/RSpec/Core/Configuration
+
+# Set test environment before loading configuration
+ENV['RAILS_ENV'] = 'test'
+ENV['RACK_ENV'] = 'test'
+
 require_relative '../lib/options_trader'
+require_relative '../config/environment'
+require 'factory_bot'
+
+# Load all factory definitions
+Dir[File.join(File.dirname(__FILE__), 'factories', '**', '*.rb')].each { |f| require f }
 
 RSpec.configure do |config|
+  # Include FactoryBot methods
+  config.include FactoryBot::Syntax::Methods
+
+  # Database transaction handling for tests
+  config.around(:each) do |example|
+    ActiveRecord::Base.transaction do
+      example.run
+      raise ActiveRecord::Rollback
+    end
+  end
+
   # rspec-expectations config goes here. You can use an alternate
   # assertion/expectation library such as wrong or the stdlib/minitest
   # assertions if you prefer.

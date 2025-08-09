@@ -9,3 +9,4 @@ schwab_token.json
 *.sqlite3-wal
 .rspec_status
 /trade_journal
+token.json
