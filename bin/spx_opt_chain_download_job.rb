@@ -3,7 +3,6 @@
 
 require 'logger'
 require 'clockwork'
-require 'sidekiq'
 require 'date'
 require_relative '../lib/options_trader'
 
@@ -15,6 +14,7 @@ UTC_OFFSET = '+00:00'
 def market_open?
   now = Time.now.utc
   return false if now.saturday? || now.sunday?
+
   open = Time.new(now.year, now.month, now.day, 13, 30, 0, UTC_OFFSET)
   close = Time.new(now.year, now.month, now.day, 20, 15, 0, UTC_OFFSET)
   now >= open && now <= close
