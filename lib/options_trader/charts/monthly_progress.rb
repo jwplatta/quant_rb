@@ -41,10 +41,11 @@ module OptionsTrader
       private
 
       def generate_filename(year, account_names)
+        timestamp = Time.now.strftime("%Y%m%d_%H%M%S")
         if account_names.size == 1
-          "monthly_report_#{year}_#{account_names.first}.png"
+          "monthly_report_#{year}_#{account_names.first}_#{timestamp}.png"
         else
-          "monthly_report_#{year}_combined_#{account_names.join('_')}.png"
+          "monthly_report_#{year}_#{account_names.join('_')}_#{timestamp}.png"
         end
       end
 
