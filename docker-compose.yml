@@ -1,0 +1,37 @@
+services:
+  redis:
+    image: redis:7
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
+
+  sidekiq:
+    build: .
+    command: bundle exec sidekiq -r ./lib/options_trader.rb
+    depends_on:
+      - redis
+    environment:
+      REDIS_URL: redis://redis:6379/0
+      RACK_ENV: production
+      TOKEN_PATH: /app/.schwab/token.json
+    volumes:
+      - .:/app
+      - /Users/jplatta/.schwab/token.json:/app/.schwab/token.json
+    restart: unless-stopped
+
+  clockwork:
+    build: .
+    env_file:
+      - .env
+    command: bundle exec clockwork bin/spx_opt_chain_download_job.rb
+    depends_on:
+      - redis
+      - sidekiq
+    environment:
+      REDIS_URL: redis://redis:6379/0
+      RACK_ENV: production
+      TOKEN_PATH: /app/.schwab/token.json
+    volumes:
+      - .:/app
+      - /Users/jplatta/.schwab/token.json:/app/.schwab/token.json
+    restart: unless-stopped
