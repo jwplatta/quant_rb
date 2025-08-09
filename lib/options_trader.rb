@@ -64,6 +64,9 @@ module OptionsTrader
   # Require job workers
   require_relative "options_trader/workers/sample_options_chain"
 
+  # Require models
+  require_relative "options_trader/models/option_chain_history"
+
   def self.create_bot(&block)
     builder = BotBuilder.new
     builder.instance_eval(&block)
