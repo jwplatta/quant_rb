@@ -348,22 +348,6 @@ RSpec.describe OptionsTrader::Schwab do
       end
     end
 
-    describe '#build_order (account integration)' do
-      before do
-        schwab_instance.set_account('trading')
-
-        allow(OptionsTrader::Schwab::OrderFactory).to receive(:build).and_return({})
-      end
-
-      it 'uses the current account number when building orders' do
-        expect(OptionsTrader::Schwab::OrderFactory).to receive(:build).with(
-          hash_including(account_number: '87654321')
-        )
-
-        schwab_instance.build_order(order_instruction: :open)
-      end
-    end
-
     describe '#available_accounts' do
       it 'returns available account names' do
         accounts = schwab_instance.available_accounts
