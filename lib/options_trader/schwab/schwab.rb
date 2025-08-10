@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 require 'schwab_rb'
-require_relative 'orders/order_factory'
 require_relative 'accounts'
 
 module OptionsTrader
@@ -135,9 +134,10 @@ module OptionsTrader
       end
     end
 
-    def build_order(order_instruction: :open, **strategy_kwargs)
-      OrderFactory.build(
+    def build_order(order_instruction: :open, credit_debit: :credit, **strategy_kwargs)
+      SchwabRb::Orders::OrderFactory.build(
         order_instruction: order_instruction,
+        credit_debit: credit_debit,
         account_number: current_account.account_number,
         **strategy_kwargs
       )
