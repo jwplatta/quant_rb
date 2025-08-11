@@ -1,14 +1,15 @@
 # frozen_string_literal: true
 
 module OptionsTrader
-  class StrategyFinderFactory
-    VALID_STRATEGIES = %w[ironcondor callspread putspread].freeze
+  class StrategySearchFactory
+    VALID_STRATEGIES = %w[ironcondor vertical single].freeze
 
     class << self
-      def search(
+      def find(
         strategy_type:,
         underlying_symbol:,
         expiration_date:,
+        put_call: nil,
         quantity: 1,
         settlement_type: nil,
         option_root: nil,
@@ -24,12 +25,13 @@ module OptionsTrader
         create(
           strategy_type: strategy_type,
           underlying_symbol: underlying_symbol,
+          put_call: put_call,
           expiration_date: expiration_date,
           quantity: quantity,
           settlement_type: settlement_type,
           option_root: option_root,
           increment: increment
-        ).search(
+        ).find(
           from_date: from_date,
           to_date: to_date,
           short_delta: short_delta,
@@ -44,6 +46,7 @@ module OptionsTrader
         strategy_type:,
         underlying_symbol:,
         expiration_date:,
+        put_call: nil,
         quantity: 1,
         settlement_type: nil,
         option_root: nil,
@@ -55,7 +58,7 @@ module OptionsTrader
 
         case strategy_type.to_s.downcase
         when 'ironcondor'
-          OptionsTrader::IronCondorFinder.new(
+          OptionsTrader::IronCondorSearch.new(
             underlying_symbol: underlying_symbol,
             expiration_date: expiration_date,
             quantity: quantity,
@@ -63,24 +66,18 @@ module OptionsTrader
             option_root: option_root,
             increment: increment
           )
-        when 'callspread'
-          OptionsTrader::CallSpreadFinder.new(
+        when 'vertical'
+          OptionsTrader::VerticalSpreadSearch.new(
             underlying_symbol: underlying_symbol,
+            put_call: put_call,
             expiration_date: expiration_date,
             quantity: quantity,
             settlement_type: settlement_type,
             option_root: option_root,
             increment: increment
           )
-        when 'putspread'
-          OptionsTrader::PutSpreadFinder.new(
-            underlying_symbol: underlying_symbol,
-            expiration_date: expiration_date,
-            quantity: quantity,
-            settlement_type: settlement_type,
-            option_root: option_root,
-            increment: increment
-          )
+        when 'single'
+          OptionsTrader::SingleOptionSearch.new
         end
       end
 

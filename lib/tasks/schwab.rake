@@ -465,15 +465,17 @@ def find_strategy(
                settlement_type: settlement_type
              )
            when 'call_spread'
-             OptionsTrader::CallSpreadFinder.new(
+             OptionsTrader::VerticalSpreadSearch.new(
                underlying_symbol: underlying,
+               put_call: 'CALL',
                expiration_date: end_date,
                quantity: quantity,
                settlement_type: settlement_type
              )
            when 'put_spread'
-             OptionsTrader::PutSpreadFinder.new(
+             OptionsTrader::VerticalSpreadSearch.new(
                underlying_symbol: underlying,
+               put_call: 'PUT',
                expiration_date: end_date,
                quantity: quantity,
                settlement_type: settlement_type
