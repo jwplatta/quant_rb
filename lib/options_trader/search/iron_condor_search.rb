@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 module OptionsTrader
-  class IronCondorFinder
+  class IronCondorSearch
     include OptionsTrader::Schwab
 
     attr_reader :underlying_symbol, :expiration_date,
@@ -26,7 +26,7 @@ module OptionsTrader
       @increment = increment
     end
 
-    def search(
+    def find(
       from_date: nil,
       to_date: nil,
       short_delta: 0.15,
@@ -44,12 +44,12 @@ module OptionsTrader
 
       return NullStrategy.new unless opt_chain
 
-      call_spreads = call_spread_finder(
+      call_spreads = call_spread_search(
         short_delta: short_delta,
         max_spread: max_spread,
         min_open_interest: min_open_interest,
         dist_from_strike: dist_from_strike
-      ).search(
+      ).find(
         opt_chain,
         return_spreads: true,
         short_delta: short_delta,
@@ -59,12 +59,12 @@ module OptionsTrader
       )
       return NullStrategy.new if call_spreads.empty?
 
-      put_spreads = put_spread_finder(
+      put_spreads = put_spread_search(
         short_delta: short_delta,
         max_spread: max_spread,
         min_open_interest: min_open_interest,
         dist_from_strike: dist_from_strike
-      ).search(
+      ).find(
         opt_chain,
         return_spreads: true,
         short_delta: short_delta,
@@ -99,9 +99,10 @@ module OptionsTrader
 
     private
 
-    def call_spread_finder(short_delta:, max_spread:, min_open_interest:, dist_from_strike:)
-      CallSpreadFinder.new(
+    def call_spread_search(short_delta:, max_spread:, min_open_interest:, dist_from_strike:)
+      VerticalSpreadSearch.new(
         underlying_symbol: underlying_symbol,
+        put_call: 'CALL',
         quantity: quantity,
         expiration_type: expiration_type,
         settlement_type: settlement_type,
@@ -111,9 +112,10 @@ module OptionsTrader
       )
     end
 
-    def put_spread_finder(short_delta:, max_spread:, min_open_interest:, dist_from_strike:)
-      PutSpreadFinder.new(
+    def put_spread_search(short_delta:, max_spread:, min_open_interest:, dist_from_strike:)
+      VerticalSpreadSearch.new(
         underlying_symbol: underlying_symbol,
+        put_call: 'PUT',
         quantity: quantity,
         expiration_type: expiration_type,
         settlement_type: settlement_type,
