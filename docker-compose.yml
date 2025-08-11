@@ -10,6 +10,8 @@ services:
     command: bundle exec sidekiq -r ./lib/options_trader.rb
     depends_on:
       - redis
+    env_file:
+      - .env
     environment:
       REDIS_URL: redis://redis:6379/0
       RACK_ENV: production
