@@ -2,17 +2,16 @@
 
 module OptionsTrader
   class StrategySearchFactory
-    VALID_STRATEGIES = %w[ironcondor vertical single].freeze
-
     class << self
       def find(
         strategy_type:,
         underlying_symbol:,
         expiration_date:,
+        option_root:,
         put_call: nil,
         quantity: 1,
+        expiration_type: nil,
         settlement_type: nil,
-        option_root: nil,
         from_date: nil,
         to_date: nil,
         short_delta: 0.05,
@@ -29,6 +28,7 @@ module OptionsTrader
           expiration_date: expiration_date,
           quantity: quantity,
           settlement_type: settlement_type,
+          expiration_type: expiration_type,
           option_root: option_root,
           increment: increment
         ).find(
@@ -46,14 +46,15 @@ module OptionsTrader
         strategy_type:,
         underlying_symbol:,
         expiration_date:,
+        option_root:,
         put_call: nil,
         quantity: 1,
         settlement_type: nil,
-        option_root: nil,
+        expiration_type: nil,
         increment: 0.01
       )
-        unless VALID_STRATEGIES.include?(strategy_type.to_s.downcase)
-          raise ArgumentError, "Invalid strategy type: #{strategy_type}. Valid types are: #{VALID_STRATEGIES.join(', ')}"
+        unless valid_strategies.include?(strategy_type.to_s.downcase)
+          raise ArgumentError, "Invalid strategy type: #{strategy_type}. Valid types are: #{valid_strategies.join(', ')}"
         end
 
         case strategy_type.to_s.downcase
@@ -63,6 +64,7 @@ module OptionsTrader
             expiration_date: expiration_date,
             quantity: quantity,
             settlement_type: settlement_type,
+            expiration_type: expiration_type,
             option_root: option_root,
             increment: increment
           )
@@ -73,16 +75,30 @@ module OptionsTrader
             expiration_date: expiration_date,
             quantity: quantity,
             settlement_type: settlement_type,
+            expiration_type: expiration_type,
             option_root: option_root,
             increment: increment
           )
         when 'single'
-          OptionsTrader::SingleOptionSearch.new
+          OptionsTrader::SingleOptionSearch.new(
+            underlying_symbol: underlying_symbol,
+            put_call: put_call,
+            expiration_date: expiration_date,
+            quantity: quantity,
+            settlement_type: settlement_type,
+            expiration_type: expiration_type,
+            option_root: option_root,
+            increment: increment
+          )
         end
       end
 
       def valid_strategy?(strategy_type)
-        VALID_STRATEGIES.include?(strategy_type.to_s.downcase)
+        valid_strategies.include?(strategy_type.to_s.downcase)
+      end
+
+      def valid_strategies
+        OptionsTrader::Constants::VALID_STRATEGIES
       end
     end
   end
