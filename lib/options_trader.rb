@@ -1,8 +1,6 @@
 # frozen_string_literal: true
 
 require_relative "options_trader/version"
-require "mcp"
-require "mcp/server/transports/stdio_transport"
 require "tmpdir"
 require "schwab_rb"
 
@@ -25,6 +23,9 @@ module OptionsTrader
   require_relative 'options_trader/logger'
   require_relative 'options_trader/loggable'
 
+  # Require constants
+  require_relative "options_trader/constants"
+
   # Require schwab modules (needed by strategies)
   require_relative "options_trader/schwab/quoteable"
   require_relative "options_trader/schwab/schwab"
@@ -39,10 +40,10 @@ module OptionsTrader
   require_relative "options_trader/strategies/null_strategy"
 
   # Finally require search components
-  require_relative "options_trader/search/strategy_finder_factory"
-  require_relative "options_trader/search/call_spread_finder"
-  require_relative "options_trader/search/put_spread_finder"
-  require_relative "options_trader/search/iron_condor_finder"
+  require_relative "options_trader/search/strategy_search_factory"
+  require_relative "options_trader/search/iron_condor_search"
+  require_relative "options_trader/search/vertical_spread_search"
+  require_relative "options_trader/search/single_option_search"
 
   # Require trades components
   require_relative "options_trader/trades/trade"
@@ -66,6 +67,9 @@ module OptionsTrader
 
   # Require models
   require_relative "options_trader/models/option_chain_history"
+
+  # Require MCP server
+  require_relative "options_trader/mcp/server"
 
   def self.create_bot(&block)
     builder = BotBuilder.new
@@ -207,29 +211,6 @@ module OptionsTrader
 
     def build
       @config
-    end
-  end
-
-  ################################
-  ### MCP Server Configuration ###
-  ################################
-
-  TOOLS = [].freeze
-
-  class MCPServer
-    def initialize
-      @server = MCP::Server.new(
-        name: "options_trader_mcp_server",
-        version: OptionsTrader::VERSION,
-        tools: TOOLS,
-      )
-    end
-
-    def start
-      puts "🚀 Starting OptionsTrader MCP Server #{OptionsTrader::VERSION}"
-      puts "📊 Available tools: #{TOOLS.map { |tool| tool.name.split('::').last }.join(', ')}"
-      transport = MCP::Server::Transports::StdioTransport.new(@server)
-      transport.open
     end
   end
 end
