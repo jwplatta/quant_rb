@@ -104,11 +104,11 @@ module OptionsTrader
     def call_spread_search(max_spread:, min_open_interest:, dist_from_strike:)
       VerticalSpreadSearch.new(
         underlying_symbol: underlying_symbol,
+        option_root: option_root,
         put_call: 'CALL',
         quantity: quantity,
         expiration_type: expiration_type,
         settlement_type: settlement_type,
-        option_root: option_root,
         increment: increment,
         expiration_date: expiration_date
       )
@@ -117,11 +117,11 @@ module OptionsTrader
     def put_spread_search(max_spread:, min_open_interest:, dist_from_strike:)
       VerticalSpreadSearch.new(
         underlying_symbol: underlying_symbol,
+        option_root: option_root,
         put_call: 'PUT',
         quantity: quantity,
         expiration_type: expiration_type,
         settlement_type: settlement_type,
-        option_root: option_root,
         increment: increment,
         expiration_date: expiration_date
       )

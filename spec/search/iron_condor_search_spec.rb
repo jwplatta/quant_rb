@@ -412,7 +412,6 @@ RSpec.describe OptionsTrader::IronCondorSearch do
 
     it 'creates call spread search with provided parameters' do
       call_search = search.send(:call_spread_search,
-        short_delta: 0.25,
         max_spread: 15.0,
         min_open_interest: 10,
         dist_from_strike: 0.03
@@ -442,7 +441,6 @@ RSpec.describe OptionsTrader::IronCondorSearch do
 
     it 'creates put spread search with provided parameters' do
       put_search = search.send(:put_spread_search,
-        short_delta: 0.25,
         max_spread: 15.0,
         min_open_interest: 10,
         dist_from_strike: 0.03
@@ -648,6 +646,7 @@ RSpec.describe OptionsTrader::IronCondorSearch do
       expect(search).to have_received(:option_chain).with(
         '$SPX',
         contract_type: 'ALL',
+        strike_range: 'OTM',
         from_date: expiration_date,
         to_date: expiration_date
       )
