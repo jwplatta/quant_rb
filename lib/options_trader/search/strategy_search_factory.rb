@@ -1,17 +1,17 @@
 # frozen_string_literal: true
 
 module OptionsTrader
-  class StrategyFinderFactory
-    VALID_STRATEGIES = %w[ironcondor callspread putspread].freeze
-
+  class StrategySearchFactory
     class << self
-      def search(
+      def find(
         strategy_type:,
         underlying_symbol:,
         expiration_date:,
+        option_root:,
+        put_call: nil,
         quantity: 1,
+        expiration_type: nil,
         settlement_type: nil,
-        option_root: nil,
         from_date: nil,
         to_date: nil,
         short_delta: 0.05,
@@ -24,12 +24,14 @@ module OptionsTrader
         create(
           strategy_type: strategy_type,
           underlying_symbol: underlying_symbol,
+          put_call: put_call,
           expiration_date: expiration_date,
           quantity: quantity,
           settlement_type: settlement_type,
+          expiration_type: expiration_type,
           option_root: option_root,
           increment: increment
-        ).search(
+        ).find(
           from_date: from_date,
           to_date: to_date,
           short_delta: short_delta,
@@ -44,40 +46,47 @@ module OptionsTrader
         strategy_type:,
         underlying_symbol:,
         expiration_date:,
+        option_root:,
+        put_call: nil,
         quantity: 1,
         settlement_type: nil,
-        option_root: nil,
+        expiration_type: nil,
         increment: 0.01
       )
-        unless VALID_STRATEGIES.include?(strategy_type.to_s.downcase)
-          raise ArgumentError, "Invalid strategy type: #{strategy_type}. Valid types are: #{VALID_STRATEGIES.join(', ')}"
+        unless valid_strategies.include?(strategy_type.to_s.downcase)
+          raise ArgumentError, "Invalid strategy type: #{strategy_type}. Valid types are: #{valid_strategies.join(', ')}"
         end
 
         case strategy_type.to_s.downcase
         when 'ironcondor'
-          OptionsTrader::IronCondorFinder.new(
+          OptionsTrader::IronCondorSearch.new(
             underlying_symbol: underlying_symbol,
             expiration_date: expiration_date,
             quantity: quantity,
             settlement_type: settlement_type,
+            expiration_type: expiration_type,
             option_root: option_root,
             increment: increment
           )
-        when 'callspread'
-          OptionsTrader::CallSpreadFinder.new(
+        when 'vertical'
+          OptionsTrader::VerticalSpreadSearch.new(
             underlying_symbol: underlying_symbol,
+            put_call: put_call,
             expiration_date: expiration_date,
             quantity: quantity,
             settlement_type: settlement_type,
+            expiration_type: expiration_type,
             option_root: option_root,
             increment: increment
           )
-        when 'putspread'
-          OptionsTrader::PutSpreadFinder.new(
+        when 'single'
+          OptionsTrader::SingleOptionSearch.new(
             underlying_symbol: underlying_symbol,
+            put_call: put_call,
             expiration_date: expiration_date,
             quantity: quantity,
             settlement_type: settlement_type,
+            expiration_type: expiration_type,
             option_root: option_root,
             increment: increment
           )
@@ -85,7 +94,11 @@ module OptionsTrader
       end
 
       def valid_strategy?(strategy_type)
-        VALID_STRATEGIES.include?(strategy_type.to_s.downcase)
+        valid_strategies.include?(strategy_type.to_s.downcase)
+      end
+
+      def valid_strategies
+        OptionsTrader::Constants::VALID_STRATEGIES
       end
     end
   end
