@@ -9,12 +9,12 @@ module OptionsTrader
 
     def initialize(
       underlying_symbol:,
+      option_root:,
       put_call:,
       expiration_date: nil,
       quantity: 1,
       expiration_type: nil,
       settlement_type: nil,
-      option_root: nil,
       increment: 0.01
     )
       @underlying_symbol = underlying_symbol
@@ -33,32 +33,37 @@ module OptionsTrader
       opt_chain_or_params = nil,
       from_date: nil,
       to_date: nil,
-      return_spreads: false,
       short_delta: 0.15,
       max_spread: 20.0,
       min_credit: nil,
       min_open_interest: 0,
-      dist_from_strike: 0.07
+      dist_from_strike: 0.07,
+      return_spreads: false
     )
       @opt_chain_or_params = opt_chain_or_params
       @from_date = from_date
       @to_date = to_date
-      @return_spreads = return_spreads
       @short_delta = short_delta
       @max_spread = max_spread
       @min_credit = min_credit || 0
       @min_open_interest = min_open_interest
       @dist_from_strike = dist_from_strike
+      @return_spreads = return_spreads
 
       return NullStrategy.new unless expiration_date
 
-      exp_date_str = expiration_date.strftime("%Y-%m-%d")
-      date_filtered_options = options_array.select { |opt| option_matches_date?(opt, exp_date_str) }
+      short_legs = []
 
-      date_filtered_options.each do |short_option|
+      search_space.each do |short_option|
         next unless passes_short_option_filters?(short_option)
 
-        long_options = select_long_legs(date_filtered_options, short_option)
+        short_legs << short_option
+
+        candidates = select_candidates(short_option)
+        next if candidates.empty?
+
+        long_options = select_long_legs(candidates, short_option)
+        next if long_options.empty?
 
         long_options.each do |long_option|
           spread = build_spread(short_option, long_option)
@@ -66,9 +71,11 @@ module OptionsTrader
         end
       end
 
-      return @spreads if @return_spreads
-
-      if @spreads.empty?
+      if @spreads.any? && @return_spreads
+        @spreads
+      elsif @spreads.empty? && @return_spreads
+        []
+      elsif @spreads.empty?
         NullStrategy.new
       else
         @spreads.max_by(&:credit)
@@ -76,6 +83,34 @@ module OptionsTrader
     end
 
     private
+
+    def select_candidates(short_option)
+      if put_call == 'CALL'
+        search_space.select { |opt| opt.strike > short_option.strike }
+      else
+        search_space.select { |opt| opt.strike < short_option.strike }
+      end
+    end
+
+    def expiration_date_to_s
+      @expiration_date.strftime("%Y-%m-%d")
+    end
+
+    def search_space
+      @search_space ||= if put_call == 'CALL'
+        options_array.select do |opt|
+          option_matches_date?(opt, expiration_date_to_s) \
+            && opt.strike <= opt_chain.underlying_price + opt_chain.underlying_price * 0.25 \
+            && is_correct_contract_type?(opt)
+        end
+      else
+        options_array.select do |opt|
+          option_matches_date?(opt, expiration_date_to_s) \
+            && opt.strike >= opt_chain.underlying_price - opt_chain.underlying_price * 0.25 \
+            && is_correct_contract_type?(opt)
+        end
+      end
+    end
 
     def options_array
       @options_array ||= begin
@@ -98,6 +133,7 @@ module OptionsTrader
         option_chain(
           underlying_symbol,
           contract_type: put_call,
+          strike_range: 'OTM',
           from_date: @from_date || expiration_date,
           to_date: @to_date || expiration_date
         )
@@ -118,7 +154,6 @@ module OptionsTrader
       return false unless lte_max_delta?(option)
       return false unless gte_min_open_interest?(option)
       return false unless safe_distance_from_market?(option)
-      return false unless is_correct_contract_type?(option)
 
       true
     end
@@ -147,7 +182,7 @@ module OptionsTrader
     def is_correct_contract_type?(option)
       return false if expiration_type && option.expiration_type != expiration_type
       return false if settlement_type && option.settlement_type != settlement_type
-      return false if option_root && option.option_root != option_root
+      return false if option.option_root != option_root
 
       true
     end
@@ -163,7 +198,6 @@ module OptionsTrader
         next unless long_mark.positive?
         next unless valid_spread?(short_strike, long_strike)
         next unless gte_min_credit?(short_option, long_option)
-        next unless is_correct_contract_type?(long_option)
         next unless gte_min_open_interest?(long_option)
 
         candidates << long_option
