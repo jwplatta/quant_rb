@@ -5,7 +5,14 @@ require 'csv'
 require 'date'
 require 'gruff'
 require 'fileutils'
+require 'schwab_rb'
 require_relative '../options_trader'
+
+OptionsTrader.configure do |config|
+  config.log_file = "./tmp/options_trader.log"
+  config.log_to_stdout = false
+  config.log_level = :debug
+end
 
 class SchwabClient
   include OptionsTrader::Schwab
@@ -25,7 +32,9 @@ namespace :schwab do
   task :find_strategy, %i[
     account_name
     underlying
+    option_root
     strategy_type
+    put_call
     short_delta
     max_spread
     min_credit
@@ -33,7 +42,7 @@ namespace :schwab do
     dist_from_strike
     quantity
     settlement_type
-    end_date
+    expiration_date
   ] => :environment do |t, args|
     account_name = args[:account_name]
     if account_name
@@ -52,40 +61,49 @@ namespace :schwab do
                    exit
                  end
 
-    strategy_type = if %W[iron_condor call_spread put_spread].include? args.strategy_type
+    strategy_type = if %W[ironcondor vertical single].include? args.strategy_type
                    args.strategy_type
                  else
-                   puts 'Please provide a valid trade type (iron_condor, call_spread, put_spread)'
+                   puts 'Please provide a valid trade type (ironcondor, vertical, single)'
                    exit
                  end
 
+    option_root = args.option_root
+    if option_root.nil? || option_root.empty?
+      puts 'Please provide a valid option root'
+      exit
+    end
+
+    put_call = args.fetch(:put_call, 'ALL').upcase
     short_delta = args.fetch(:short_delta, 0.15).to_f
     max_spread = args.fetch(:max_spread, 20.0).to_f
-    end_date = Date.parse(args.end_date) || Date.today + 30
+    expiration_date = Date.parse(args.expiration_date) || Date.today + 30
     min_credit = args.fetch(:min_credit, 50.0).to_f
     min_open_interest = args.fetch(:min_open_interest, 0).to_i
     dist_from_strike = args.fetch(:dist_from_strike, 0.05).to_f
     quantity = args.fetch(:quantity, 1).to_i
     settlement_type = args.fetch(:settlement_type, 'P')
 
-    puts "Finding #{strategy_type} for #{underlying} on #{end_date} with short delta #{short_delta}, " \
+    puts "Finding #{strategy_type} for #{underlying}/#{option_root} on #{expiration_date} with short delta #{short_delta}, " \
         "max spread #{max_spread}, " \
-        "on date #{end_date}, min credit #{min_credit}, " \
+        "on date #{expiration_date}, min credit #{min_credit}, " \
         "min open interest #{min_open_interest}, " \
         "dist from strike #{dist_from_strike}, quantity #{quantity}" \
         " and settlement type #{settlement_type}"
 
-    strategy = find_strategy(
-      strategy_type,
-      underlying,
-      end_date,
-      short_delta,
-      max_spread,
-      min_credit,
-      min_open_interest,
-      dist_from_strike,
-      quantity,
-      settlement_type
+    strategy = OptionsTrader::StrategySearchFactory.find(
+      strategy_type: strategy_type,
+      underlying_symbol: underlying,
+      expiration_date: expiration_date,
+      put_call: put_call,
+      short_delta: short_delta,
+      max_spread: max_spread,
+      min_credit: min_credit,
+      min_open_interest: min_open_interest,
+      dist_from_strike: dist_from_strike,
+      quantity: quantity,
+      settlement_type: settlement_type,
+      option_root: option_root
     )
 
     if strategy.type == 'putspread' || strategy.type == 'callspread'
@@ -133,6 +151,7 @@ namespace :schwab do
       """
     else
       puts 'No strategy found'
+      exit 0
     end
 
     schwab_client.build_and_preview_order(order_instruction: :open, **strategy.extract_kwargs(:open)).then do |preview_data|
@@ -447,48 +466,4 @@ def validate_account_names(client, accounts_arg)
   end
 
   account_names
-end
-
-def find_strategy(
-  strategy_type, underlying,
-  end_date, short_delta,
-  max_spread, min_credit,
-  min_open_interest, dist_from_strike,
-  quantity, settlement_type
-)
-  finder = case strategy_type
-           when 'iron_condor'
-             OptionsTrader::IronCondorFinder.new(
-               underlying_symbol: underlying,
-               expiration_date: end_date,
-               quantity: quantity,
-               settlement_type: settlement_type
-             )
-           when 'call_spread'
-             OptionsTrader::VerticalSpreadSearch.new(
-               underlying_symbol: underlying,
-               put_call: 'CALL',
-               expiration_date: end_date,
-               quantity: quantity,
-               settlement_type: settlement_type
-             )
-           when 'put_spread'
-             OptionsTrader::VerticalSpreadSearch.new(
-               underlying_symbol: underlying,
-               put_call: 'PUT',
-               expiration_date: end_date,
-               quantity: quantity,
-               settlement_type: settlement_type
-             )
-           else
-             raise ArgumentError, "Invalid strategy type: #{strategy_type}"
-           end
-
-  finder.search(
-    short_delta: short_delta,
-    max_spread: max_spread,
-    min_credit: min_credit,
-    min_open_interest: min_open_interest,
-    dist_from_strike: dist_from_strike
-  )
 end
