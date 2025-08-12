@@ -2,7 +2,7 @@
 
 require 'spec_helper'
 
-RSpec.describe OptionsTrader::IronCondorFinder do
+RSpec.describe OptionsTrader::IronCondorSearch do
   let(:option_chain_data) do
     JSON.parse(
       File.read(File.join(File.dirname(__FILE__), '..', 'fixtures', 'option_chains', 'SPX_05_20_2025_option_chain.json')),
@@ -15,18 +15,18 @@ RSpec.describe OptionsTrader::IronCondorFinder do
 
   describe '#initialize' do
     it 'sets default values' do
-      finder = described_class.new(underlying_symbol: 'SPX')
+      search = described_class.new(underlying_symbol: 'SPX')
 
-      expect(finder.underlying_symbol).to eq('SPX')
-      expect(finder.expiration_date).to be_nil
-      expect(finder.quantity).to eq(1)
-      expect(finder.expiration_type).to be_nil
-      expect(finder.settlement_type).to be_nil
-      expect(finder.option_root).to be_nil
+      expect(search.underlying_symbol).to eq('SPX')
+      expect(search.expiration_date).to be_nil
+      expect(search.quantity).to eq(1)
+      expect(search.expiration_type).to be_nil
+      expect(search.settlement_type).to be_nil
+      expect(search.option_root).to be_nil
     end
 
     it 'accepts custom parameters' do
-      finder = described_class.new(
+      search = described_class.new(
         underlying_symbol: 'AAPL',
         expiration_date: expiration_date,
         quantity: 5,
@@ -35,19 +35,20 @@ RSpec.describe OptionsTrader::IronCondorFinder do
         option_root: 'SPXW'
       )
 
-      expect(finder.underlying_symbol).to eq('AAPL')
-      expect(finder.expiration_date).to eq(expiration_date)
-      expect(finder.quantity).to eq(5)
-      expect(finder.expiration_type).to eq('W')
-      expect(finder.settlement_type).to eq('P')
-      expect(finder.option_root).to eq('SPXW')
+      expect(search.underlying_symbol).to eq('AAPL')
+      expect(search.expiration_date).to eq(expiration_date)
+      expect(search.quantity).to eq(5)
+      expect(search.expiration_type).to eq('W')
+      expect(search.settlement_type).to eq('P')
+      expect(search.option_root).to eq('SPXW')
     end
   end
 
   describe '#search' do
-    let(:finder) do
+    let(:search) do
       described_class.new(
         underlying_symbol: '$SPX',
+        option_root: 'SPXW',
         expiration_date: expiration_date,
         quantity: 1
       )
@@ -55,18 +56,18 @@ RSpec.describe OptionsTrader::IronCondorFinder do
 
     before do
       # Mock the option_chain method to return our test data
-      allow(finder).to receive(:option_chain).and_return(option_chain)
+      allow(search).to receive(:option_chain).and_return(option_chain)
     end
 
     it 'finds iron condors with valid criteria' do
-      result = finder.search(
+      result = search.find(
         from_date: expiration_date,
         to_date: expiration_date,
         short_delta: 0.30,
         max_spread: 20.0,
         min_credit: 50.0,  # Reduced for test data
         min_open_interest: 0,
-        dist_from_strike: 0.01  # Reduced for test data
+        dist_from_strike: 0.01,  # Reduced for test data
       )
 
       expect(result).to be_a(OptionsTrader::IronCondor)
@@ -76,7 +77,7 @@ RSpec.describe OptionsTrader::IronCondorFinder do
     end
 
     it 'returns iron condor with combined credit from both spreads' do
-      result = finder.search(
+      result = search.find(
         from_date: expiration_date,
         to_date: expiration_date,
         short_delta: 0.30,
@@ -94,7 +95,7 @@ RSpec.describe OptionsTrader::IronCondorFinder do
     end
 
     it 'ensures both spreads have same expiration date' do
-      result = finder.search(
+      result = search.find(
         from_date: expiration_date,
         to_date: expiration_date,
         short_delta: 0.30,
@@ -111,7 +112,7 @@ RSpec.describe OptionsTrader::IronCondorFinder do
     end
 
     it 'respects short delta filter for both spreads' do
-      result = finder.search(
+      result = search.find(
         from_date: expiration_date,
         to_date: expiration_date,
         short_delta: 0.10,  # Very low delta
@@ -130,7 +131,7 @@ RSpec.describe OptionsTrader::IronCondorFinder do
     end
 
     it 'respects max spread width filter for both spreads' do
-      result = finder.search(
+      result = search.find(
         from_date: expiration_date,
         to_date: expiration_date,
         short_delta: 0.30,
@@ -149,7 +150,7 @@ RSpec.describe OptionsTrader::IronCondorFinder do
     end
 
     it 'respects minimum credit filter for combined spreads' do
-      result = finder.search(
+      result = search.find(
         from_date: expiration_date,
         to_date: expiration_date,
         short_delta: 0.30,
@@ -169,7 +170,7 @@ RSpec.describe OptionsTrader::IronCondorFinder do
     end
 
     it 'respects distance from strike filter for both spreads' do
-      result = finder.search(
+      result = search.find(
         from_date: expiration_date,
         to_date: expiration_date,
         short_delta: 0.30,
@@ -195,15 +196,15 @@ RSpec.describe OptionsTrader::IronCondorFinder do
     end
 
     it 'filters by expiration type when specified' do
-      finder_with_exp_type = described_class.new(
+      search_with_exp_type = described_class.new(
         underlying_symbol: '$SPX',
         expiration_date: expiration_date,
         expiration_type: 'W'  # Weekly options
       )
 
-      allow(finder_with_exp_type).to receive(:option_chain).and_return(option_chain)
+      allow(search_with_exp_type).to receive(:option_chain).and_return(option_chain)
 
-      result = finder_with_exp_type.search(
+      result = search_with_exp_type.find(
         from_date: expiration_date,
         to_date: expiration_date,
         short_delta: 0.30,
@@ -220,15 +221,15 @@ RSpec.describe OptionsTrader::IronCondorFinder do
     end
 
     it 'filters by settlement type when specified' do
-      finder_with_settlement = described_class.new(
+      search_with_settlement = described_class.new(
         underlying_symbol: '$SPX',
         expiration_date: expiration_date,
         settlement_type: 'P'  # Physical settlement (though SPX is cash)
       )
 
-      allow(finder_with_settlement).to receive(:option_chain).and_return(option_chain)
+      allow(search_with_settlement).to receive(:option_chain).and_return(option_chain)
 
-      result = finder_with_settlement.search(
+      result = search_with_settlement.find(
         from_date: expiration_date,
         to_date: expiration_date,
         short_delta: 0.30,
@@ -245,15 +246,15 @@ RSpec.describe OptionsTrader::IronCondorFinder do
     end
 
     it 'filters by option root when specified' do
-      finder_with_root = described_class.new(
+      search_with_root = described_class.new(
         underlying_symbol: '$SPX',
         expiration_date: expiration_date,
         option_root: 'SPXW'
       )
 
-      allow(finder_with_root).to receive(:option_chain).and_return(option_chain)
+      allow(search_with_root).to receive(:option_chain).and_return(option_chain)
 
-      result = finder_with_root.search(
+      result = search_with_root.find(
         from_date: expiration_date,
         to_date: expiration_date,
         short_delta: 0.30,
@@ -270,7 +271,7 @@ RSpec.describe OptionsTrader::IronCondorFinder do
     end
 
     it 'returns NullStrategy when no valid call spread found' do
-      result = finder.search(
+      result = search.find(
         from_date: expiration_date,
         to_date: expiration_date,
         short_delta: 0.001,  # Extremely low delta for calls only
@@ -283,7 +284,7 @@ RSpec.describe OptionsTrader::IronCondorFinder do
     end
 
     it 'returns NullStrategy when no valid put spread found' do
-      result = finder.search(
+      result = search.find(
         from_date: expiration_date,
         to_date: expiration_date,
         short_delta: 0.001,  # Extremely low delta for puts only
@@ -296,7 +297,7 @@ RSpec.describe OptionsTrader::IronCondorFinder do
     end
 
     it 'returns NullStrategy when neither spread can be found' do
-      result = finder.search(
+      result = search.find(
         from_date: expiration_date,
         to_date: expiration_date,
         short_delta: 0.001,  # Extremely low delta
@@ -309,7 +310,7 @@ RSpec.describe OptionsTrader::IronCondorFinder do
     end
 
     context 'with different expiration dates' do
-      let(:wrong_expiration_finder) do
+      let(:wrong_expiration_search) do
         described_class.new(
           underlying_symbol: '$SPX',
           expiration_date: Date.new(2025, 6, 20)  # Different expiration
@@ -318,9 +319,9 @@ RSpec.describe OptionsTrader::IronCondorFinder do
 
       it 'returns NullStrategy when expiration date does not match' do
         # Mock the option_chain method
-        allow(wrong_expiration_finder).to receive(:option_chain).and_return(option_chain)
+        allow(wrong_expiration_search).to receive(:option_chain).and_return(option_chain)
 
-        result = wrong_expiration_finder.search(
+        result = wrong_expiration_search.find(
           from_date: Date.new(2025, 6, 20),
           to_date: Date.new(2025, 6, 20),
           short_delta: 0.30,
@@ -338,9 +339,9 @@ RSpec.describe OptionsTrader::IronCondorFinder do
         empty_call_chain = SchwabRb::DataObjects::OptionChain.build(empty_call_chain_data)
 
         # Mock the option_chain method
-        allow(finder).to receive(:option_chain).and_return(empty_call_chain)
+        allow(search).to receive(:option_chain).and_return(empty_call_chain)
 
-        result = finder.search(
+        result = search.find(
           from_date: expiration_date,
           to_date: expiration_date,
           short_delta: 0.30,
@@ -358,9 +359,9 @@ RSpec.describe OptionsTrader::IronCondorFinder do
         empty_put_chain = SchwabRb::DataObjects::OptionChain.build(empty_put_chain_data)
 
         # Mock the option_chain method
-        allow(finder).to receive(:option_chain).and_return(empty_put_chain)
+        allow(search).to receive(:option_chain).and_return(empty_put_chain)
 
-        result = finder.search(
+        result = search.find(
           from_date: expiration_date,
           to_date: expiration_date,
           short_delta: 0.30,
@@ -376,9 +377,9 @@ RSpec.describe OptionsTrader::IronCondorFinder do
         # This is more of an integration test to ensure the search doesn't break
         # with edge case data
         # Mock the option_chain method
-        allow(finder).to receive(:option_chain).and_return(option_chain)
+        allow(search).to receive(:option_chain).and_return(option_chain)
 
-        result = finder.search(
+        result = search.find(
           from_date: expiration_date,
           to_date: expiration_date,
           short_delta: 0.30,
@@ -398,8 +399,8 @@ RSpec.describe OptionsTrader::IronCondorFinder do
     end
   end
 
-  describe '#call_spread_finder' do
-    let(:finder) do
+  describe '#call_spread_search' do
+    let(:search) do
       described_class.new(
         underlying_symbol: '$SPX',
         expiration_date: expiration_date,
@@ -410,26 +411,25 @@ RSpec.describe OptionsTrader::IronCondorFinder do
       )
     end
 
-    it 'creates call spread finder with provided parameters' do
-      call_finder = finder.send(:call_spread_finder,
-        short_delta: 0.25,
+    it 'creates call spread search with provided parameters' do
+      call_search = search.send(:call_spread_search,
         max_spread: 15.0,
         min_open_interest: 10,
         dist_from_strike: 0.03
       )
 
-      expect(call_finder).to be_a(OptionsTrader::CallSpreadFinder)
-      expect(call_finder.underlying_symbol).to eq('$SPX')
-      expect(call_finder.expiration_date).to eq(expiration_date)
-      expect(call_finder.quantity).to eq(2)
-      expect(call_finder.expiration_type).to eq('W')
-      expect(call_finder.settlement_type).to eq('P')
-      expect(call_finder.option_root).to eq('SPXW')
+      expect(call_search).to be_a(OptionsTrader::VerticalSpreadSearch)
+      expect(call_search.underlying_symbol).to eq('$SPX')
+      expect(call_search.expiration_date).to eq(expiration_date)
+      expect(call_search.quantity).to eq(2)
+      expect(call_search.expiration_type).to eq('W')
+      expect(call_search.settlement_type).to eq('P')
+      expect(call_search.option_root).to eq('SPXW')
     end
   end
 
-  describe '#put_spread_finder' do
-    let(:finder) do
+  describe '#put_spread_search' do
+    let(:search) do
       described_class.new(
         underlying_symbol: '$SPX',
         expiration_date: expiration_date,
@@ -440,36 +440,36 @@ RSpec.describe OptionsTrader::IronCondorFinder do
       )
     end
 
-    it 'creates put spread finder with provided parameters' do
-      put_finder = finder.send(:put_spread_finder,
-        short_delta: 0.25,
+    it 'creates put spread search with provided parameters' do
+      put_search = search.send(:put_spread_search,
         max_spread: 15.0,
         min_open_interest: 10,
         dist_from_strike: 0.03
       )
 
-      expect(put_finder).to be_a(OptionsTrader::PutSpreadFinder)
-      expect(put_finder.underlying_symbol).to eq('$SPX')
-      expect(put_finder.expiration_date).to eq(expiration_date)
-      expect(put_finder.quantity).to eq(2)
-      expect(put_finder.expiration_type).to eq('W')
-      expect(put_finder.settlement_type).to eq('P')
-      expect(put_finder.option_root).to eq('SPXW')
+      expect(put_search).to be_a(OptionsTrader::VerticalSpreadSearch)
+      expect(put_search.underlying_symbol).to eq('$SPX')
+      expect(put_search.expiration_date).to eq(expiration_date)
+      expect(put_search.quantity).to eq(2)
+      expect(put_search.expiration_type).to eq('W')
+      expect(put_search.settlement_type).to eq('P')
+      expect(put_search.option_root).to eq('SPXW')
     end
   end
 
   describe 'integration with real option data' do
-    let(:realistic_finder) do
+    let(:realistic_search) do
       described_class.new(
         underlying_symbol: '$SPX',
-        expiration_date: expiration_date
+        expiration_date: expiration_date,
+        option_root: 'SPXW'
       )
     end
 
     it 'finds realistic iron condors from SPX data' do
-      allow(realistic_finder).to receive(:option_chain).and_return(option_chain)
+      allow(realistic_search).to receive(:option_chain).and_return(option_chain)
 
-      result = realistic_finder.search(
+      result = realistic_search.find(
         from_date: expiration_date,
         to_date: expiration_date,
         short_delta: 0.25,        # ~25 delta short legs
@@ -489,9 +489,9 @@ RSpec.describe OptionsTrader::IronCondorFinder do
 
     it 'ensures proper iron condor structure' do
       # Mock the option_chain method
-      allow(realistic_finder).to receive(:option_chain).and_return(option_chain)
+      allow(realistic_search).to receive(:option_chain).and_return(option_chain)
 
-      result = realistic_finder.search(
+      result = realistic_search.find(
         from_date: expiration_date,
         to_date: expiration_date,
         short_delta: 0.25,
@@ -523,9 +523,9 @@ RSpec.describe OptionsTrader::IronCondorFinder do
 
     it 'has reasonable risk/reward characteristics' do
       # Mock the option_chain method
-      allow(realistic_finder).to receive(:option_chain).and_return(option_chain)
+      allow(realistic_search).to receive(:option_chain).and_return(option_chain)
 
-      result = realistic_finder.search(
+      result = realistic_search.find(
         from_date: expiration_date,
         to_date: expiration_date,
         short_delta: 0.25,
@@ -555,7 +555,7 @@ RSpec.describe OptionsTrader::IronCondorFinder do
   end
 
   describe 'performance considerations' do
-    let(:performance_finder) do
+    let(:performance_search) do
       described_class.new(
         underlying_symbol: '$SPX',
         expiration_date: expiration_date
@@ -564,11 +564,11 @@ RSpec.describe OptionsTrader::IronCondorFinder do
 
     it 'completes search in reasonable time' do
       # Mock the option_chain method
-      allow(performance_finder).to receive(:option_chain).and_return(option_chain)
+      allow(performance_search).to receive(:option_chain).and_return(option_chain)
 
       start_time = Time.now
 
-      performance_finder.search(
+      performance_search.find(
         from_date: expiration_date,
         to_date: expiration_date,
         short_delta: 0.30,
@@ -584,7 +584,7 @@ RSpec.describe OptionsTrader::IronCondorFinder do
   end
 
   describe 'iron condor structure validation' do
-    let(:finder) do
+    let(:search) do
       described_class.new(
         underlying_symbol: '$SPX',
         expiration_date: expiration_date
@@ -593,9 +593,9 @@ RSpec.describe OptionsTrader::IronCondorFinder do
 
     it 'validates strike price relationships' do
       # Mock the option_chain method
-      allow(finder).to receive(:option_chain).and_return(option_chain)
+      allow(search).to receive(:option_chain).and_return(option_chain)
 
-      result = finder.search(
+      result = search.find(
         from_date: expiration_date,
         to_date: expiration_date,
         short_delta: 0.30,
@@ -622,7 +622,7 @@ RSpec.describe OptionsTrader::IronCondorFinder do
   end
 
   describe 'option_chain method call' do
-    let(:finder) do
+    let(:search) do
       described_class.new(
         underlying_symbol: '$SPX',
         expiration_date: expiration_date
@@ -631,11 +631,11 @@ RSpec.describe OptionsTrader::IronCondorFinder do
 
     before do
       # Mock the option_chain method to return our test data
-      allow(finder).to receive(:option_chain).and_return(option_chain)
+      allow(search).to receive(:option_chain).and_return(option_chain)
     end
 
     it 'calls option_chain with correct parameters' do
-      finder.search(
+      search.find(
         from_date: expiration_date,
         to_date: expiration_date,
         short_delta: 0.30,
@@ -645,9 +645,10 @@ RSpec.describe OptionsTrader::IronCondorFinder do
         dist_from_strike: 0.01
       )
 
-      expect(finder).to have_received(:option_chain).with(
+      expect(search).to have_received(:option_chain).with(
         '$SPX',
         contract_type: 'ALL',
+        strike_range: 'OTM',
         from_date: expiration_date,
         to_date: expiration_date
       )

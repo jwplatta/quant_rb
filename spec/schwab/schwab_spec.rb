@@ -58,7 +58,7 @@ RSpec.describe OptionsTrader::Schwab do
 
     it 'fetches and returns an option chain for a symbol' do
       expect(mock_client).to receive(:get_option_chain)
-        .with('ACME', {contract_type: 'CALL', strike_range: 'OTM', to_date: Date.today + 30, return_data_objects: true})
+        .with('ACME', {contract_type: 'CALL', strike_range: 'OTM', to_date: Date.today + 30})
         .and_return(option_chain_object)
 
       chain = schwab_instance.option_chain('ACME',
@@ -71,7 +71,7 @@ RSpec.describe OptionsTrader::Schwab do
 
     it 'uses days_to_expiration when provided' do
       expect(mock_client).to receive(:get_option_chain)
-        .with('ACME', {contract_type: 'CALL', strike_range: 'OTM', days_to_expiration: 30, return_data_objects: true})
+        .with('ACME', {contract_type: 'CALL', strike_range: 'OTM', days_to_expiration: 30})
         .and_return(option_chain_object)
 
       chain = schwab_instance.option_chain('ACME',
@@ -85,7 +85,7 @@ RSpec.describe OptionsTrader::Schwab do
     it 'does not cache results between calls' do
       expect(mock_client).to receive(:get_option_chain)
         .twice
-        .with('ACME', {contract_type: 'CALL', strike_range: 'OTM', to_date: nil, return_data_objects: true})
+        .with('ACME', {contract_type: 'CALL', strike_range: 'OTM', to_date: nil})
         .and_return(option_chain_object)
 
       chain1 = schwab_instance.option_chain('ACME',
@@ -102,7 +102,7 @@ RSpec.describe OptionsTrader::Schwab do
     it 'does not use caching at all' do
       expect(mock_client).to receive(:get_option_chain)
         .twice
-        .with('ACME', {contract_type: 'CALL', strike_range: 'OTM', to_date: nil, return_data_objects: true})
+        .with('ACME', {contract_type: 'CALL', strike_range: 'OTM', to_date: nil})
         .and_return(option_chain_object)
 
       chain1 = schwab_instance.option_chain('ACME',
