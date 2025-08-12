@@ -77,11 +77,7 @@ module OptionsTrader
         kwargs[:from_date] = from_date if from_date
       end
 
-      client.get_option_chain(
-        symbol,
-        return_data_objects: true,
-        **kwargs
-      )
+      client.get_option_chain(symbol, **kwargs)
     end
 
     def account(fields: nil)
