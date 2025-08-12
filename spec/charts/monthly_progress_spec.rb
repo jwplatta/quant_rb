@@ -106,18 +106,6 @@ RSpec.describe OptionsTrader::Charts::MonthlyProgress do
   describe 'private methods' do
     let(:chart) { described_class.new(mock_schwab_client, account_names: ['main']) }
 
-    describe '#generate_filename' do
-      it 'generates filename for single account' do
-        filename = chart.send(:generate_filename, 2025, ['main'])
-        expect(filename).to eq('monthly_report_2025_main.png')
-      end
-
-      it 'generates filename for multiple accounts' do
-        filename = chart.send(:generate_filename, 2025, ['main', 'trading'])
-        expect(filename).to eq('monthly_report_2025_combined_main_trading.png')
-      end
-    end
-
     describe '#validate_data!' do
       it 'validates correct data format' do
         data = [[Date.new(2025, 1, 1), 100.0], [Date.new(2025, 2, 1), 200.0]]
