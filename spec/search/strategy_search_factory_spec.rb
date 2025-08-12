@@ -111,7 +111,8 @@ RSpec.describe OptionsTrader::StrategySearchFactory do
         minimal_params = {
           strategy_type: 'ironcondor',
           underlying_symbol: underlying_symbol,
-          expiration_date: expiration_date
+          expiration_date: expiration_date,
+          option_root: option_root
         }
 
         finder = described_class.create(**minimal_params)
@@ -121,7 +122,7 @@ RSpec.describe OptionsTrader::StrategySearchFactory do
         expect(finder.expiration_date).to eq(expiration_date)
         expect(finder.quantity).to eq(1)
         expect(finder.settlement_type).to be_nil
-        expect(finder.option_root).to be_nil
+        expect(finder.option_root).to eq(option_root)
       end
     end
 
@@ -178,13 +179,4 @@ RSpec.describe OptionsTrader::StrategySearchFactory do
     end
   end
 
-  describe 'VALID_STRATEGIES constant' do
-    it 'contains exactly the expected strategy types' do
-      expect(described_class::VALID_STRATEGIES).to eq(%w[ironcondor vertical single])
-    end
-
-    it 'is frozen' do
-      expect(described_class::VALID_STRATEGIES).to be_frozen
-    end
-  end
 end

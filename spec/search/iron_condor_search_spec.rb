@@ -48,6 +48,7 @@ RSpec.describe OptionsTrader::IronCondorSearch do
     let(:search) do
       described_class.new(
         underlying_symbol: '$SPX',
+        option_root: 'SPXW',
         expiration_date: expiration_date,
         quantity: 1
       )
@@ -66,7 +67,7 @@ RSpec.describe OptionsTrader::IronCondorSearch do
         max_spread: 20.0,
         min_credit: 50.0,  # Reduced for test data
         min_open_interest: 0,
-        dist_from_strike: 0.01  # Reduced for test data
+        dist_from_strike: 0.01,  # Reduced for test data
       )
 
       expect(result).to be_a(OptionsTrader::IronCondor)
@@ -460,7 +461,8 @@ RSpec.describe OptionsTrader::IronCondorSearch do
     let(:realistic_search) do
       described_class.new(
         underlying_symbol: '$SPX',
-        expiration_date: expiration_date
+        expiration_date: expiration_date,
+        option_root: 'SPXW'
       )
     end
 

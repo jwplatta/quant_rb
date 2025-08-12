@@ -15,7 +15,7 @@ RSpec.describe OptionsTrader::VerticalSpreadSearch do
 
   describe '#initialize' do
     it 'sets default values for PUT spreads' do
-      search = described_class.new(underlying_symbol: 'SPX', put_call: 'PUT')
+      search = described_class.new(underlying_symbol: 'SPX', option_root: 'SPXW', put_call: 'PUT')
 
       expect(search.underlying_symbol).to eq('SPX')
       expect(search.put_call).to eq('PUT')
@@ -23,13 +23,13 @@ RSpec.describe OptionsTrader::VerticalSpreadSearch do
       expect(search.quantity).to eq(1)
       expect(search.expiration_type).to be_nil
       expect(search.settlement_type).to be_nil
-      expect(search.option_root).to be_nil
+      expect(search.option_root).to eq('SPXW')
       expect(search.spreads).to eq([])
       expect(search.short_legs).to eq([])
     end
 
     it 'sets default values for CALL spreads' do
-      search = described_class.new(underlying_symbol: 'SPX', put_call: 'CALL')
+      search = described_class.new(underlying_symbol: 'SPX', option_root: 'SPXW', put_call: 'CALL')
 
       expect(search.underlying_symbol).to eq('SPX')
       expect(search.put_call).to eq('CALL')
@@ -37,7 +37,7 @@ RSpec.describe OptionsTrader::VerticalSpreadSearch do
       expect(search.quantity).to eq(1)
       expect(search.expiration_type).to be_nil
       expect(search.settlement_type).to be_nil
-      expect(search.option_root).to be_nil
+      expect(search.option_root).to eq('SPXW')
       expect(search.spreads).to eq([])
       expect(search.short_legs).to eq([])
     end
@@ -84,13 +84,19 @@ RSpec.describe OptionsTrader::VerticalSpreadSearch do
 
     it 'requires put_call parameter' do
       expect {
-        described_class.new(underlying_symbol: 'SPX')
+        described_class.new(underlying_symbol: 'SPX', option_root: 'SPXW')
       }.to raise_error(ArgumentError)
     end
 
     it 'requires underlying_symbol parameter' do
       expect {
-        described_class.new(put_call: 'PUT')
+        described_class.new(option_root: 'SPXW', put_call: 'PUT')
+      }.to raise_error(ArgumentError)
+    end
+
+    it 'requires option_root parameter' do
+      expect {
+        described_class.new(underlying_symbol: 'SPX', put_call: 'PUT')
       }.to raise_error(ArgumentError)
     end
   end
@@ -100,6 +106,7 @@ RSpec.describe OptionsTrader::VerticalSpreadSearch do
       let(:put_search) do
         described_class.new(
           underlying_symbol: '$SPX',
+          option_root: 'SPXW',
           put_call: 'PUT',
           expiration_date: expiration_date,
           quantity: 1
@@ -159,6 +166,7 @@ RSpec.describe OptionsTrader::VerticalSpreadSearch do
           expect(put_search).to have_received(:option_chain).with(
             '$SPX',
             contract_type: 'PUT',
+            strike_range: 'OTM',
             from_date: expiration_date,
             to_date: expiration_date
           )
@@ -265,6 +273,7 @@ RSpec.describe OptionsTrader::VerticalSpreadSearch do
       it 'applies quantity to both legs' do
         quantity_search = described_class.new(
           underlying_symbol: '$SPX',
+          option_root: 'SPXW',
           put_call: 'PUT',
           expiration_date: expiration_date,
           quantity: 2
@@ -290,6 +299,7 @@ RSpec.describe OptionsTrader::VerticalSpreadSearch do
       let(:call_search) do
         described_class.new(
           underlying_symbol: '$SPX',
+          option_root: 'SPXW',
           put_call: 'CALL',
           expiration_date: expiration_date,
           quantity: 1
@@ -349,6 +359,7 @@ RSpec.describe OptionsTrader::VerticalSpreadSearch do
           expect(call_search).to have_received(:option_chain).with(
             '$SPX',
             contract_type: 'CALL',
+            strike_range: 'OTM',
             from_date: expiration_date,
             to_date: expiration_date
           )
@@ -455,6 +466,7 @@ RSpec.describe OptionsTrader::VerticalSpreadSearch do
       it 'applies quantity to both legs' do
         quantity_search = described_class.new(
           underlying_symbol: '$SPX',
+          option_root: 'SPXW',
           put_call: 'CALL',
           expiration_date: expiration_date,
           quantity: 2
@@ -480,6 +492,7 @@ RSpec.describe OptionsTrader::VerticalSpreadSearch do
       let(:search) do
         described_class.new(
           underlying_symbol: '$SPX',
+          option_root: 'SPXW',
           put_call: 'PUT',
           expiration_date: expiration_date
         )
@@ -575,6 +588,7 @@ RSpec.describe OptionsTrader::VerticalSpreadSearch do
     it 'raises error during options_array access' do
       search = described_class.new(
         underlying_symbol: 'SPX',
+        option_root: 'SPXW',
         put_call: 'INVALID'
       )
 
