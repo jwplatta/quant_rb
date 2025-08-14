@@ -11,8 +11,10 @@ begin
   require_relative '../config/environment'
 rescue LoadError
   # dotenv not available, skip loading
+  STDERR.puts "Warning: dotenv not available, skipping loading"
 rescue Errno::ENOENT
   # .env file not found, continue without it
+  STDERR.puts "Warning: .env file not found, continuing without it"
 end
 
 module OptionsTrader
