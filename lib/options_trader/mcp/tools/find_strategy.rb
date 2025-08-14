@@ -39,9 +39,9 @@ module OptionsTrader
             },
             expiration_type: {
               type: "string",
-              description: "Type of expiration (e.g., 'S' for standard, 'NS' for non-standard, 'ALL' for all)",
-              enum: %w[S NS ALL],
-              default: "S"
+              description: "Type of expiration (e.g., 'W' for weekly, 'S' for standard, 'NS' for non-standard, 'ALL' for all)",
+              enum: %w[W S NS ALL],
+              default: "W"
             },
             settlement_type: {
               type: "string",
