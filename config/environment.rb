@@ -7,8 +7,6 @@ require 'dotenv/load'
 require 'fileutils'
 require 'logger'
 
-# Ensure the db directory exists
-FileUtils.mkdir_p('db')
 
 # Configure environment (development is default)
 # RAILS_ENV takes precedence over RACK_ENV for consistency with Rails/RSpec
