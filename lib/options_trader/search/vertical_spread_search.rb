@@ -3,6 +3,7 @@
 module OptionsTrader
   class VerticalSpreadSearch
     include OptionsTrader::Schwab
+    include Loggable
 
     attr_reader :underlying_symbol, :put_call, :spreads, :short_legs, :expiration_date, :quantity,
       :expiration_type, :settlement_type, :option_root, :increment
@@ -54,6 +55,10 @@ module OptionsTrader
 
       short_legs = []
 
+      logger.debug("Options array size: #{options_array.size}")
+      logger.debug("Search space size: #{search_space.size}")
+      logger.debug("Expiration date: #{expiration_date_to_s}")
+
       search_space.each do |short_option|
         next unless passes_short_option_filters?(short_option)
 
@@ -100,14 +105,14 @@ module OptionsTrader
       @search_space ||= if put_call == 'CALL'
         options_array.select do |opt|
           option_matches_date?(opt, expiration_date_to_s) \
-            && opt.strike <= opt_chain.underlying_price + opt_chain.underlying_price * 0.25 \
+            && opt.strike <= opt_chain.underlying_price + opt_chain.underlying_price * 0.30 \
             && is_correct_contract_type?(opt)
         end
-      else
+      elsif put_call == 'PUT'
         options_array.select do |opt|
           option_matches_date?(opt, expiration_date_to_s) \
-            && opt.strike >= opt_chain.underlying_price - opt_chain.underlying_price * 0.25 \
-            && is_correct_contract_type?(opt)
+            && is_correct_contract_type?(opt) \
+            && opt.strike >= opt_chain.underlying_price - opt_chain.underlying_price * 0.30 \
         end
       end
     end
@@ -180,6 +185,10 @@ module OptionsTrader
     end
 
     def is_correct_contract_type?(option)
+      logger.debug("Checking expiration_type: #{option.expiration_type} against #{expiration_type}")
+      logger.debug("Checking settlement type: #{option.settlement_type} against #{settlement_type}")
+      logger.debug("Checking option root: #{option.option_root} against #{option_root}")
+
       return false if expiration_type && option.expiration_type != expiration_type
       return false if settlement_type && option.settlement_type != settlement_type
       return false if option.option_root != option_root
