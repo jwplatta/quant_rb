@@ -1,35 +1,36 @@
 #!/usr/bin/env ruby
 
 require 'csv'
+require 'pry'
 
 # Initialize variables to store totals
 commission_total = 0.0
 fees_total = 0.0
-premium_total = 0.0
+cost_total = 0.0
 
-# Path to the CSV file
-csv_path = File.join(File.dirname(__FILE__), 'trades.csv')
+if ARGV.empty?
+  puts "Usage: ruby sum_trades.rb <path_to_csv_file>"
+  exit 1
+end
 
-File.foreach(csv_path) do |line|
-  values = line.strip.split("\t")
+csv_path = ARGV.first
 
-  next if values.length < 3
+CSV.foreach(csv_path, headers: true) do |row|
+  hash = row.to_h
 
-  commission = values[0].to_f
-  fees = values[1].to_f
-
-  premium_str = values[2].to_s.strip
-  premium = premium_str.empty? ? 0.0 : premium_str.gsub(',', '').to_f
+  fees = hash['fees'].to_f
+  commission = hash['commission'].to_f
+  cost = hash['cost'].to_f
 
   commission_total += commission
   fees_total += fees
-  premium_total += premium
+  cost_total += cost
 end
 
 puts "Trade Summary"
 puts "=============="
 puts "Total Commission: $#{commission_total.round(2)}"
 puts "Total Fees: $#{fees_total.round(2)}"
-puts "Total Premium/Cost: $#{premium_total.round(2)}"
+puts "Total Cost: $#{cost_total.round(2)}"
 puts "=============="
-puts "Overall Total: $#{(commission_total + fees_total + premium_total).round(2)}"
+puts "Overall Total: $#{(commission_total + fees_total + cost_total).round(2)}"
