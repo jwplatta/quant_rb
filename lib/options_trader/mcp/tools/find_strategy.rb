@@ -64,7 +64,6 @@ module OptionsTrader
               type: "number",
               description: "Minimum credit received in dollars (default: 100.0)",
               minimum: 0.01
-
             },
             min_open_interest: {
               type: "integer",
