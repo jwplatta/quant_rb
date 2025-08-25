@@ -70,6 +70,9 @@ module OptionsTrader
   # Require models
   require_relative "options_trader/models/option_chain_history"
 
+  # Require indicators
+  require_relative "options_trader/indicators/greeks"
+
   # Require MCP server
   require_relative "options_trader/mcp/server"
 
