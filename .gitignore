@@ -11,3 +11,4 @@ schwab_token.json
 /trade_journal
 token.json
 pkg
+.rspec_status
