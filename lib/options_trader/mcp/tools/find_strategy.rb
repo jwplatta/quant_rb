@@ -16,7 +16,7 @@ module OptionsTrader
             strategy_type: {
               type: "string",
               description: "Type of option strategy to find",
-              enum: OptionsTrader::Constants::VALID_STRATEGIES
+              enum: OptionsTrader::VALID_STRATEGIES
             },
             contract_type: {
               type: "string",
@@ -111,10 +111,10 @@ module OptionsTrader
           logger.info("Finding #{strategy_type} strategy for #{underlying_symbol} expiring #{expiration_date}")
 
           begin
-            unless OptionsTrader::Constants::VALID_STRATEGIES.include?(strategy_type.downcase)
+            unless OptionsTrader::VALID_STRATEGIES.include?(strategy_type.downcase)
               return ::MCP::Tool::Response.new([{
                                                type: "text",
-                                               text: "**Error**: Invalid strategy type '#{strategy_type}'. Must be one of: #{OptionsTrader::Constants::VALID_STRATEGIES.join(', ')}."
+                                               text: "**Error**: Invalid strategy type '#{strategy_type}'. Must be one of: #{OptionsTrader::VALID_STRATEGIES.join(', ')}."
                                              }])
             end
 
