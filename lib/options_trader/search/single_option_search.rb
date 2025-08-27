@@ -90,9 +90,9 @@ module OptionsTrader
           from_date: @from_date || expiration_date,
           to_date: @to_date || expiration_date
         )
-      elsif @opt_chain_or_params.respond_to?(:put_opts) && put_call == 'PUT'
+      elsif @opt_chain_or_params.respond_to?(:put_opts) && put_call == OptionsTrader::PUT
         @opt_chain_or_params
-      elsif @opt_chain_or_params.respond_to?(:call_opts) && put_call == 'CALL'
+      elsif @opt_chain_or_params.respond_to?(:call_opts) && put_call == OptionsTrader::CALL
         @opt_chain_or_params
       else
         raise ArgumentError, "Invalid option chain or parameters provided"

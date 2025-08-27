@@ -98,7 +98,7 @@ module OptionsTrader
       end
 
       def valid_strategies
-        OptionsTrader::Constants::VALID_STRATEGIES
+        OptionsTrader::VALID_STRATEGIES
       end
     end
   end
