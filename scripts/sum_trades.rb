@@ -3,7 +3,6 @@
 require 'csv'
 require 'pry'
 
-# Initialize variables to store totals
 commission_total = 0.0
 fees_total = 0.0
 cost_total = 0.0
