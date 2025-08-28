@@ -72,6 +72,9 @@ module OptionsTrader
 
   # Require indicators
   require_relative "options_trader/indicators/greeks"
+  require_relative "options_trader/indicators/implied_volatility"
+  require_relative "options_trader/indicators/cox_ross_rubinstein"
+  require_relative "options_trader/indicators/black_scholes"
 
   # Require MCP server
   require_relative "options_trader/mcp/server"
