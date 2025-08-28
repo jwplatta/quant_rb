@@ -25,7 +25,7 @@ module OptionsTrader
           when OptionsTrader::PUT
             BlackScholes.norm_cdf(d1_val) - 1.0
           else
-            raise ArgumentError, "option_type must be 'CALL' or 'PUT'"
+            raise ArgumentError, "option_type must be CALL or PUT"
           end
         end
 
