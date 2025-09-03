@@ -185,10 +185,6 @@ module OptionsTrader
     end
 
     def is_correct_contract_type?(option)
-      logger.debug("Checking expiration_type: #{option.expiration_type} against #{expiration_type}")
-      logger.debug("Checking settlement type: #{option.settlement_type} against #{settlement_type}")
-      logger.debug("Checking option root: #{option.option_root} against #{option_root}")
-
       return false if expiration_type && option.expiration_type != expiration_type
       return false if settlement_type && option.settlement_type != settlement_type
       return false if option.option_root != option_root
