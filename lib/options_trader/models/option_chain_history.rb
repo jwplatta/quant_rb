@@ -15,8 +15,8 @@ module OptionsTrader
     validates :expiration_type, inclusion: { in: %w[W S M Q] }, allow_nil: true
     validates :volatility, numericality: { greater_than_or_equal_to: 0 }, allow_nil: true
 
-    scope :calls, -> { where(contract_type: 'CALL') }
-    scope :puts, -> { where(contract_type: 'PUT') }
+    scope :calls, -> { where(contract_type: OptionsTrader::CALL) }
+    scope :puts, -> { where(contract_type: OptionsTrader::PUT) }
     scope :for_underlying, ->(symbol) { where(underlying_symbol: symbol) }
     scope :for_expiration, ->(date) { where(expiration_date: date) }
     scope :for_strike, ->(strike_price) { where(strike: strike_price) }
@@ -56,11 +56,11 @@ module OptionsTrader
     end
 
     def call?
-      contract_type == 'CALL'
+      contract_type == OptionsTrader::CALL
     end
 
     def put?
-      contract_type == 'PUT'
+      contract_type == OptionsTrader::PUT
     end
 
     def in_the_money?(underlying_price)
