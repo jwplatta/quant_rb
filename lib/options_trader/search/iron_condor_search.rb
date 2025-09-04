@@ -30,7 +30,11 @@ module OptionsTrader
       from_date: nil,
       to_date: nil,
       short_delta: 0.15,
+      short_put_delta: nil,
+      short_call_delta: nil,
       max_spread: 20.0,
+      max_put_spread: nil,
+      max_call_spread: nil,
       min_credit: 100.0,
       min_open_interest: 0,
       dist_from_strike: 0.07
@@ -45,29 +49,35 @@ module OptionsTrader
 
       return NullStrategy.new unless opt_chain
 
+      call_delta = short_call_delta || short_delta
+      call_max_spread = max_call_spread || max_spread
+      
       call_spreads = call_spread_search(
-        max_spread: max_spread,
+        max_spread: call_max_spread,
         min_open_interest: min_open_interest,
         dist_from_strike: dist_from_strike
       ).find(
         opt_chain,
         return_spreads: true,
-        short_delta: short_delta,
-        max_spread: max_spread,
+        short_delta: call_delta,
+        max_spread: call_max_spread,
         min_open_interest: min_open_interest,
         dist_from_strike: dist_from_strike
       )
       return NullStrategy.new if call_spreads.empty?
 
+      put_delta = short_put_delta || short_delta
+      put_max_spread = max_put_spread || max_spread
+      
       put_spreads = put_spread_search(
-        max_spread: max_spread,
+        max_spread: put_max_spread,
         min_open_interest: min_open_interest,
         dist_from_strike: dist_from_strike
       ).find(
         opt_chain,
         return_spreads: true,
-        short_delta: short_delta,
-        max_spread: max_spread,
+        short_delta: put_delta,
+        max_spread: put_max_spread,
         min_open_interest: min_open_interest,
         dist_from_strike: dist_from_strike
       )
