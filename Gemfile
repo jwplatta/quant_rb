@@ -9,7 +9,7 @@ gem 'pg', '~> 1.6'
 gem 'pry'
 gem 'rake'
 gem 'rspec'
-gem 'factory_bot', '~> 6.4'
+gem 'factory_bot', '~> 6.5'
 gem 'rubocop', require: false
 gem 'schwab_rb', '~> 0.3.8'
 gem 'sqlite3', '~> 2.1'
