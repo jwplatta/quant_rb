@@ -183,5 +183,47 @@ module OptionsTrader
         resp.status == 200
       end
     end
+
+    def price_history_every_minute(
+      symbol,
+      start_datetime,
+      end_datetime,
+      need_extended_hours_data: true,
+      need_previous_close: false
+    )
+      client.get_price_history(
+        symbol,
+        period_type: SchwabRb::PriceHistory::PeriodTypes::DAY,
+        period: SchwabRb::PriceHistory::Periods::ONE_DAY,
+        frequency_type: SchwabRb::PriceHistory::FrequencyTypes::MINUTE,
+        frequency: SchwabRb::PriceHistory::Frequencies::EVERY_MINUTE,
+        start_datetime: start_datetime,
+        end_datetime: end_datetime,
+        need_extended_hours_data: true,
+        need_previous_close: false,
+        return_data_objects: true
+      )
+    end
+
+    def price_history_every_five_minutes(
+      symbol,
+      start_datetime,
+      end_datetime,
+      need_extended_hours_data: true,
+      need_previous_close: false
+    )
+      client.get_price_history(
+        symbol,
+        period_type: SchwabRb::PriceHistory::PeriodTypes::DAY,
+        period: SchwabRb::PriceHistory::Periods::ONE_DAY,
+        frequency_type: SchwabRb::PriceHistory::FrequencyTypes::MINUTE,
+        frequency: SchwabRb::PriceHistory::Frequencies::EVERY_FIVE_MINUTES,
+        start_datetime: start_datetime,
+        end_datetime: end_datetime,
+        need_extended_hours_data: true,
+        need_previous_close: false,
+        return_data_objects: true
+      )
+    end
   end
 end
