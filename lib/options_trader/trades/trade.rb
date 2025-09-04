@@ -179,7 +179,6 @@ module OptionsTrader
         elsif current_state == TRADE_STATES[:open_order_failed]
           find_strategy
         elsif current_state == TRADE_STATES[:close_order_failed]
-          binding.pry
           send_close_order
         elsif current_state == TRADE_STATES[:trade_found]
           send_open_order
