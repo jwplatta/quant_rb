@@ -77,6 +77,9 @@ module OptionsTrader
         kwargs[:from_date] = from_date if from_date
       end
 
+      # NOTE: building DataObjects
+      # option_chain_data = JSON.parse(response.body, symbolize_names: true)
+      # SchwabRb::DataObjects::OptionChain.build(option_chain_data)
       client.get_option_chain(symbol, **kwargs)
     end
 
