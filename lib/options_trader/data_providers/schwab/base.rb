@@ -1,3 +1,5 @@
+require_relative "client"
+
 module OptionsTrader
   module DataProviders
     module Schwab
@@ -51,7 +53,7 @@ module OptionsTrader
         def validate_symbol(symbol)
           return if symbol.nil? || symbol.empty?
 
-          unless unless symbol.match?(/^[\$A-Z0-9\/]+(\.[A-Z]{1,2})?$/)
+          unless symbol.match?(/^[\$A-Z0-9\/]+(\.[A-Z]{1,2})?$/)
             raise InvalidSymbolError, "Invalid symbol format: #{symbol}. Expected format: SYMBOL, $INDEX, or SYMBOL.EX"
           end
         end
@@ -67,7 +69,7 @@ module OptionsTrader
         end
 
         def logger
-          OptionsTrader::Logger.instance
+          OptionsTrader::Logger.logger
         end
       end
     end
