@@ -4,6 +4,7 @@ module OptionsTrader
   class StrategySearchFactory
     class << self
       def find(
+        markets_service:,
         strategy_type:,
         underlying_symbol:,
         expiration_date:,
@@ -22,6 +23,7 @@ module OptionsTrader
         increment: 0.01
       )
         create(
+          markets_service: markets_service,
           strategy_type: strategy_type,
           underlying_symbol: underlying_symbol,
           put_call: put_call,
@@ -43,6 +45,7 @@ module OptionsTrader
       end
 
       def create(
+        markets_service:,
         strategy_type:,
         underlying_symbol:,
         expiration_date:,
@@ -60,6 +63,7 @@ module OptionsTrader
         case strategy_type.to_s.downcase
         when 'ironcondor'
           OptionsTrader::IronCondorSearch.new(
+            markets_service: markets_service,
             underlying_symbol: underlying_symbol,
             expiration_date: expiration_date,
             quantity: quantity,
@@ -70,6 +74,7 @@ module OptionsTrader
           )
         when 'vertical'
           OptionsTrader::VerticalSpreadSearch.new(
+            markets_service: markets_service,
             underlying_symbol: underlying_symbol,
             put_call: put_call,
             expiration_date: expiration_date,
@@ -81,6 +86,7 @@ module OptionsTrader
           )
         when 'single'
           OptionsTrader::SingleOptionSearch.new(
+            markets_service: markets_service,
             underlying_symbol: underlying_symbol,
             put_call: put_call,
             expiration_date: expiration_date,

@@ -7,14 +7,7 @@ module OptionsTrader
   module Schwab
     def client
       return @client if @client
-
-      token_path = ENV['TOKEN_PATH']
-      @client = SchwabRb::Auth.init_client_easy(
-        ENV['SCHWAB_API_KEY'],
-        ENV['SCHWAB_APP_SECRET'],
-        ENV['APP_CALLBACK_URL'],
-        token_path
-      )
+      @client = OptionsTrader::DataProviders::Schwab::Client.instance
     end
 
     def set_account(account_name)

@@ -12,23 +12,28 @@ RSpec.describe OptionsTrader::SingleOptionSearch do
 
   let(:option_chain) { SchwabRb::DataObjects::OptionChain.build(option_chain_data) }
   let(:expiration_date) { Date.new(2025, 5, 20) }
+  let(:mock_markets_service) { double('OptionsTrader::Services::Markets') }
 
   describe '#initialize' do
     it 'sets default values' do
-      search = described_class.new(underlying_symbol: 'SPX', put_call: 'PUT')
+      search = described_class.new(
+        markets_service: mock_markets_service,
+        underlying_symbol: 'SPX',
+        put_call: OptionsTrader::PUT
+      )
 
       expect(search.underlying_symbol).to eq('SPX')
-      expect(search.put_call).to eq('PUT')
+      expect(search.put_call).to eq(OptionsTrader::PUT)
       expect(search.quantity).to eq(1)
     end
 
     it 'requires put_call and underlying_symbol parameters' do
       expect {
-        described_class.new(underlying_symbol: 'SPX')
+        described_class.new(markets_service: mock_markets_service, underlying_symbol: 'SPX')
       }.to raise_error(ArgumentError)
 
       expect {
-        described_class.new(put_call: 'PUT')
+        described_class.new(markets_service: mock_markets_service, put_call: OptionsTrader::PUT)
       }.to raise_error(ArgumentError)
     end
   end
@@ -37,8 +42,9 @@ RSpec.describe OptionsTrader::SingleOptionSearch do
     context 'with PUT options' do
       let(:put_search) do
         described_class.new(
+          markets_service: mock_markets_service,
           underlying_symbol: '$SPX',
-          put_call: 'PUT',
+          put_call: OptionsTrader::PUT,
           expiration_date: expiration_date
         )
       end
@@ -90,8 +96,9 @@ RSpec.describe OptionsTrader::SingleOptionSearch do
     context 'with CALL options' do
       let(:call_search) do
         described_class.new(
+          markets_service: mock_markets_service,
           underlying_symbol: '$SPX',
-          put_call: 'CALL',
+          put_call: OptionsTrader::CALL,
           expiration_date: expiration_date
         )
       end
@@ -129,8 +136,9 @@ RSpec.describe OptionsTrader::SingleOptionSearch do
     context 'edge cases' do
       let(:search) do
         described_class.new(
+          markets_service: mock_markets_service,
           underlying_symbol: '$SPX',
-          put_call: 'PUT',
+          put_call: OptionsTrader::PUT,
           expiration_date: expiration_date
         )
       end
@@ -148,8 +156,9 @@ RSpec.describe OptionsTrader::SingleOptionSearch do
 
       it 'returns NullStrategy when expiration_date is nil' do
         no_date_search = described_class.new(
+          markets_service: mock_markets_service,
           underlying_symbol: '$SPX',
-          put_call: 'PUT'
+          put_call: OptionsTrader::PUT
         )
 
         result = no_date_search.find(option_chain)
@@ -160,12 +169,13 @@ RSpec.describe OptionsTrader::SingleOptionSearch do
 
     it 'loads option chain internally when not provided' do
       search = described_class.new(
+        markets_service: mock_markets_service,
         underlying_symbol: '$SPX',
-        put_call: 'PUT',
+        put_call: OptionsTrader::PUT,
         expiration_date: expiration_date
       )
 
-      allow(search).to receive(:option_chain).and_return(option_chain)
+      allow(mock_markets_service).to receive(:get_option_chain).and_return(option_chain)
 
       result = search.find(
         from_date: expiration_date,
@@ -173,7 +183,7 @@ RSpec.describe OptionsTrader::SingleOptionSearch do
         max_delta: 0.30
       )
 
-      expect(search).to have_received(:option_chain)
+      expect(mock_markets_service).to have_received(:get_option_chain)
       expect(result).to be_a(OptionsTrader::PutOption)
     end
   end
@@ -181,6 +191,7 @@ RSpec.describe OptionsTrader::SingleOptionSearch do
   describe 'invalid put_call parameter' do
     it 'raises error during options_array access' do
       search = described_class.new(
+        markets_service: mock_markets_service,
         underlying_symbol: 'SPX',
         put_call: 'INVALID'
       )

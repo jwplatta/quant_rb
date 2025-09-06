@@ -1,13 +1,8 @@
 # frozen_string_literal: true
 
-require 'pry'
-require 'json'
-
 module OptionsTrader
   module Indicators
     class VIXChecker
-      include OptionsTrader::Schwab
-
       module VIXThresholds
         LOW = 12.0
         HIGH = 20.0
@@ -20,6 +15,10 @@ module OptionsTrader
       end
 
       VIX_SYMBOL = '$VIX'
+
+      def initialize(markets_service: nil)
+        @markets_service = markets_service
+      end
 
       def check
         if vix_quote.mark <= VIXThresholds::LOW
@@ -36,7 +35,7 @@ module OptionsTrader
       end
 
       def vix_quote
-        @vix_quote ||= quote(VIX_SYMBOL)
+        @vix_quote ||= @markets_service.get_quote(VIX_SYMBOL)
       end
     end
   end
