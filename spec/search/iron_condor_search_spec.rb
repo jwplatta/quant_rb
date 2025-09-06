@@ -12,12 +12,13 @@ RSpec.describe OptionsTrader::IronCondorSearch do
 
   let(:option_chain) { SchwabRb::DataObjects::OptionChain.build(option_chain_data) }
   let(:expiration_date) { Date.new(2025, 5, 20) }
+  let(:mock_markets_service) { double('OptionsTrader::Services::Markets') }
 
   describe '#initialize' do
     it 'sets default values' do
-      search = described_class.new(underlying_symbol: 'SPX')
+      search = described_class.new(underlying_symbol: '$SPX', markets_service: mock_markets_service)
 
-      expect(search.underlying_symbol).to eq('SPX')
+      expect(search.underlying_symbol).to eq('$SPX')
       expect(search.expiration_date).to be_nil
       expect(search.quantity).to eq(1)
       expect(search.expiration_type).to be_nil
@@ -28,6 +29,7 @@ RSpec.describe OptionsTrader::IronCondorSearch do
     it 'accepts custom parameters' do
       search = described_class.new(
         underlying_symbol: 'AAPL',
+        markets_service: mock_markets_service,
         expiration_date: expiration_date,
         quantity: 5,
         expiration_type: 'W',
@@ -48,6 +50,7 @@ RSpec.describe OptionsTrader::IronCondorSearch do
     let(:search) do
       described_class.new(
         underlying_symbol: '$SPX',
+        markets_service: mock_markets_service,
         option_root: 'SPXW',
         expiration_date: expiration_date,
         quantity: 1
@@ -55,8 +58,7 @@ RSpec.describe OptionsTrader::IronCondorSearch do
     end
 
     before do
-      # Mock the option_chain method to return our test data
-      allow(search).to receive(:option_chain).and_return(option_chain)
+      allow(mock_markets_service).to receive(:get_option_chain).and_return(option_chain)
     end
 
     it 'finds iron condors with valid criteria' do
@@ -198,11 +200,12 @@ RSpec.describe OptionsTrader::IronCondorSearch do
     it 'filters by expiration type when specified' do
       search_with_exp_type = described_class.new(
         underlying_symbol: '$SPX',
+        markets_service: mock_markets_service,
         expiration_date: expiration_date,
         expiration_type: 'W'  # Weekly options
       )
 
-      allow(search_with_exp_type).to receive(:option_chain).and_return(option_chain)
+      allow(mock_markets_service).to receive(:get_option_chain).and_return(option_chain)
 
       result = search_with_exp_type.find(
         from_date: expiration_date,
@@ -223,11 +226,12 @@ RSpec.describe OptionsTrader::IronCondorSearch do
     it 'filters by settlement type when specified' do
       search_with_settlement = described_class.new(
         underlying_symbol: '$SPX',
+        markets_service: mock_markets_service,
         expiration_date: expiration_date,
         settlement_type: 'P'  # Physical settlement (though SPX is cash)
       )
 
-      allow(search_with_settlement).to receive(:option_chain).and_return(option_chain)
+      allow(mock_markets_service).to receive(:get_option_chain).and_return(option_chain)
 
       result = search_with_settlement.find(
         from_date: expiration_date,
@@ -248,11 +252,12 @@ RSpec.describe OptionsTrader::IronCondorSearch do
     it 'filters by option root when specified' do
       search_with_root = described_class.new(
         underlying_symbol: '$SPX',
+        markets_service: mock_markets_service,
         expiration_date: expiration_date,
         option_root: 'SPXW'
       )
 
-      allow(search_with_root).to receive(:option_chain).and_return(option_chain)
+      allow(mock_markets_service).to receive(:get_option_chain).and_return(option_chain)
 
       result = search_with_root.find(
         from_date: expiration_date,
@@ -313,13 +318,14 @@ RSpec.describe OptionsTrader::IronCondorSearch do
       let(:wrong_expiration_search) do
         described_class.new(
           underlying_symbol: '$SPX',
+          markets_service: mock_markets_service,
           expiration_date: Date.new(2025, 6, 20)  # Different expiration
         )
       end
 
       it 'returns NullStrategy when expiration date does not match' do
         # Mock the option_chain method
-        allow(wrong_expiration_search).to receive(:option_chain).and_return(option_chain)
+        allow(mock_markets_service).to receive(:get_option_chain).and_return(option_chain)
 
         result = wrong_expiration_search.find(
           from_date: Date.new(2025, 6, 20),
@@ -339,7 +345,7 @@ RSpec.describe OptionsTrader::IronCondorSearch do
         empty_call_chain = SchwabRb::DataObjects::OptionChain.build(empty_call_chain_data)
 
         # Mock the option_chain method
-        allow(search).to receive(:option_chain).and_return(empty_call_chain)
+        allow(mock_markets_service).to receive(:get_option_chain).and_return(empty_call_chain)
 
         result = search.find(
           from_date: expiration_date,
@@ -359,7 +365,7 @@ RSpec.describe OptionsTrader::IronCondorSearch do
         empty_put_chain = SchwabRb::DataObjects::OptionChain.build(empty_put_chain_data)
 
         # Mock the option_chain method
-        allow(search).to receive(:option_chain).and_return(empty_put_chain)
+        allow(mock_markets_service).to receive(:get_option_chain).and_return(empty_put_chain)
 
         result = search.find(
           from_date: expiration_date,
@@ -377,7 +383,7 @@ RSpec.describe OptionsTrader::IronCondorSearch do
         # This is more of an integration test to ensure the search doesn't break
         # with edge case data
         # Mock the option_chain method
-        allow(search).to receive(:option_chain).and_return(option_chain)
+        allow(mock_markets_service).to receive(:get_option_chain).and_return(option_chain)
 
         result = search.find(
           from_date: expiration_date,
@@ -403,6 +409,7 @@ RSpec.describe OptionsTrader::IronCondorSearch do
     let(:search) do
       described_class.new(
         underlying_symbol: '$SPX',
+        markets_service: mock_markets_service,
         expiration_date: expiration_date,
         quantity: 2,
         expiration_type: 'W',
@@ -432,6 +439,7 @@ RSpec.describe OptionsTrader::IronCondorSearch do
     let(:search) do
       described_class.new(
         underlying_symbol: '$SPX',
+        markets_service: mock_markets_service,
         expiration_date: expiration_date,
         quantity: 2,
         expiration_type: 'W',
@@ -461,13 +469,14 @@ RSpec.describe OptionsTrader::IronCondorSearch do
     let(:realistic_search) do
       described_class.new(
         underlying_symbol: '$SPX',
+        markets_service: mock_markets_service,
         expiration_date: expiration_date,
         option_root: 'SPXW'
       )
     end
 
     it 'finds realistic iron condors from SPX data' do
-      allow(realistic_search).to receive(:option_chain).and_return(option_chain)
+      allow(mock_markets_service).to receive(:get_option_chain).and_return(option_chain)
 
       result = realistic_search.find(
         from_date: expiration_date,
@@ -489,7 +498,7 @@ RSpec.describe OptionsTrader::IronCondorSearch do
 
     it 'ensures proper iron condor structure' do
       # Mock the option_chain method
-      allow(realistic_search).to receive(:option_chain).and_return(option_chain)
+      allow(mock_markets_service).to receive(:get_option_chain).and_return(option_chain)
 
       result = realistic_search.find(
         from_date: expiration_date,
@@ -523,7 +532,7 @@ RSpec.describe OptionsTrader::IronCondorSearch do
 
     it 'has reasonable risk/reward characteristics' do
       # Mock the option_chain method
-      allow(realistic_search).to receive(:option_chain).and_return(option_chain)
+      allow(mock_markets_service).to receive(:get_option_chain).and_return(option_chain)
 
       result = realistic_search.find(
         from_date: expiration_date,
@@ -558,13 +567,14 @@ RSpec.describe OptionsTrader::IronCondorSearch do
     let(:performance_search) do
       described_class.new(
         underlying_symbol: '$SPX',
+        markets_service: mock_markets_service,
         expiration_date: expiration_date
       )
     end
 
     it 'completes search in reasonable time' do
       # Mock the option_chain method
-      allow(performance_search).to receive(:option_chain).and_return(option_chain)
+      allow(mock_markets_service).to receive(:get_option_chain).and_return(option_chain)
 
       start_time = Time.now
 
@@ -587,13 +597,14 @@ RSpec.describe OptionsTrader::IronCondorSearch do
     let(:search) do
       described_class.new(
         underlying_symbol: '$SPX',
+        markets_service: mock_markets_service,
         expiration_date: expiration_date
       )
     end
 
     it 'validates strike price relationships' do
       # Mock the option_chain method
-      allow(search).to receive(:option_chain).and_return(option_chain)
+      allow(mock_markets_service).to receive(:get_option_chain).and_return(option_chain)
 
       result = search.find(
         from_date: expiration_date,
@@ -625,13 +636,14 @@ RSpec.describe OptionsTrader::IronCondorSearch do
     let(:search) do
       described_class.new(
         underlying_symbol: '$SPX',
+        markets_service: mock_markets_service,
         expiration_date: expiration_date
       )
     end
 
     before do
       # Mock the option_chain method to return our test data
-      allow(search).to receive(:option_chain).and_return(option_chain)
+      allow(mock_markets_service).to receive(:get_option_chain).and_return(option_chain)
     end
 
     it 'calls option_chain with correct parameters' do
@@ -645,7 +657,7 @@ RSpec.describe OptionsTrader::IronCondorSearch do
         dist_from_strike: 0.01
       )
 
-      expect(search).to have_received(:option_chain).with(
+      expect(mock_markets_service).to have_received(:get_option_chain).with(
         '$SPX',
         contract_type: 'ALL',
         strike_range: 'OTM',

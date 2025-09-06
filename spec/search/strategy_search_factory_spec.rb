@@ -9,9 +9,11 @@ RSpec.describe OptionsTrader::StrategySearchFactory do
     let(:quantity) { 2 }
     let(:settlement_type) { 'CASH' }
     let(:option_root) { 'SPXW' }
+    let(:mock_markets_service) { double('OptionsTrader::Services::Markets') }
 
     let(:base_params) do
       {
+        markets_service: mock_markets_service,
         underlying_symbol: underlying_symbol,
         expiration_date: expiration_date,
         quantity: quantity,
@@ -109,6 +111,7 @@ RSpec.describe OptionsTrader::StrategySearchFactory do
 
       it 'creates finder with nil optional parameters' do
         minimal_params = {
+          markets_service: mock_markets_service,
           strategy_type: 'ironcondor',
           underlying_symbol: underlying_symbol,
           expiration_date: expiration_date,

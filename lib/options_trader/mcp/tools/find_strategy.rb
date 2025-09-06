@@ -147,7 +147,12 @@ module OptionsTrader
               to_date: to_dt
             }}")
 
+            # Create markets service with Schwab data provider
+            schwab_provider = OptionsTrader::DataProviders::Schwab::Markets.new
+            markets_service = OptionsTrader::Services::Markets.new(provider: schwab_provider)
+
             strategy = OptionsTrader::StrategySearchFactory.find(
+              markets_service: markets_service,
               strategy_type: strategy_type,
               underlying_symbol: underlying_symbol,
               expiration_date: exp_date,
