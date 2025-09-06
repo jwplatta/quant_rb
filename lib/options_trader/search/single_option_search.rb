@@ -2,13 +2,14 @@
 
 module OptionsTrader
   class SingleOptionSearch
-    include OptionsTrader::Schwab
     include Loggable
 
     attr_reader :underlying_symbol, :put_call, :expiration_date, :quantity,
-      :expiration_type, :settlement_type, :option_root, :increment
+      :expiration_type, :settlement_type, :option_root, :increment,
+      :markets_service
 
     def initialize(
+      markets_service:,
       underlying_symbol:,
       put_call:,
       expiration_date: nil,
@@ -18,6 +19,7 @@ module OptionsTrader
       option_root: nil,
       increment: 0.01
     )
+      @markets_service = markets_service
       @underlying_symbol = underlying_symbol
       @put_call = put_call
       @expiration_date = expiration_date
@@ -68,15 +70,15 @@ module OptionsTrader
 
     def options_array
       @options_array ||= begin
-        unless ['PUT', 'CALL'].include?(put_call)
-          raise ArgumentError, "Invalid put_call type: #{put_call}. Must be 'PUT' or 'CALL'."
+        unless [OptionsTrader::PUT, OptionsTrader::CALL].include?(put_call)
+          raise ArgumentError, "Invalid put_call type: #{put_call}. Must be '#{OptionsTrader::PUT}' or '#{OptionsTrader::CALL}'."
         end
 
         return [] unless opt_chain
 
-        if put_call == 'PUT'
+        if put_call == OptionsTrader::PUT
           opt_chain.put_opts || []
-        elsif put_call == 'CALL'
+        elsif put_call == OptionsTrader::CALL
           opt_chain.call_opts || []
         end
       end
@@ -84,7 +86,7 @@ module OptionsTrader
 
     def opt_chain
       @opt_chain ||= if @opt_chain_or_params.nil?
-        option_chain(
+        markets_service.get_option_chain(
           underlying_symbol,
           contract_type: put_call,
           from_date: @from_date || expiration_date,
@@ -160,9 +162,9 @@ module OptionsTrader
     end
 
     def option_class
-      if put_call == 'PUT'
+      if put_call == OptionsTrader::PUT
         PutOption
-      elsif put_call == 'CALL'
+      elsif put_call == OptionsTrader::CALL
         CallOption
       end
     end
