@@ -28,6 +28,12 @@ module OptionsTrader
   # Require constants
   require_relative "options_trader/constants"
 
+  # Require data providers
+  require_relative "options_trader/data_providers/schwab/markets"
+
+  # Require services
+  require_relative "options_trader/services/markets"
+
   # Require schwab modules (needed by strategies)
   require_relative "options_trader/schwab/quoteable"
   require_relative "options_trader/schwab/schwab"
