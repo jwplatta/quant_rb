@@ -38,7 +38,7 @@ module OptionsTrader
           missing_vars = required_vars.select { |var| ENV[var].nil? || ENV[var].empty? }
 
           unless missing_vars.empty?
-            raise AuthenticationError, "Missing required environment variables: #{missing_vars.join(', ')}"
+            raise Base::AuthenticationError, "Missing required environment variables: #{missing_vars.join(', ')}"
           end
         end
       end
