@@ -2,14 +2,14 @@
 
 module OptionsTrader
   class IronCondorSearch
-    include OptionsTrader::Schwab
-
     attr_reader :underlying_symbol, :expiration_date,
                 :quantity, :expiration_type,
-                :option_root, :settlement_type, :increment
+                :option_root, :settlement_type, :increment,
+                :markets_service
 
     def initialize(
       underlying_symbol:,
+      markets_service:,
       expiration_date: nil,
       expiration_type: nil,
       settlement_type: nil,
@@ -24,6 +24,7 @@ module OptionsTrader
       @settlement_type = settlement_type
       @option_root = option_root
       @increment = increment
+      @markets_service = markets_service
     end
 
     def find(
@@ -39,7 +40,7 @@ module OptionsTrader
       min_open_interest: 0,
       dist_from_strike: 0.07
     )
-      opt_chain = option_chain(
+      opt_chain = markets_service.get_option_chain(
         underlying_symbol,
         contract_type: 'ALL',
         strike_range: 'OTM',
@@ -51,7 +52,7 @@ module OptionsTrader
 
       call_delta = short_call_delta || short_delta
       call_max_spread = max_call_spread || max_spread
-      
+
       call_spreads = call_spread_search(
         max_spread: call_max_spread,
         min_open_interest: min_open_interest,
@@ -68,7 +69,7 @@ module OptionsTrader
 
       put_delta = short_put_delta || short_delta
       put_max_spread = max_put_spread || max_spread
-      
+
       put_spreads = put_spread_search(
         max_spread: put_max_spread,
         min_open_interest: min_open_interest,
@@ -120,7 +121,8 @@ module OptionsTrader
         expiration_type: expiration_type,
         settlement_type: settlement_type,
         increment: increment,
-        expiration_date: expiration_date
+        expiration_date: expiration_date,
+        markets_service: markets_service
       )
     end
 
@@ -133,7 +135,8 @@ module OptionsTrader
         expiration_type: expiration_type,
         settlement_type: settlement_type,
         increment: increment,
-        expiration_date: expiration_date
+        expiration_date: expiration_date,
+        markets_service: markets_service
       )
     end
   end

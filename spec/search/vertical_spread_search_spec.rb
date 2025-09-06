@@ -12,10 +12,11 @@ RSpec.describe OptionsTrader::VerticalSpreadSearch do
 
   let(:option_chain) { SchwabRb::DataObjects::OptionChain.build(option_chain_data) }
   let(:expiration_date) { Date.new(2025, 5, 20) }
+  let(:mock_markets_service) { double('OptionsTrader::Services::Markets') }
 
   describe '#initialize' do
     it 'sets default values for PUT spreads' do
-      search = described_class.new(underlying_symbol: 'SPX', option_root: 'SPXW', put_call: 'PUT')
+      search = described_class.new(markets_service: mock_markets_service, underlying_symbol: 'SPX', option_root: 'SPXW', put_call: 'PUT')
 
       expect(search.underlying_symbol).to eq('SPX')
       expect(search.put_call).to eq('PUT')
@@ -29,7 +30,7 @@ RSpec.describe OptionsTrader::VerticalSpreadSearch do
     end
 
     it 'sets default values for CALL spreads' do
-      search = described_class.new(underlying_symbol: 'SPX', option_root: 'SPXW', put_call: 'CALL')
+      search = described_class.new(markets_service: mock_markets_service, underlying_symbol: 'SPX', option_root: 'SPXW', put_call: 'CALL')
 
       expect(search.underlying_symbol).to eq('SPX')
       expect(search.put_call).to eq('CALL')
@@ -44,13 +45,14 @@ RSpec.describe OptionsTrader::VerticalSpreadSearch do
 
     it 'accepts custom parameters for PUT spreads' do
       search = described_class.new(
+        markets_service: mock_markets_service,
         underlying_symbol: 'AAPL',
         put_call: 'PUT',
+        option_root: 'SPXW',
         expiration_date: expiration_date,
         quantity: 5,
         expiration_type: 'W',
-        settlement_type: 'P',
-        option_root: 'SPXW'
+        settlement_type: 'P'
       )
 
       expect(search.underlying_symbol).to eq('AAPL')
@@ -64,13 +66,14 @@ RSpec.describe OptionsTrader::VerticalSpreadSearch do
 
     it 'accepts custom parameters for CALL spreads' do
       search = described_class.new(
+        markets_service: mock_markets_service,
         underlying_symbol: 'AAPL',
         put_call: 'CALL',
+        option_root: 'SPXW',
         expiration_date: expiration_date,
         quantity: 5,
         expiration_type: 'W',
-        settlement_type: 'P',
-        option_root: 'SPXW'
+        settlement_type: 'P'
       )
 
       expect(search.underlying_symbol).to eq('AAPL')
@@ -84,19 +87,19 @@ RSpec.describe OptionsTrader::VerticalSpreadSearch do
 
     it 'requires put_call parameter' do
       expect {
-        described_class.new(underlying_symbol: 'SPX', option_root: 'SPXW')
+        described_class.new(markets_service: mock_markets_service, underlying_symbol: 'SPX', option_root: 'SPXW')
       }.to raise_error(ArgumentError)
     end
 
     it 'requires underlying_symbol parameter' do
       expect {
-        described_class.new(option_root: 'SPXW', put_call: 'PUT')
+        described_class.new(markets_service: mock_markets_service, option_root: 'SPXW', put_call: 'PUT')
       }.to raise_error(ArgumentError)
     end
 
     it 'requires option_root parameter' do
       expect {
-        described_class.new(underlying_symbol: 'SPX', put_call: 'PUT')
+        described_class.new(markets_service: mock_markets_service, underlying_symbol: 'SPX', put_call: 'PUT')
       }.to raise_error(ArgumentError)
     end
   end
@@ -105,6 +108,7 @@ RSpec.describe OptionsTrader::VerticalSpreadSearch do
     context 'with PUT spreads' do
       let(:put_search) do
         described_class.new(
+          markets_service: mock_markets_service,
           underlying_symbol: '$SPX',
           option_root: 'SPXW',
           put_call: 'PUT',
@@ -149,7 +153,7 @@ RSpec.describe OptionsTrader::VerticalSpreadSearch do
 
       context 'when called independently (loading option chain internally)' do
         before do
-          allow(put_search).to receive(:option_chain).and_return(option_chain)
+          allow(mock_markets_service).to receive(:get_option_chain).and_return(option_chain)
         end
 
         it 'loads option chain internally and returns a put spread' do
@@ -163,7 +167,7 @@ RSpec.describe OptionsTrader::VerticalSpreadSearch do
             dist_from_strike: 0.01
           )
 
-          expect(put_search).to have_received(:option_chain).with(
+          expect(mock_markets_service).to have_received(:get_option_chain).with(
             '$SPX',
             contract_type: 'PUT',
             strike_range: 'OTM',
@@ -272,6 +276,7 @@ RSpec.describe OptionsTrader::VerticalSpreadSearch do
 
       it 'applies quantity to both legs' do
         quantity_search = described_class.new(
+          markets_service: mock_markets_service,
           underlying_symbol: '$SPX',
           option_root: 'SPXW',
           put_call: 'PUT',
@@ -298,6 +303,7 @@ RSpec.describe OptionsTrader::VerticalSpreadSearch do
     context 'with CALL spreads' do
       let(:call_search) do
         described_class.new(
+          markets_service: mock_markets_service,
           underlying_symbol: '$SPX',
           option_root: 'SPXW',
           put_call: 'CALL',
@@ -342,7 +348,7 @@ RSpec.describe OptionsTrader::VerticalSpreadSearch do
 
       context 'when called independently (loading option chain internally)' do
         before do
-          allow(call_search).to receive(:option_chain).and_return(option_chain)
+          allow(mock_markets_service).to receive(:get_option_chain).and_return(option_chain)
         end
 
         it 'loads option chain internally and returns a call spread' do
@@ -356,7 +362,7 @@ RSpec.describe OptionsTrader::VerticalSpreadSearch do
             dist_from_strike: 0.01
           )
 
-          expect(call_search).to have_received(:option_chain).with(
+          expect(mock_markets_service).to have_received(:get_option_chain).with(
             '$SPX',
             contract_type: 'CALL',
             strike_range: 'OTM',
@@ -465,6 +471,7 @@ RSpec.describe OptionsTrader::VerticalSpreadSearch do
 
       it 'applies quantity to both legs' do
         quantity_search = described_class.new(
+          markets_service: mock_markets_service,
           underlying_symbol: '$SPX',
           option_root: 'SPXW',
           put_call: 'CALL',
@@ -491,6 +498,7 @@ RSpec.describe OptionsTrader::VerticalSpreadSearch do
     context 'edge cases' do
       let(:search) do
         described_class.new(
+          markets_service: mock_markets_service,
           underlying_symbol: '$SPX',
           option_root: 'SPXW',
           put_call: 'PUT',
@@ -512,7 +520,7 @@ RSpec.describe OptionsTrader::VerticalSpreadSearch do
       end
 
       it 'handles nil option chain' do
-        allow(search).to receive(:option_chain).and_return(nil)
+        allow(mock_markets_service).to receive(:get_option_chain).and_return(nil)
 
         result = search.find(
           from_date: expiration_date,
@@ -528,12 +536,13 @@ RSpec.describe OptionsTrader::VerticalSpreadSearch do
     context 'with option type filters' do
       let(:put_search_with_filters) do
         described_class.new(
+          markets_service: mock_markets_service,
           underlying_symbol: '$SPX',
           put_call: 'PUT',
+          option_root: 'SPXW',
           expiration_date: expiration_date,
           expiration_type: 'W',
-          settlement_type: 'P',
-          option_root: 'SPXW'
+          settlement_type: 'P'
         )
       end
 
@@ -587,6 +596,7 @@ RSpec.describe OptionsTrader::VerticalSpreadSearch do
   describe 'invalid put_call parameter' do
     it 'raises error during options_array access' do
       search = described_class.new(
+        markets_service: mock_markets_service,
         underlying_symbol: 'SPX',
         option_root: 'SPXW',
         put_call: 'INVALID'

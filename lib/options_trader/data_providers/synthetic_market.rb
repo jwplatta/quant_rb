@@ -2,7 +2,7 @@ module OptionsTrader
   module DataProviders
     class SyntheticMarket
       def client
-        OptionsTrader::Schwab::Client.instance
+        OptionsTrader::DataProviders::Schwab::Client.instance
       end
 
       def get_quote(symbol, **kwargs)
