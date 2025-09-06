@@ -1,6 +1,6 @@
 module OptionsTrader
   module Services
-    class MarketData
+    class Markets
       def initialize(provider: nil)
         @provider = provider
       end
