@@ -19,9 +19,9 @@ module OptionsTrader
           )
         end
 
-        def method_missing(method_name, *args, &block)
+        def method_missing(method_name, *args, **kwargs, &block)
           if @client.respond_to?(method_name)
-            @client.public_send(method_name, *args, &block)
+            @client.public_send(method_name, *args, **kwargs, &block)
           else
             super
           end
