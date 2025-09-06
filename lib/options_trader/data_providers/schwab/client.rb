@@ -10,6 +10,7 @@ module OptionsTrader
         include Singleton
 
         def initialize
+          validate_environment
           @client = SchwabRb::Auth.init_client_easy(
             ENV['SCHWAB_API_KEY'],
             ENV['SCHWAB_APP_SECRET'],
@@ -28,6 +29,17 @@ module OptionsTrader
 
         def respond_to_missing?(method_name, include_private = false)
           @client.respond_to?(method_name) || super
+        end
+
+        private
+
+        def validate_environment
+          required_vars = %w[SCHWAB_API_KEY SCHWAB_APP_SECRET APP_CALLBACK_URL TOKEN_PATH]
+          missing_vars = required_vars.select { |var| ENV[var].nil? || ENV[var].empty? }
+
+          unless missing_vars.empty?
+            raise AuthenticationError, "Missing required environment variables: #{missing_vars.join(', ')}"
+          end
         end
       end
     end
