@@ -2,13 +2,13 @@
 
 module OptionsTrader
   class VerticalSpreadSearch
-    include OptionsTrader::Schwab
     include Loggable
 
     attr_reader :underlying_symbol, :put_call, :spreads, :short_legs, :expiration_date, :quantity,
-      :expiration_type, :settlement_type, :option_root, :increment
+      :expiration_type, :settlement_type, :option_root, :increment, :markets_service
 
     def initialize(
+      markets_service:,
       underlying_symbol:,
       option_root:,
       put_call:,
@@ -28,6 +28,7 @@ module OptionsTrader
       @settlement_type = settlement_type
       @option_root = option_root
       @increment = increment
+      @markets_service = markets_service
     end
 
     def find(
@@ -54,10 +55,6 @@ module OptionsTrader
       return NullStrategy.new unless expiration_date
 
       short_legs = []
-
-      logger.debug("Options array size: #{options_array.size}")
-      logger.debug("Search space size: #{search_space.size}")
-      logger.debug("Expiration date: #{expiration_date_to_s}")
 
       search_space.each do |short_option|
         next unless passes_short_option_filters?(short_option)
@@ -135,7 +132,7 @@ module OptionsTrader
 
     def opt_chain
       @opt_chain ||= if @opt_chain_or_params.nil?
-        option_chain(
+        markets_service.get_option_chain(
           underlying_symbol,
           contract_type: put_call,
           strike_range: 'OTM',

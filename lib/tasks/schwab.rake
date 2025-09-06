@@ -91,7 +91,12 @@ namespace :schwab do
         "dist from strike #{dist_from_strike}, quantity #{quantity}" \
         " and settlement type #{settlement_type}"
 
+    # Create markets service with Schwab data provider
+    schwab_provider = OptionsTrader::DataProviders::Schwab::Markets.new
+    markets_service = OptionsTrader::Services::Markets.new(provider: schwab_provider)
+
     strategy = OptionsTrader::StrategySearchFactory.find(
+      markets_service: markets_service,
       strategy_type: strategy_type,
       underlying_symbol: underlying,
       expiration_date: expiration_date,
