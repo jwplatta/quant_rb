@@ -33,6 +33,7 @@ module OptionsTrader
 
   # Require services
   require_relative "options_trader/services/markets"
+  require_relative "options_trader/services/historical_markets"
 
   # Require schwab modules (needed by strategies)
   require_relative "options_trader/schwab/quoteable"
