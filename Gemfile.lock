@@ -184,7 +184,7 @@ GEM
       prism (~> 1.4)
     ruby-progressbar (1.13.0)
     ruby2_keywords (0.0.5)
-    schwab_rb (0.3.10)
+    schwab_rb (0.3.11)
       async (~> 2.18)
       async-http (~> 0.82)
       dotenv
@@ -242,7 +242,7 @@ DEPENDENCIES
   rake
   rspec
   rubocop
-  schwab_rb (~> 0.3.10)
+  schwab_rb (~> 0.3.11)
   sidekiq
   sqlite3 (~> 2.1)
   timecop
