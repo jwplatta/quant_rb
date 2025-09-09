@@ -5,22 +5,27 @@ module OptionsTrader
         @provider = provider
       end
 
-      def get_price_history_everyday(symbol, **kwargs)
+      def get_price_history_everyday(symbol:, start_datetime:, end_datetime:)
+        @provider.get_price_history_everyday(symbol: symbol, start_datetime: start_datetime, end_datetime: end_datetime)
       end
 
-      def get_price_history_every_min(symbol, **kwargs)
-        @provider.get_price_history(symbol, **kwargs)
+      def get_price_history_every_min(symbol:, start_datetime:, end_datetime:)
+        @provider.get_price_history_every_min(symbol: symbol, start_datetime: start_datetime, end_datetime: end_datetime)
       end
 
-      def get_price_history_every_five_min
-        @provider.get_price_history(symbol, **kwargs.merge)
+      def get_price_history_every_five_min(symbol:, start_datetime:, end_datetime:)
+        @provider.get_price_history_every_five_min(symbol: symbol, start_datetime: start_datetime, end_datetime: end_datetime)
       end
 
-      def get_price_history_every_ten_min
-        @provider.get_price_history(symbol, **kwargs.merge)
+      def get_price_history_every_ten_min(symbol:, start_datetime:, end_datetime:)
+        @provider.get_price_history_every_ten_min(symbol: symbol, start_datetime: start_datetime, end_datetime: end_datetime)
       end
 
-      def get_price_history(symbol, **kwargs)
+      def get_price_history(symbol:, start_datetime:, end_datetime:)
+        kwargs = {
+          start_datetime: start_datetime,
+          end_datetime: end_datetime
+        }
         @provider.get_price_history(symbol, **kwargs)
       end
     end
