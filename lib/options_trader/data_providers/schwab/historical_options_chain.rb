@@ -1,4 +1,5 @@
 require_relative 'base'
+require_relative 'historical_options_chain_iterator'
 
 module OptionsTrader
   module DataProviders
