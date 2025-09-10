@@ -15,4 +15,6 @@ module OptionsTrader
     TEN_MIN = '10min'.freeze
     DAILY = 'daily'.freeze
   end
+
+  COX_ROSS_RUBINSTEIN = 'CoxRossRubinstein'.freeze
 end
