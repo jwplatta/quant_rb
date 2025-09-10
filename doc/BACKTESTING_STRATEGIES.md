@@ -1,682 +1,349 @@
 # Backtesting Strategies
 
-This document outlines a streamlined backtesting framework for `lib/options_trader/backtest/` that allows seamless switching between live and backtest modes.
+This document outlines the backtesting framework for `lib/options_trader/backtest/` that enables testing strategies against historical market data with synthetic option chain generation.
 
-## Notes
+## Architecture Overview
 
-- Keep Schwab client for historical data retrieval
-- Override specific Schwab methods (`quote`, `option_chain`) to return synthetic data
-- Disable certain methods (`transactions`, `place_order`) in backtest mode
-- Focus on strategy finding using existing search module
-- Global backtest flag controls behavior
+The backtesting system uses a **Service Adapter Pattern** that preserves existing search class APIs while providing historical data behind the scenes. This allows zero-code changes to existing strategy finders.
 
-## Goal
+### Core Components
 
-Enable backtesting by simply wrapping existing strategies/trades/bots or setting a boolean flag. The framework should:
-1. Work with existing code without modification
-2. Provide historical data in place of live market data
-3. Simulate order execution instead of sending to broker
-4. Generate synthetic option chains using the indicators module
+```
+BacktestEngine
+    ├── DataProviders::Schwab::HistoricalMarkets (data + option chains)
+    ├── Services::BacktestMarkets (API adapter)
+    ├── HistoricalDataIterator (streaming)
+    └── Search Classes (unchanged)
+```
 
-## Core Design Patterns
+## Component Details
 
-We'll use just **3 key patterns** to keep it simple and maintainable:
+### 1. DataProviders::Schwab::HistoricalMarkets
 
-### 1. Global Backtest Configuration
-
-Add global configuration to control backtest mode throughout the system.
+**Purpose**: Single provider that retrieves historical price data and generates synthetic option chains.
 
 ```ruby
-module OptionsTrader
-  # Global backtest configuration
-  class << self
-    attr_accessor :backtest_mode, :backtest_current_time, :backtest_volatility
-
-    def toggle_backtest
-      if backtest
-        @backtest_mode = false
-      else
-        @backtest_mode = true
+module DataProviders
+  module Schwab
+    class HistoricalOptionsChain < Base
+      def initialize(underlying_symbol:, start_datetime:, end_datetime:, interval: '5min', pricing_model: 'CRR', strike_step_size: 10)
+        super()
+        @underlying_symbol = underlying_symbol
+        @start_datetime = start_datetime
+        @end_datetime = end_datetime
+        @interval = interval
+        @underlying_price_history = fetch_underlying_price_history
+        @pricing_model = pricing_model
+        @strike_step_size = strike_step_size
       end
-    end
 
-    def backtest?
-      @backtest_mode || false
+      def generate_option_quote(underlying_price:, current_datetime:, **kwargs)
+        # NOTE: SchwabRb::DataObjects::QuotoFactory.build
+        kwargs[:assetMainType]
+      end
+
+      def generate_option_chain(spot_price:, current_datetime:, **kwargs)
+        # Uses Indicators::CoxRossRubinstein for option pricing
+        # Returns Schwab API-compatible data structure
+        # Single place for all option chain generation logic
+        # strike_range
+        # price =
+      end
+
+      def strike_range
+        return @strike_range if defined?(@strike_range)
+
+        spot_prices = @underlying_price_history.map { |candle| candle.close }
+        avg_price = spot_prices.sum.to_f / spot_prices.size
+        # TODO: parameterize the range size
+        min_price = ((avg_price * 0.25) / 10).round * 10
+        max_price = ((avg_price * 1.25) / 10).round * 10
+
+        @strike_range = (min_price..max_price).step(@strike_step_size).to_a
+        @strike_range
+      end
+
+      def backtest_iterator
+        HistoricalOptionsChainIterator.new(self, @underlying_price_history)
+      end
+
+      def steps
+        @steps ||= @underlying_price_history.map { |s| s.datetime }
+      end
+
+      private
+
+      def fetch_underlying_price_history(symbol, start_datetime, end_datetime, interval)
+        case interval
+        when OptionsTrader::Intervals::ONE_MIN
+          get_price_history_every_min(symbol: symbol, start_datetime: start_datetime, end_datetime: end_datetime)
+        when OptionsTrader::Intervals::FIVE_MIN
+          get_price_history_every_five_min(symbol: symbol, start_datetime: start_datetime, end_datetime: end_datetime)
+        when OptionsTrader::Intervals::TEN_MIN
+          get_price_history_every_ten_min(symbol: symbol, start_datetime: start_datetime, end_datetime: end_datetime)
+        when OptionsTrader::Intervals::DAILY
+          get_price_history_everyday(symbol: symbol, start_datetime: start_datetime, end_datetime: end_datetime)
+        end
+      end
+
+      def get_price_history_every_min(symbol:, start_datetime:, end_datetime:)
+      end
+
+      def get_price_history_every_five_min(symbol:, start_datetime:, end_datetime:)
+      end
+
+      def get_price_history_every_ten_min(symbol:, start_datetime:, end_datetime:)
+      end
+
+      def get_price_history_everyday(symbol:, start_datetime:, end_datetime:)
+      end
+
+      def get_price_history(symbol, **kwargs)
+        validate_symbol(symbol)
+
+        kwargs = kwargs.merge({
+          need_extended_hours_data: true,
+          need_previous_close: false,
+          return_data_objects: true
+        })
+
+        handle_api_errors("get_price_history") do
+          client.get_price_history(symbol, **kwargs)
+        end
+      end
     end
   end
 end
 ```
 
-### 2. Override Schwab Methods for Backtest Mode
+**Key Features**:
+- Fetches historical data using existing `get_price_history_every_*` methods
+- Generates synthetic option chains using Cox-Ross-Rubinstein model
+- Single source of truth for both historical prices and option chain generation
+- Manages time-series data efficiently with iterator pattern
 
-Modify the Schwab module to use synthetic data when in backtest mode.
+### 2. HistoricalDataIterator
+
+**Purpose**: Memory-efficient streaming of historical price data with lazy option chain calculation.
 
 ```ruby
-module OptionsTrader::Schwab
-  # Keep original client for historical data retrieval
-  # Override specific methods for backtest mode
+module DataProviders
+  module Schwab
+    class HistoricalOptionsChainIterator
+      include Enumerable
 
-  def quote(symbol)
-    if OptionsTrader.backtest?
-      # Get historical price for current backtest time
-      price = get_historical_price_at_time(symbol, OptionsTrader.backtest_current_time)
-      create_synthetic_quote(symbol, price)
-    else
-      # Original live quote method
-      client.get_quote(symbol, return_data_objects: true)
+      def initialize(provider, historical_data)
+        @provider = provider
+        @historical_data = historical_data
+      end
+
+      def each
+        return enum_for(:each) unless block_given?
+
+        @historical_data.each do |candle|
+          market_snapshot = {
+            datetime: candle.datetime,
+            underlying_price: candle.close,
+            quote: ->(symbol = nil) {
+              @provider.generate_quote(
+                symbol: symbol,
+                asset_type: asset_type
+              )
+            }
+            option_chain: ->(pricing_model: 'CRR') {
+              @provider.generate_option_chain(
+                underlying_price: candle.close,
+                current_datetime: candle.datetime,
+                pricing_model: pricing_model
+              )
+            }
+          }
+          yield market_snapshot
+        end
+      end
     end
   end
+end
+```
 
-  def quotes(symbols)
-    if OptionsTrader.backtest?
-      symbols.map { |symbol| quote(symbol) }
-    else
-      # Original live quotes method
-      client.get_quotes(symbols, return_data_objects: true)
+**Key Features**:
+- **Streaming** - processes one price point at a time
+- **Lazy evaluation** - option chains calculated only when accessed via lambda
+- **Memory efficient** - doesn't pre-calculate all option data
+
+### 3. Services::BacktestMarkets
+
+**Purpose**: Adapter that makes historical data look like live market data to search classes.
+
+```ruby
+module Services
+  class BacktestOptionsChainMarkets
+    def initialize(provider:)
+      @provider = provider
+      @current_snapshot = nil
+    end
+
+    def get_quote(symbol, **kwargs)
+      return nil unless @current_snapshot
+
+      # Use the current snapshot's price data
+      # create_quote_from_snapshot(symbol, @current_snapshot)
+      @current_snapshot[:quote].call()
+    end
+
+    # Duck typing - same interface as Services::Markets
+    def get_option_chain(symbol, **kwargs)
+      return nil unless @current_snapshot
+
+      # Use the snapshot's lazy option chain
+      @current_snapshot[:option_chain].call
+    end
+
+    # Set the current market snapshot directly
+    def set_current_snapshot(snapshot)
+      @current_snapshot = snapshot
     end
   end
+end
+```
 
-  def option_chain(symbol, **kwargs)
-    if OptionsTrader.backtest?
-      # Get historical underlying price
-      underlying_price = get_historical_price_at_time(symbol, OptionsTrader.backtest_current_time)
+**Key Features**:
+- **Same API** as `Services::Markets` - search classes require zero changes
+- **Snapshot-driven** - receives market snapshots directly from BacktestEngine
+- **No dependencies** - doesn't need iterator or provider references
+- **Lazy calculation** - option chains generated only when accessed via snapshot lambda
 
-      # Generate synthetic option chain using indicators
-      generate_synthetic_option_chain(symbol, underlying_price, **kwargs)
-    else
-      # Original live option chain method
-      client.get_option_chain(symbol, **kwargs)
+### 4. BacktestEngine
+
+**Purpose**: Orchestrates the entire backtest execution, manages components, and runs strategy finding loops.
+
+```ruby
+@historical_provider = DataProviders::Schwab::HistoricalMarkets.new(
+  underlying_symbol: underlying_symbol,
+  start_datetime: start_date,
+  end_datetime: end_date,
+  interval: interval
+)
+
+class BacktestOptionsStrategy
+  def initialize(underlying_symbol, start_date, end_date, provider:, interval: '5min')
+    @iterator = @provider.market_data_iterator
+    # Create the provider and pass it to the service object
+
+    @portfolio = Portfolio.new(initial_balance: 100_000)
+    @trade = nil
+    @results = []
+  end
+
+  def run
+    @iterator.each_with_index do |market_snapshot, index|
+      @backtest_markets_service.set_current_snapshot(market_snapshot)
+
+      if trade.nil?
+        find_strategy(market_snapshot)
+      else
+        check_trade_progress(trade)
+      end
+      log_progress(index) if index % 100 == 0
     end
-  end
 
-  # Disable these methods in backtest mode
-  def transactions(*)
-    return [] if OptionsTrader.backtest_mode?
-    super
-  end
-
-  def transaction(*)
-    return nil if OptionsTrader.backtest_mode?
-    super
-  end
-
-  def place_order(*)
-    if OptionsTrader.backtest_mode?
-      # Log simulated order execution
-      puts "BACKTEST: Order execution simulated"
-      return OpenStruct.new(status: 201, order_id: "BACKTEST_#{Time.now.to_i}")
-    else
-      super
-    end
+    generate_backtest_report
   end
 
   private
 
-  def get_historical_price_at_time(symbol, timestamp)
-    # Use existing price_history_every_minute to get data around timestamp
-    start_time = timestamp - 1.minute
-    end_time = timestamp + 1.minute
-
-    history = price_history_every_minute(symbol, start_time, end_time)
-
-    # Find closest candle to target time
-    closest_candle = history.candles.min_by { |candle| (candle.datetime - timestamp).abs }
-    closest_candle&.close || 0
+  def check_trade_progress(trade)
+    # check the current price of the trade
+    # if profit target reached, then exit and set trade = nil
+    # if loss threshold reached, then exit and set trade = nil
   end
 
-  def create_synthetic_quote(symbol, price)
-    # Create quote object matching Schwab API format
-    OpenStruct.new(
-      symbol: symbol,
-      bid: price - 0.01,
-      ask: price + 0.01,
-      last: price,
-      mark: price,
-      close_price: price
+  def find_strategy(market_snapshot)
+    strategy = StrategySearchFactory.find(
+      markets_service: Services::BacktestMarkets.set_snapshot(market_snapshot), # <-- Same API as live trading!
+      underlying_symbol: 'SPY',
+      option_root: 'SPY',
+      put_call: 'PUT',
+      expiration_date: 30.days.from_now(market_snapshot[:datetime])
+      short_delta: 0.15,
+      max_spread: 5.0,
+      min_credit: 0.25
     )
-  end
 
-  def generate_synthetic_option_chain(symbol, underlying_price, **kwargs)
-    expiration_date = kwargs[:to_date] || kwargs[:from_date] || (Date.current + 7.days)
-    time_to_expiry = (expiration_date.to_date - OptionsTrader.backtest_current_time.to_date).to_f / 365
-
-    return nil if time_to_expiry <= 0
-
-    # Generate realistic strike range around current price
-    strikes = generate_strikes(underlying_price)
-
-    call_options = strikes.map do |strike|
-      call_price = OptionsTrader::Indicators::BlackScholes.calculate(
-        spot_price: underlying_price,
-        strike_price: strike,
-        time_to_expiry: time_to_expiry,
-        risk_free_rate: 0.05,
-        volatility: OptionsTrader.backtest_volatility,
-        option_type: OptionsTrader::CALL
-      )
-
-      delta = OptionsTrader::Indicators::Greeks::Delta.calculate(
-        spot_price: underlying_price,
-        strike_price: strike,
-        time_to_expiry: time_to_expiry,
-        risk_free_rate: 0.05,
-        volatility: OptionsTrader.backtest_volatility,
-        option_type: OptionsTrader::CALL
-      )
-
-      create_synthetic_option('CALL', symbol, strike, expiration_date, call_price, delta)
+    if strategy && !strategy.is_a?(NullStrategy)
+      @portfolio.enter_trade(strategy, market_snapshot[:datetime])
+      @results << create_result_entry(strategy, market_snapshot)
     end
-
-    put_options = strikes.map do |strike|
-      put_price = OptionsTrader::Indicators::BlackScholes.calculate(
-        spot_price: underlying_price,
-        strike_price: strike,
-        time_to_expiry: time_to_expiry,
-        risk_free_rate: 0.05,
-        volatility: OptionsTrader.backtest_volatility,
-        option_type: OptionsTrader::PUT
-      )
-
-      delta = OptionsTrader::Indicators::Greeks::Delta.calculate(
-        spot_price: underlying_price,
-        strike_price: strike,
-        time_to_expiry: time_to_expiry,
-        risk_free_rate: 0.05,
-        volatility: OptionsTrader.backtest_volatility,
-        option_type: OptionsTrader::PUT
-      )
-
-      create_synthetic_option('PUT', symbol, strike, expiration_date, put_price, delta)
-    end
-
-    # Return in Schwab API format
-    format_option_chain_response(symbol, expiration_date, call_options, put_options)
-  end
-
-  def generate_strikes(underlying_price)
-    # Generate strikes from 80% to 120% of underlying price in $5 increments
-    start_strike = (underlying_price * 0.8 / 5).floor * 5
-    end_strike = (underlying_price * 1.2 / 5).ceil * 5
-    (start_strike..end_strike).step(5).to_a
-  end
-
-  def create_synthetic_option(put_call, symbol, strike, expiration_date, theoretical_price, delta)
-    # Add bid/ask spread around theoretical price
-    spread = theoretical_price * 0.02 # 2% spread
-    bid = [(theoretical_price - spread/2), 0.05].max.round(2)
-    ask = (theoretical_price + spread/2).round(2)
-
-    OpenStruct.new(
-      symbol: "#{symbol}_#{expiration_date.strftime('%m%d%y')}#{put_call[0]}#{strike.to_i}",
-      put_call: put_call,
-      strike_price: strike,
-      expiration_date: expiration_date,
-      bid: bid,
-      ask: ask,
-      last: theoretical_price.round(2),
-      mark: ((bid + ask) / 2).round(2),
-      delta: delta.round(4),
-      open_interest: rand(100..1000), # Random but realistic
-      volume: rand(10..100)
-    )
-  end
-
-  def format_option_chain_response(symbol, expiration_date, call_options, put_options)
-    # Format to match Schwab API structure
-    OpenStruct.new(
-      symbol: symbol,
-      status: 'SUCCESS',
-      call_exp_date_map: {
-        expiration_date.strftime('%Y-%m-%d:%d') => call_options.group_by(&:strike_price)
-      },
-      put_exp_date_map: {
-        expiration_date.strftime('%Y-%m-%d:%d') => put_options.group_by(&:strike_price)
-      }
-    )
   end
 end
 ```
 
-### 3. Backtest DSL for Strategy Finding
+**Key Features**:
+- **Zero search class changes** - existing `VerticalSpreadSearch`, `IronCondorSearch` etc. work unchanged
+- **Portfolio management** - tracks trades, P&L, buying power
+- **Progress tracking** - logs backtest progress and results
+- **Flexible timeframes** - supports minute, hourly, daily intervals
 
-Simple DSL to configure and run strategy backtests.
+## Data Flow
+
+```
+1. BacktestEngine creates HistoricalMarkets provider and gets iterator
+2. BacktestMarkets service created with no dependencies
+3. For each market snapshot from iterator:
+   a. BacktestEngine passes snapshot directly to service via set_current_snapshot()
+   b. Search classes call get_option_chain() on BacktestMarkets service
+   c. Service uses current snapshot's option_chain lambda
+   d. Lambda calls provider's CoxRossRubinstein calculation
+   e. Results returned in Schwab API format to search classes
+4. Search classes find strategies using synthetic data
+5. BacktestEngine processes results and advances to next snapshot
+```
+
+## Usage Examples
+
+### Basic Backtest Setup
 
 ```ruby
-module OptionsTrader::Backtest
-  def self.run(&block)
-    config = BacktestConfig.new
-    config.instance_eval(&block)
+# Create and run backtest
+engine = OptionsStrategyBacktest.new(
+  'SPY',
+  Date.new(2023, 1, 1),
+  Date.new(2023, 3, 31),
+  interval: OptionsTrader::Intervals::DAILY,
+  strategy: 'ironcondor',
+  max_delta: 0.07,
+  max_spread: 10.0,
+  min_credit: 90.0,
+  days_to_expiration: 7,
+  exit_profit_threshold: 0.8, # 80% of credit received
+  exit_loss_threshold: 3.0 # 3 times credit received
+)
 
-    runner = BacktestRunner.new(config)
-    runner.execute
-  end
+results = engine.run
 
-  class BacktestConfig
-    attr_accessor :backtest_type, :step_frequency, :start_date, :end_date,
-                  :symbol, :max_delta, :min_credit, :max_spread,
-                  :min_open_interest, :increment, :days_to_expiration,
-                  :strategy_type, :put_call, :option_root, :settlement_type
-
-    def initialize
-      @backtest_type = :strategy
-      @step_frequency = :daily
-      @strategy_type = 'ironcondor'
-    end
-
-    def backtest(type)
-      @backtest_type = type
-    end
-
-    def step(frequency)
-      @step_frequency = frequency
-    end
-
-    def start_date(date)
-      @start_date = Date.parse(date.to_s)
-    end
-
-    def end_date(date)
-      @end_date = Date.parse(date.to_s)
-    end
-
-    def symbol(sym)
-      @symbol = sym
-    end
-
-    def max_delta(delta)
-      @max_delta = delta
-    end
-
-    def min_credit(credit)
-      @min_credit = credit
-    end
-
-    def max_spread(spread)
-      @max_spread = spread
-    end
-
-    def min_open_interest(oi)
-      @min_open_interest = oi
-    end
-
-    def increment(inc)
-      @increment = inc
-    end
-
-    def days_to_expiration(days)
-      @days_to_expiration = days
-    end
-
-    def strategy_type(type)
-      @strategy_type = type
-    end
-
-    def put_call(pc)
-      @put_call = pc
-    end
-
-    def option_root(root)
-      @option_root = root
-    end
-
-    def settlement_type(type)
-      @settlement_type = type
-    end
-
-    def to_search_params
-      {
-        strategy_type: @strategy_type,
-        underlying_symbol: @symbol,
-        expiration_date: calculate_expiration_date,
-        option_root: @option_root,
-        put_call: @put_call,
-        settlement_type: @settlement_type,
-        short_delta: @max_delta,
-        max_spread: @max_spread,
-        min_credit: @min_credit,
-        min_open_interest: @min_open_interest,
-        increment: @increment
-      }.compact
-    end
-
-    private
-
-    def calculate_expiration_date
-      return nil unless @days_to_expiration
-      Date.current + @days_to_expiration.days
-    end
-  end
-
-  class BacktestRunner
-    def initialize(config)
-      @config = config
-      @results = []
-    end
-
-    def execute
-      puts "Starting #{@config.backtest_type} backtest for #{@config.symbol}"
-      puts "Period: #{@config.start_date} to #{@config.end_date}"
-      puts "Frequency: #{@config.step_frequency}"
-
-      case @config.backtest_type
-      when :strategy
-        run_strategy_backtest
-      when :trade
-        run_trade_backtest
-      when :bot
-        run_bot_backtest
-      end
-
-      BacktestResults.new(@results, @config)
-    end
-
-    private
-
-    def run_strategy_backtest
-      time_periods = generate_time_periods
-
-      time_periods.each_with_index do |timestamp, index|
-        puts "#{index + 1}/#{time_periods.count}: #{timestamp.strftime('%Y-%m-%d %H:%M')}"
-
-        # Enable backtest mode for this timestamp
-        OptionsTrader.enable_backtest(timestamp, volatility: 0.20)
-
-        begin
-          # Find strategy using existing search module
-          strategy = OptionsTrader::StrategySearchFactory.find(@config.to_search_params)
-
-          if strategy && !strategy.is_a?(OptionsTrader::NullStrategy)
-            result = {
-              timestamp: timestamp,
-              strategy_type: strategy.type,
-              strategy_data: strategy.to_h,
-              credit: strategy.credit,
-              delta: strategy.delta,
-              underlying_price: get_current_underlying_price
-            }
-
-            @results << result
-            puts "  ✓ Found #{strategy.type}: Credit: #{strategy.credit}, Delta: #{strategy.delta}"
-          else
-            puts "  ✗ No strategy found"
-          end
-        rescue => e
-          puts "  ⚠ Error: #{e.message}"
-        ensure
-          OptionsTrader.disable_backtest
-        end
-      end
-    end
-
-    def run_trade_backtest
-      # TODO: Implement trade backtesting
-      puts "Trade backtesting not yet implemented"
-    end
-
-    def run_bot_backtest
-      # TODO: Implement bot backtesting
-      puts "Bot backtesting not yet implemented"
-    end
-
-    def generate_time_periods
-      case @config.step_frequency
-      when :minute
-        generate_minute_periods
-      when :five_minutes
-        generate_five_minute_periods
-      when :ten_minutes
-        generate_ten_minute_periods
-      when :hourly
-        generate_hourly_periods
-      when :daily
-        generate_daily_periods
-      when :weekly
-        generate_weekly_periods
-      else
-        [(@config.start_date + 9.hours + 30.minutes).to_time] # Default: 9:30 AM on start date
-      end
-    end
-
-    def generate_daily_periods
-      (@config.start_date..@config.end_date).map do |date|
-        # 9:30 AM ET each day
-        (date.to_time + 9.hours + 30.minutes)
-      end
-    end
-
-    def generate_hourly_periods
-      periods = []
-      current = (@config.start_date.to_time + 9.hours + 30.minutes) # Start at 9:30 AM
-      end_time = (@config.end_date.to_time + 16.hours) # End at 4:00 PM
-
-      while current <= end_time
-        # Only include market hours (9:30 AM - 4:00 PM ET on weekdays)
-        if current.wday.between?(1, 5) && current.hour.between?(9, 15)
-          if current.hour > 9 || (current.hour == 9 && current.min >= 30)
-            periods << current
-          end
-        end
-        current += 1.hour
-      end
-
-      periods
-    end
-
-    def generate_minute_periods
-      # This could generate a lot of data points - be careful with date ranges
-      periods = []
-      current = (@config.start_date.to_time + 9.hours + 30.minutes)
-      end_time = (@config.end_date.to_time + 16.hours)
-
-      while current <= end_time
-        if current.wday.between?(1, 5) && current.hour.between?(9, 15)
-          if current.hour > 9 || (current.hour == 9 && current.min >= 30)
-            periods << current
-          end
-        end
-        current += 1.minute
-      end
-
-      periods.first(1000) # Limit to prevent excessive API calls
-    end
-
-    def generate_five_minute_periods
-      generate_minute_periods.select.with_index { |_, i| i % 5 == 0 }
-    end
-
-    def generate_ten_minute_periods
-      generate_minute_periods.select.with_index { |_, i| i % 10 == 0 }
-    end
-
-    def generate_weekly_periods
-      (@config.start_date..@config.end_date).step(7).map do |date|
-        # 9:30 AM ET each week
-        (date.to_time + 9.hours + 30.minutes)
-      end
-    end
-
-    def get_current_underlying_price
-      # This will use the overridden quote method which returns historical data
-      quote_data = Object.new.extend(OptionsTrader::Schwab).quote(@config.symbol)
-      quote_data.last
-    end
-  end
-
-  class BacktestResults
-    attr_reader :strategies_found, :success_rate, :avg_credit, :config
-
-    def initialize(results, config)
-      @results = results
-      @config = config
-      calculate_metrics
-    end
-
-    def strategies_found
-      @results.count
-    end
-
-    def strategy_types
-      @results.group_by { |r| r[:strategy_type] }.transform_values(&:count)
-    end
-
-    def credits
-      @results.map { |r| r[:credit] }
-    end
-
-    def summary
-      puts "\n" + "="*50
-      puts "BACKTEST RESULTS"
-      puts "="*50
-      puts "Symbol: #{@config.symbol}"
-      puts "Period: #{@config.start_date} to #{@config.end_date}"
-      puts "Frequency: #{@config.step_frequency}"
-      puts "Strategy Type: #{@config.strategy_type}"
-      puts ""
-      puts "Strategies Found: #{strategies_found}"
-      puts "Success Rate: #{@success_rate}%" if @success_rate
-      puts "Average Credit: $#{@avg_credit}" if @avg_credit
-      puts ""
-
-      if strategy_types.any?
-        puts "Strategy Breakdown:"
-        strategy_types.each do |type, count|
-          puts "  #{type}: #{count}"
-        end
-      end
-
-      puts "="*50
-    end
-
-    private
-
-    def calculate_metrics
-      return if @results.empty?
-
-      @avg_credit = (@results.sum { |r| r[:credit] } / @results.count.to_f).round(2)
-      # Success rate would need total attempts to calculate properly
-    end
-  end
-end
+# View results
+puts "Average credit: $#{results.avg_credit}"
+puts "Win rate: #{results.win_rate}%"
+puts "Portfolio #{results.portfolio.to_s}"
 ```
 
-### 1. Daily Iron Condor Backtest
+## Performance Considerations
 
-```ruby
-results = OptionsTrader::Backtest.run do
-  # Test configuration
-  backtest :strategy
-  step :daily
-  start_date '2025-08-01'
-  end_date '2025-08-30'
+### Memory Usage
+- **Iterator pattern** prevents loading entire dataset into memory
+- **Lazy option chains** - calculated only when search classes need them
+- **Streaming processing** - one time point processed at a time
 
-  # Strategy configuration
-  strategy_type 'ironcondor'
-  symbol '$SPX'
-  max_delta 0.15
-  min_credit 100
-  max_spread 20
-  min_open_interest 10
-  increment 0.05
-  days_to_expiration 7
-end
-
-results.summary
-```
-
-### 2. Hourly Put Spread Search
-
-```ruby
-OptionsTrader::Backtest.run do
-  # Test configuration
-  backtest :strategy
-  step :hourly
-  start_date Date.current
-  end_date Date.current
-
-  # Strategy configuration
-  strategy_type 'vertical'
-  put_call 'PUT'
-  symbol '$SPX'
-  max_delta 0.20
-  min_credit 50
-  days_to_expiration 3
-end
-```
-
-### 3. Weekly Single Option Search
-
-```ruby
-OptionsTrader::Backtest.run do
-  backtest :strategy
-  step :weekly
-  start_date '2025-01-01'
-  end_date '2025-12-31'
-
-  strategy_type 'single'
-  put_call 'CALL'
-  symbol '$SPX'
-  max_delta 0.30
-  min_credit 25
-  days_to_expiration 14
-end
-```
-
-### 4. High Frequency Minute-by-Minute
-
-```ruby
-# Be careful with date ranges for minute frequency!
-OptionsTrader::Backtest.run do
-  backtest :strategy
-  step :minute
-  start_date '2025-08-15'
-  end_date '2025-08-15'  # Single day only
-
-  strategy_type 'ironcondor'
-  symbol '$SPX'
-  max_delta 0.10
-  min_credit 150
-  max_spread 15
-  days_to_expiration 1  # 0DTE strategies
-end
-```
-
-## Implementation Checklist (MVP)
-
-### Phase 1: Global Configuration
-- [ ] Add global backtest flag to main OptionsTrader module
-- [ ] Implement `backtest?` and `toggle_backtest` methods
-- [ ] Add `backtest_current_time` and `backtest_volatility` attributes
-
-### Phase 2: Schwab Method Overrides
-- [ ] Override `quote`, `quotes`, and `option_chain` methods with backtest mode checks
-- [ ] Implement `get_historical_price_at_time` using existing `price_history_every_minute`
-- [ ] Create `create_synthetic_quote` to match Schwab API format
-
-### Phase 3: Synthetic Option Chain
-- [ ] Implement `generate_synthetic_option_chain` method
-- [ ] Create `generate_strikes` for realistic strike prices
-- [ ] Build `create_synthetic_option` with bid/ask spreads and delta
-- [ ] Format chains to match Schwab API (`format_option_chain_response`)
-
-### Phase 4: DSL Framework
-- [ ] Create `OptionsTrader::Backtest.run` method
-- [ ] Implement `BacktestConfig` with DSL methods (`step`, `symbol`, `max_delta`, etc.)
-- [ ] Build `BacktestRunner` with time period generation
-- [ ] Connect to existing `StrategySearchFactory.find`
-
-### Phase 5: Basic Results
-- [ ] Implement `BacktestResults` with strategy count and average credit
-- [ ] Create simple text summary output
-- [ ] Test with existing search modules (`IronCondorSearch`, etc.)
-
-That's it! Everything else can be added later as needed.
+### Computation Efficiency
+- **Skip expensive calculations** when no trades possible (low buying power)
+- **Conditional option chain generation** - only when search classes call `get_option_chain`
+- **Batch processing** - process every Nth candle for faster backtests
 
 ## Key Benefits
 
-- **Zero Code Changes**: Existing strategies, bots, and trades work unchanged
-- **Simple Toggle**: Single boolean flag switches between live and backtest modes
-- **Realistic Data**: Uses actual historical prices + calculated option chains
-- **Easy Integration**: Drop-in replacement for Schwab API calls
-- **Minimal Patterns**: Only 3 simple patterns instead of complex architecture
-
-This keeps the backtesting framework simple while providing all the functionality needed to test strategies against historical data.
+- **Zero Code Changes**: Existing search classes (`VerticalSpreadSearch`, `IronCondorSearch`) work unchanged
+- **Realistic Data**: Uses actual historical prices + mathematically calculated option chains
+- **Memory Efficient**: Streaming iterator pattern prevents memory issues with large datasets
+- **Time Accurate**: Each strategy search uses market data from exact historical moment
+- **Extensible**: Easy to add new pricing models, data sources, or exit strategies
+- **API Compatible**: Maintains same interface as live trading services
