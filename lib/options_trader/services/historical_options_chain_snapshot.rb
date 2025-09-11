@@ -43,10 +43,8 @@
         def generate_quote
           generate_options_chain if @options_chain.nil?
 
-          OptionsTrader::DataObjects::Quote.new
-
-
           # TODO:
+          OptionsTrader::DataObjects::Quote.new
         end
       end
     end
