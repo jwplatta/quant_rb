@@ -1,11 +1,11 @@
 module OptionsTrader
   module Backtest
     class Portfolio
-      attr_reader :balance, :positions, :trade_history
+      attr_reader :balance, :trades, :trade_history
 
       def initialize(initial_balance: 100_000)
         @balance = initial_balance
-        @positions = []
+        @trades = []
         @trade_history = []
       end
 
@@ -13,12 +13,24 @@ module OptionsTrader
         @balance += amount
       end
 
-      def add_position(position)
-        @positions << position
+      def add_trade(trade)
+        @trades << trade
       end
 
-      def remove_position(position)
-        @positions.delete(position)
+      def remove_trade(trade)
+        @trades.delete(trade)
+      end
+
+      def update_balance(amount)
+        @balance += amount
+      end
+
+      def add_trade(trade)
+        @trades << trade
+      end
+
+      def remove_trade(trade)
+        @trades.delete(trade)
       end
 
       def record_trade(trade)
@@ -26,11 +38,11 @@ module OptionsTrader
       end
 
       def total_value(current_prices = {})
-        total_positions_value = @positions.sum do |position|
-          current_price = current_prices[position[:symbol]] || position[:entry_price]
-          current_price * position[:quantity]
+        total_trades_value = @trades.sum do |trade|
+          current_price = current_prices[trade[:symbol]] || trade[:entry_price]
+          current_price * trade[:quantity]
         end
-        @balance + total_positions_value
+        @balance + total_trades_value
       end
     end
   end

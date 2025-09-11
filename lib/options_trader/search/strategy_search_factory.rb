@@ -8,7 +8,7 @@ module OptionsTrader
         strategy_type:,
         underlying_symbol:,
         expiration_date:,
-        option_root:,
+        option_root: nil,
         put_call: nil,
         quantity: 1,
         expiration_type: nil,

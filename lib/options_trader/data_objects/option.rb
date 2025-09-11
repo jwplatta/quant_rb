@@ -1,0 +1,52 @@
+module OptionsTrader
+  module DataObjects
+    class Option
+      def initialize(
+        symbol:,
+        underlying_symbol:,
+        strike:,
+        put_call:,
+        mark:,
+        strike_price:,
+        expiration_date:,
+        days_to_expiration:,
+        delta: nil,
+        gamma: nil,
+        theta: nil,
+        vega: nil,
+        rho: nil,
+        open_interest: 0,
+        total_volume: 0,
+        expiration_type: nil,
+        settlement_type: nil,
+        option_root: nil,
+        in_the_money: false
+      )
+        @symbol = symbol
+        @underlying_symbol = underlying_symbol
+        @strike = strike
+        @put_call = put_call
+        @mark = mark
+        @strike_price = strike_price
+        @expiration_date = expiration_date
+        @days_to_expiration = days_to_expiration
+        @delta = delta
+        @gamma = gamma
+        @theta = theta
+        @vega = vega
+        @rho = rho
+        @open_interest = open_interest
+        @total_volume = total_volume
+        @expiration_type = expiration_type
+        @settlement_type = settlement_type
+        @option_root = option_root
+        @in_the_money = in_the_money
+      end
+
+      attr_reader :symbol, :underlying_symbol, :strike, :put_call, :mark, :strike_price,
+        :expiration_date, :days_to_expiration, :delta, :gamma, :theta, :vega, :rho,
+        :open_interest, :total_volume, :expiration_type, :settlement_type, :option_root,
+        :in_the_money
+    end
+  end
+end
