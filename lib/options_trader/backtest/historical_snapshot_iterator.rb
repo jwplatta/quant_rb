@@ -13,7 +13,7 @@ module OptionsTrader
       attr_reader :snapshots
 
       def steps
-        @underlying_price_history.map { |candle| candle.datetime }
+        @steps ||= @underlying_price_history.map { |candle| candle.datetime }
       end
 
       def each
