@@ -17,4 +17,6 @@ module OptionsTrader
   end
 
   COX_ROSS_RUBINSTEIN = 'CoxRossRubinstein'.freeze
+  BLACK_SCHOLES = 'BlackScholes'.freeze
+  BINOMIAL = 'Binomial'.freeze
 end
