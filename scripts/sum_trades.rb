@@ -18,8 +18,8 @@ CSV.foreach(csv_path, headers: true) do |row|
   hash = row.to_h
 
   fees = hash['fees'].to_f
-  commission = hash['commission'].to_f
-  cost = hash['cost'].to_f
+  commission = hash['commissions'].to_f
+  cost = hash['amount'].to_f
 
   commission_total += commission
   fees_total += fees
@@ -30,6 +30,6 @@ puts "Trade Summary"
 puts "=============="
 puts "Total Commission: $#{commission_total.round(2)}"
 puts "Total Fees: $#{fees_total.round(2)}"
-puts "Total Cost: $#{cost_total.round(2)}"
+puts "Total Amount: $#{cost_total.round(2)}"
 puts "=============="
 puts "Overall Total: $#{(commission_total + fees_total + cost_total).round(2)}"
