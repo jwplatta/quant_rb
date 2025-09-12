@@ -14,6 +14,10 @@ module OptionsTrader
     FIVE_MIN = '5min'.freeze
     TEN_MIN = '10min'.freeze
     DAILY = 'daily'.freeze
+    HOURLY = 'hourly'.freeze
+    WEEKLY = 'weekly'.freeze
+    MONTHLY = 'monthly'.freeze
+    YEARLY = 'yearly'.freeze
   end
 
   COX_ROSS_RUBINSTEIN = 'CoxRossRubinstein'.freeze
