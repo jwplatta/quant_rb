@@ -12,8 +12,12 @@ module OptionsTrader
       # @param dividend_yield [Float] Annualized dividend yield (default 0)
       # @return [Float] Option price
       def self.calculate(
-        spot_price:, strike_price:, time_to_expiry:, risk_free_rate:,
-        volatility:, option_type: OptionsTrader::CALL, timesteps: nil,
+        spot_price:,
+        strike_price:,
+        time_to_expiry:,
+        risk_free_rate:,
+        volatility:,
+        option_type: OptionsTrader::CALL,
         dividend_yield: 0.0
       )
         # Use daily timetimesteps by default (252 trading days per year)
