@@ -85,43 +85,37 @@ module OptionsTrader
       def self.apply_spx_skew(base_vol, spot_price, strike_price, dte, option_type)
         moneyness = strike_price / spot_price
         # Aggressive adjustments for extreme OTM options to match actual pricing
+        # SPX has pronounced negative skew (higher vol for OTM puts)
         base_skew_multiplier = case moneyness
-                              when 0.70..0.85  # Very deep OTM puts
-                                1.40 + (0.85 - moneyness) * 2.0
-                              when 0.85..0.95  # Deep OTM puts
-                                1.15 + (0.95 - moneyness) * 2.5
+                              when 0.80..0.90  # Deep OTM puts
+                                1.35 + (0.90 - moneyness) * 1.5
+                              when 0.90..0.95  # OTM puts
+                                1.15 + (0.95 - moneyness) * 4.0
                               when 0.95..1.05  # ATM region
-                                1.0 + (1.0 - moneyness).abs * 0.3
+                                1.0 + (1.0 - moneyness).abs * 0.8
                               when 1.05..1.15  # OTM calls
-                                0.75 - (moneyness - 1.05) * 2.0  # Much lower for OTM calls
-                              when 1.15..1.30  # Deep OTM calls
-                                0.50 - (moneyness - 1.15) * 1.5  # Very low for deep OTM calls
-                              when 1.30..1.50  # Very deep OTM calls
-                                0.35 - (moneyness - 1.30) * 1.0  # Extremely low
+                                0.88 - (moneyness - 1.05) * 2.5
+                              when 1.15..1.25  # Deep OTM calls
+                                0.75 - (moneyness - 1.15) * 1.5
                               else
-                                if moneyness < 0.70
-                                  1.60  # Very deep OTM puts
-                                elsif moneyness > 1.50
-                                  0.25  # Extremely deep OTM calls - very low vol
-                                else
-                                  0.30
-                                end
+                                moneyness < 0.80 ? 1.50 : 0.70
                               end
 
-        # For deep OTM calls, apply much more aggressive volatility reduction
-        if moneyness > 1.20
-          additional_reduction = case moneyness
-                      when 1.20..1.35
-                        0.45  # 55% reduction for deep OTM calls
-                      when 1.35..1.50
-                        0.25  # 75% reduction for very deep OTM calls
-                      when 1.50..1.70
-                        0.10  # 85% reduction for extremely deep OTM calls
-                      else
-                        0.05  # 90% reduction for ultra deep OTM calls
-                      end
-          base_skew_multiplier *= additional_reduction
-        end
+        # Adjust skew based on option type (puts get full skew, calls get inverse)
+        skew_multiplier = case option_type
+                         when OptionsTrader::PUT
+                           base_skew_multiplier
+                         when OptionsTrader::CALL
+                           # Calls have inverse relationship - lower vol for OTM calls
+                           if moneyness > 1.05
+                             base_skew_multiplier
+                           else
+                             # ATM and ITM calls get normal pricing
+                             [base_skew_multiplier, 1.1].min
+                           end
+                         else
+                           base_skew_multiplier
+                         end
 
         # Enhanced skew effects for shorter DTE (opposite of before - more dramatic)
         dte_adjustment = case dte
@@ -131,7 +125,7 @@ module OptionsTrader
                         else             0.7     # Lower skew for longer-term
                         end
 
-        final_skew = 1.0 + (base_skew_multiplier - 1.0) * dte_adjustment
+        final_skew = 1.0 + (skew_multiplier - 1.0) * dte_adjustment
         base_vol * final_skew
       end
 
