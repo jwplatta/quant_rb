@@ -12,7 +12,15 @@ module OptionsTrader
       # @param tolerance [Float] Convergence tolerance (default 1e-6)
       # @return [Float] Implied volatility or nil if no solution found
       def self.calculate(
-        market_price:, spot_price:, strike_price:, time_to_expiry:, risk_free_rate:, option_type: OptionsTrader::CALL, dividend_yield: 0.0, tolerance: 1e-6)
+        market_price:,
+        spot_price:,
+        strike_price:,
+        time_to_expiry:,
+        risk_free_rate:,
+        option_type: OptionsTrader::CALL,
+        dividend_yield: 0.0,
+        tolerance: 1e-6
+      )
         objective_function = lambda do |volatility|
           theoretical_price = CoxRossRubinstein.calculate(
             spot_price: spot_price,
