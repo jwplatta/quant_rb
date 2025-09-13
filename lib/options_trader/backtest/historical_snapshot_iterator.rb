@@ -19,8 +19,9 @@ module OptionsTrader
       def each
         return enum_for(:each) unless block_given?
 
-        @underlying_price_history.each do |candle|
+        @underlying_price_history.each_with_index do |candle, index|
           snapshot = @snapshot_class.new(
+            
             datetime: candle.datetime,
             symbol: candle.symbol,
             spot_price: candle.close,
