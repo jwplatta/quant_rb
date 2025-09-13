@@ -14,7 +14,10 @@ end
 
 csv_path = ARGV.first
 
+trade_cnt = 0
+
 CSV.foreach(csv_path, headers: true) do |row|
+  trade_cnt += 1
   hash = row.to_h
 
   fees = hash['fees'].to_f
@@ -26,7 +29,7 @@ CSV.foreach(csv_path, headers: true) do |row|
   cost_total += cost
 end
 
-puts "Trade Summary"
+puts "Trade Summary: #{trade_cnt} trades processed."
 puts "=============="
 puts "Total Commission: $#{commission_total.round(2)}"
 puts "Total Fees: $#{fees_total.round(2)}"
