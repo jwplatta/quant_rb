@@ -81,6 +81,7 @@ module OptionsTrader
   require_relative "options_trader/indicators/greeks"
   require_relative "options_trader/indicators/implied_volatility"
   require_relative "options_trader/indicators/historical_volatility"
+  require_relative "options_trader/indicators/vix_volatility"
   require_relative "options_trader/indicators/cox_ross_rubinstein"
   require_relative "options_trader/indicators/black_scholes"
 
