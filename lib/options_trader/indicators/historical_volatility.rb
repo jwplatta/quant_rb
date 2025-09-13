@@ -10,7 +10,7 @@ module OptionsTrader
       # @return [Float] Annualized volatility
       def self.calculate(
         prices:,
-        frequency: :daily,
+        frequency: OptionsTrader::Intervals::DAILY,
         window_periods: nil,
         dte: nil,
         current_time: Time.now
@@ -18,14 +18,10 @@ module OptionsTrader
         return nil if prices.nil? || prices.length < 2
 
         # Set default window periods based on frequency and DTE
-        window_periods ||= default_window_periods(frequency, dte)
-
-        # Ensure we have enough data
-        actual_periods = [window_periods, prices.length - 1].min
-        recent_prices = prices.last(actual_periods + 1)
+        # window_periods ||= default_window_periods(frequency, dte)
 
         # Calculate log returns
-        log_returns = calculate_log_returns(recent_prices)
+        log_returns = calculate_log_returns(prices)
         return nil if log_returns.empty?
 
         # Apply DTE-specific weighting if specified
@@ -126,8 +122,8 @@ module OptionsTrader
 
       def self.calculate_log_returns(prices)
         returns = []
-        (1...prices.length).each do |i|
-          return_val = Math.log(prices[i] / prices[i-1])
+        (1...prices.size).each do |i|
+          return_val = Math.log(prices.candles[i].close / prices.candles[i-1].close)
           returns << return_val unless return_val.nan? || return_val.infinite?
         end
         returns
@@ -140,7 +136,7 @@ module OptionsTrader
         alpha = dte <= 1 ? 0.3 : 0.1  # More aggressive weighting for 1DTE
 
         returns.each_with_index do |_, i|
-          weight = (1 - alpha) ** (returns.length - 1 - i)
+          weight = (1 - alpha) ** (returns.size - 1 - i)
           weights << weight
         end
 
