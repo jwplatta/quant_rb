@@ -41,6 +41,25 @@ GEM
       traces (~> 0.10)
     async-pool (0.11.0)
       async (>= 2.0)
+    aws-eventstream (1.4.0)
+    aws-partitions (1.1160.0)
+    aws-sdk-core (3.232.0)
+      aws-eventstream (~> 1, >= 1.3.0)
+      aws-partitions (~> 1, >= 1.992.0)
+      aws-sigv4 (~> 1.9)
+      base64
+      bigdecimal
+      jmespath (~> 1, >= 1.6.1)
+      logger
+    aws-sdk-kms (1.112.0)
+      aws-sdk-core (~> 3, >= 3.231.0)
+      aws-sigv4 (~> 1.5)
+    aws-sdk-s3 (1.199.0)
+      aws-sdk-core (~> 3, >= 3.231.0)
+      aws-sdk-kms (~> 1)
+      aws-sigv4 (~> 1.5)
+    aws-sigv4 (1.12.1)
+      aws-eventstream (~> 1, >= 1.0.2)
     base64 (0.3.0)
     benchmark (0.4.1)
     bigdecimal (3.2.2)
@@ -80,6 +99,7 @@ GEM
     io-endpoint (0.15.2)
     io-event (1.11.2)
     io-stream (0.10.0)
+    jmespath (1.6.2)
     json (2.13.2)
     json-schema (5.2.1)
       addressable (~> 2.8)
@@ -231,6 +251,7 @@ PLATFORMS
 
 DEPENDENCIES
   activerecord (~> 8.0)
+  aws-sdk-s3
   clockwork
   dotenv
   factory_bot (~> 6.5)
