@@ -5,6 +5,17 @@ module OptionsTrader
   module Indicators
     module Greeks
       class Delta
+        def self.calculate(curr_price:, prev_price:, curr_underlying_price:, prev_underlying_price:, option_type:)
+        	# NOTE: change in premium / change in underlying price
+        	delta = (curr_price - prev_price) / (curr_underlying_price - prev_underlying_price)
+
+        	if option_type == OptionsTrader::PUT
+        		-delta.abs
+        	else
+        		delta.abs
+        	end
+        end
+
         # Calculate option delta using Black-Scholes
         # @param spot_price [Float] Current price of underlying asset
         # @param strike_price [Float] Option strike price
@@ -13,7 +24,7 @@ module OptionsTrader
         # @param volatility [Float] Implied volatility (as decimal)
         # @param option_type [String] 'CALL' or 'PUT'
         # @return [Float] Delta value
-        def self.calculate(
+        def self.calculate_bs(
           spot_price:, strike_price:, time_to_expiry:,
           risk_free_rate:, volatility:, option_type: OptionsTrader::CALL
         )
@@ -73,6 +84,11 @@ module OptionsTrader
       end
 
       class Gamma
+        def self.calculate(curr_delta:, prev_delta:, curr_underlying_price:, prev_underlying_price:)
+          # NOTE: change in delta / change in underlying price
+          (curr_delta - prev_delta) / (curr_underlying_price - prev_underlying_price)
+        end
+
         # Calculate option gamma using Black-Scholes
         # @param spot_price [Float] Current price of underlying asset
         # @param strike_price [Float] Option strike price
@@ -80,7 +96,7 @@ module OptionsTrader
         # @param risk_free_rate [Float] Risk-free interest rate (as decimal)
         # @param volatility [Float] Implied volatility (as decimal)
         # @return [Float] Gamma value (same for calls and puts)
-        def self.calculate(spot_price:, strike_price:, time_to_expiry:, risk_free_rate:, volatility:)
+        def self.calculate_bs(spot_price:, strike_price:, time_to_expiry:, risk_free_rate:, volatility:)
           d1_val = BlackScholes.d1(spot_price, strike_price, time_to_expiry, risk_free_rate, volatility)
           numerator = BlackScholes.norm_pdf(d1_val)
           denominator = spot_price * volatility * Math.sqrt(time_to_expiry)
@@ -128,7 +144,7 @@ module OptionsTrader
         # @param risk_free_rate [Float] Risk-free interest rate (as decimal)
         # @param volatility [Float] Implied volatility (as decimal)
         # @return [Float] Vega value (same for calls and puts)
-        def self.calculate(spot_price:, strike_price:, time_to_expiry:, risk_free_rate:, volatility:)
+        def self.calculate_bs(spot_price:, strike_price:, time_to_expiry:, risk_free_rate:, volatility:)
           d1_val = BlackScholes.d1(spot_price, strike_price, time_to_expiry, risk_free_rate, volatility)
           spot_price * BlackScholes.norm_pdf(d1_val) * Math.sqrt(time_to_expiry)
         end
@@ -175,7 +191,7 @@ module OptionsTrader
         # @param volatility [Float] Implied volatility (as decimal)
         # @param option_type [String] 'CALL' or 'PUT'
         # @return [Float] Theta value (typically negative)
-        def self.calculate(
+        def self.calculate_bs(
           spot_price:, strike_price:, time_to_expiry:,
           risk_free_rate:, volatility:, option_type: OptionsTrader::CALL
         )
@@ -246,7 +262,7 @@ module OptionsTrader
         # @param volatility [Float] Implied volatility (as decimal)
         # @param option_type [String] 'CALL' or 'PUT'
         # @return [Float] Rho value
-        def self.calculate(
+        def self.calculate_bs(
           spot_price:, strike_price:, time_to_expiry:,
           risk_free_rate:, volatility:, option_type: OptionsTrader::CALL
         )
