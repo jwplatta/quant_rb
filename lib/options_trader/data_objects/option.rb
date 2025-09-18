@@ -7,7 +7,7 @@ module OptionsTrader
         strike:,
         put_call:,
         mark:,
-        strike_price:,
+        underlying_price:,
         expiration_date:,
         days_to_expiration:,
         delta: nil,
@@ -27,7 +27,7 @@ module OptionsTrader
         @strike = strike
         @put_call = put_call
         @mark = mark
-        @strike_price = strike_price
+        @underlying_price = underlying_price
         @expiration_date = expiration_date
         @days_to_expiration = days_to_expiration
         @delta = delta
@@ -43,7 +43,7 @@ module OptionsTrader
         @in_the_money = in_the_money
       end
 
-      attr_reader :symbol, :underlying_symbol, :strike, :put_call, :mark, :strike_price,
+      attr_reader :symbol, :underlying_symbol, :strike, :put_call, :mark, :underlying_price,
         :expiration_date, :days_to_expiration, :delta, :gamma, :theta, :vega, :rho,
         :open_interest, :total_volume, :expiration_type, :settlement_type, :option_root,
         :in_the_money
