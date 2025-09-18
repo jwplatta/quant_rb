@@ -30,6 +30,7 @@ module OptionsTrader
 
   # Require data providers
   require_relative "options_trader/data_providers/schwab/markets"
+  require_relative "options_trader/data_providers/polygon/client"
 
   # Require services
   require_relative "options_trader/services/markets"
