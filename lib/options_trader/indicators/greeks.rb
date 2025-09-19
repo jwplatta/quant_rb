@@ -6,7 +6,6 @@ module OptionsTrader
     module Greeks
       class Delta
         def self.calculate(curr_price:, prev_price:, curr_underlying_price:, prev_underlying_price:, option_type:)
-        	# NOTE: change in premium / change in underlying price
         	delta = (curr_price - prev_price) / (curr_underlying_price - prev_underlying_price)
 
         	if option_type == OptionsTrader::PUT
@@ -16,14 +15,6 @@ module OptionsTrader
         	end
         end
 
-        # Calculate option delta using Black-Scholes
-        # @param spot_price [Float] Current price of underlying asset
-        # @param strike_price [Float] Option strike price
-        # @param time_to_expiry [Float] Time to expiration in years
-        # @param risk_free_rate [Float] Risk-free interest rate (as decimal)
-        # @param volatility [Float] Implied volatility (as decimal)
-        # @param option_type [String] 'CALL' or 'PUT'
-        # @return [Float] Delta value
         def self.calculate_bs(
           spot_price:, strike_price:, time_to_expiry:,
           risk_free_rate:, volatility:, option_type: OptionsTrader::CALL
@@ -40,15 +31,6 @@ module OptionsTrader
           end
         end
 
-        # Calculate option delta using Cox-Ross-Rubinstein numerical differentiation
-        # @param spot_price [Float] Current price of underlying asset
-        # @param strike_price [Float] Option strike price
-        # @param time_to_expiry [Float] Time to expiration in years
-        # @param risk_free_rate [Float] Risk-free interest rate (as decimal)
-        # @param volatility [Float] Implied volatility (as decimal)
-        # @param option_type [String] 'CALL' or 'PUT'
-        # @param dividend_yield [Float] Annualized dividend yield (default 0)
-        # @return [Float] Delta value
         def self.calculate_crr(
           spot_price:, strike_price:, time_to_expiry:,
           risk_free_rate:, volatility:, option_type: OptionsTrader::CALL,
