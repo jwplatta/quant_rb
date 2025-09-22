@@ -43,10 +43,11 @@ module OptionsTrader
         @in_the_money = in_the_money
       end
 
+      attr_accessor :delta, :gamma, :theta, :vega, :rho
+
       attr_reader :symbol, :underlying_symbol, :strike, :put_call, :mark, :underlying_price,
-        :expiration_date, :days_to_expiration, :delta, :gamma, :theta, :vega, :rho,
-        :open_interest, :total_volume, :expiration_type, :settlement_type, :option_root,
-        :in_the_money
+        :expiration_date, :days_to_expiration, :open_interest, :total_volume, :expiration_type,
+        :settlement_type, :option_root, :in_the_money
     end
   end
 end
