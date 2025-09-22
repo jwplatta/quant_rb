@@ -28,6 +28,10 @@ module OptionsTrader
   # Require constants
   require_relative "options_trader/constants"
 
+  # Require data objects
+  require_relative "options_trader/data_objects/option"
+  require_relative "options_trader/data_objects/options_chain"
+
   # Require data providers
   require_relative "options_trader/data_providers/schwab/markets"
   require_relative "options_trader/data_providers/polygon/client"
