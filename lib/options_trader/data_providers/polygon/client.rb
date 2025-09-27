@@ -2,7 +2,12 @@ require "json"
 require "net/http"
 require "uri"
 require "aws-sdk-s3"
-require 'singleton'
+require "singleton"
+require "zip"
+require "zlib"
+require "fileutils"
+require "csv"
+
 
 module OptionsTrader
   module DataProviders
@@ -13,8 +18,8 @@ module OptionsTrader
         BASE_URL = 'https://api.polygon.io'
         FLATFILES_BUCKET_NAME = 'flatfiles'
 
-        def initialize(api_key = nil)
-          @api_key = api_key || ENV['POLYGON_OPTIONS_API_KEY']
+        def initialize
+          @api_key = ENV['POLYGON_OPTIONS_API_KEY']
           @aws_access_key_id = ENV['POLYGON_AWS_ACCESS_KEY_ID']
           @aws_secret_access_key = ENV['POLYGON_AWS_SECRET_ACCESS_KEY']
 
@@ -22,7 +27,10 @@ module OptionsTrader
           raise ArgumentError, "AWS credentials are required for file downloads" if @aws_access_key_id.nil? || @aws_secret_access_key.nil?
         end
 
-        def get_day_aggs(date, local_dir: "./")
+        def get_aggs(symbol:, start_datetime:, end_datetime: nil, agg_size: 'min', local_dir: "./")
+        end
+
+        def download_day_aggs(date, local_dir: "./")
           # NOTE: us_options_opra/day_aggs_v1
           raise ArgumentError, "date must be a Date object" unless date.is_a?(Date)
           raise ArgumentError, "local_dir is required" if local_dir.nil? || local_dir.empty?
@@ -40,7 +48,7 @@ module OptionsTrader
         end
 
         # us_options_opra/minute_aggs_v1
-        def get_min_aggs(date, local_dir: "./")
+        def download_min_aggs(date, local_dir: "./")
           raise ArgumentError, "date must be a Date object" unless date.is_a?(Date)
           raise ArgumentError, "local_dir is required" if local_dir.nil? || local_dir.empty?
 
@@ -50,7 +58,10 @@ module OptionsTrader
 
           aggs_type = "minute_aggs_v1"
 
-          download_file(aggs_type, local_dir, year, month, formatted_date)
+          csv_path = download_file(aggs_type, local_dir, year, month, formatted_date).then do |gz_file_path|
+            unzip_file(gz_file_path)
+            File.delete(gz_file_path) if File.exist?(gz_file_path)
+          end
         end
 
         def list_aggs(ticker, multiplier, timespan, from, to, **options)
@@ -77,6 +88,20 @@ module OptionsTrader
             signature_version: 'v4',
             retry_limit: 0  # Disable retries for clearer error messages
           )
+        end
+
+        def unzip_file(gz_file_path)
+          output_file_path = gz_file_path.sub(/\.gz\z/, '')
+          begin
+            Zlib::GzipReader.open(gz_file_path) do |gz|
+              File.open(output_file_path, 'wb') do |out|
+                IO.copy_stream(gz, out)
+              end
+            end
+          rescue StandardError => e
+            puts "Error unzipping file #{gz_file_path}: #{e.message}"
+          end
+          output_file_path
         end
 
         def download_file(aggs_type, local_dir, year, month, formatted_date)
