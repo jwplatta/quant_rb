@@ -110,6 +110,7 @@ GEM
     language_server-protocol (3.17.0.4)
     lint_roller (1.1.0)
     logger (1.7.0)
+    matrix (0.4.3)
     mcp (0.2.0)
       json-schema (>= 4.1)
       json_rpc_handler (~> 0.1)
@@ -124,6 +125,11 @@ GEM
     net-http (0.6.0)
       uri
     nio4r (2.7.4)
+    nokogiri (1.18.10)
+      mini_portile2 (~> 2.8.2)
+      racc (~> 1.4)
+    nokogiri (1.18.10-arm64-darwin)
+      racc (~> 1.4)
     oauth2 (2.0.12)
       faraday (>= 0.17.3, < 4.0)
       jwt (>= 1.0, < 4.0)
@@ -204,6 +210,7 @@ GEM
       prism (~> 1.4)
     ruby-progressbar (1.13.0)
     ruby2_keywords (0.0.5)
+    rubyzip (3.1.1)
     schwab_rb (0.3.11)
       async (~> 2.18)
       async-http (~> 0.82)
@@ -244,6 +251,7 @@ GEM
     unicode-emoji (4.0.4)
     uri (1.0.3)
     version_gem (1.1.8)
+    zlib (3.2.1)
 
 PLATFORMS
   arm64-darwin-23
@@ -256,17 +264,21 @@ DEPENDENCIES
   dotenv
   factory_bot (~> 6.5)
   gruff
+  matrix
   mcp
+  nokogiri
   pg (~> 1.6)
   pqueue
   pry
   rake
   rspec
   rubocop
+  rubyzip
   schwab_rb (~> 0.3.11)
   sidekiq
   sqlite3 (~> 2.1)
   timecop
+  zlib
 
 RUBY VERSION
    ruby 3.2.2p53
