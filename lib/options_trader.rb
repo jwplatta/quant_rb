@@ -93,6 +93,10 @@ module OptionsTrader
   # Require MCP server
   require_relative "options_trader/mcp/server"
 
+  # Require Utils
+  require_relative "options_trader/utils/delta_interpolator"
+
+
   def self.create_bot(&block)
     builder = BotBuilder.new
     builder.instance_eval(&block)

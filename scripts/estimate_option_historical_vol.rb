@@ -73,7 +73,7 @@ records.each do |record|
     risk_free_rate: RISK_FREE_RATE,
     volatility: hist_vol,
     option_type: option_type
-  )
+  ).abs
 
   crr_delta = OptionsTrader::Indicators::Greeks::Delta.calculate_crr(
     spot_price: record.underlying_price,
@@ -82,7 +82,7 @@ records.each do |record|
     risk_free_rate: RISK_FREE_RATE,
     volatility: hist_vol,
     option_type: option_type
-  )
+  ).abs
 
   bs_delta_diff = (bs_delta - record.delta).abs
   crr_delta_diff = (crr_delta - record.delta).abs

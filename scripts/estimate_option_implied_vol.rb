@@ -5,10 +5,11 @@ require_relative '../lib/options_trader'
 
 VOLATILITY_TOLERANCE = 0.1
 RISK_FREE_RATE = 0.04
+VERBOSE = true
 
 records = OptionsTrader::OptionChainHistory
   # .where(delta: -0.55...-0.45)
-  .where(delta: 0.45...0.5)
+  .where(delta: 0.04...0.09)
   .where.not(underlying_price: nil, bid: nil, ask: nil)
   .order(:expiration_date, :strike, :contract_type)
 
@@ -29,6 +30,7 @@ records.each do |record|
   next unless market_price && market_price > 0
 
   # Calculate implied volatility from market price using CRR model
+  # implied_vol = OptionsTrader::Indicators::BlackScholesV2.implied_volatility(
   implied_vol = OptionsTrader::Indicators::ImpliedVolatility.calculate(
     market_price: market_price,
     spot_price: record.underlying_price,
@@ -86,10 +88,16 @@ records.each do |record|
   bs_price_diff = (bs_theoretical_price - market_price).abs
   crr_price_diff = (crr_theoretical_price - market_price).abs
 
-  puts "#{record.underlying_symbol} #{record.contract_type} #{record.expiration_date} $#{record.strike}"
-  puts "  Record Delta: #{record.delta.round(4)} / CRR Delta: #{crr_delta.round(4)} / BS Delta: #{bs_delta.round(4)}"
-  puts "  Record Price: $#{market_price.round(2)} / CRR Price: $#{crr_theoretical_price.round(2)} / BS Price: $#{bs_theoretical_price.round(2)}"
-  puts "----------------------------------------------------------------"
+  if records.count % 1000 == 0
+    puts "Progress: #{records.index(record)}/#{records.count}"
+  end
+
+  if VERBOSE
+    puts "#{record.underlying_symbol} #{record.contract_type} #{record.expiration_date} $#{record.strike}"
+    puts "  Record Delta: #{record.delta.round(4)} / CRR Delta: #{crr_delta.round(4)} / BS Delta: #{bs_delta.round(4)}"
+    puts "  Record Price: $#{market_price.round(2)} / CRR Price: $#{crr_theoretical_price.round(2)} / BS Price: $#{bs_theoretical_price.round(2)}"
+    puts "----------------------------------------------------------------"
+  end
 
   bs_large_delta_diff_cnt += 1 if bs_delta_diff > VOLATILITY_TOLERANCE
   crr_large_delta_diff_cnt += 1 if crr_delta_diff > VOLATILITY_TOLERANCE

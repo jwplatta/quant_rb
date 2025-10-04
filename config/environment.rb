@@ -11,7 +11,6 @@ require 'logger'
 # Configure environment (development is default)
 # RAILS_ENV takes precedence over RACK_ENV for consistency with Rails/RSpec
 current_env = ENV['RAILS_ENV'] || ENV['RACK_ENV'] || 'development'
-ENV['RACK_ENV'] = current_env
 
 db_config_file = File.expand_path('database.yml', __dir__)
 db_config = YAML.load(ERB.new(File.read(db_config_file)).result, aliases: true)
