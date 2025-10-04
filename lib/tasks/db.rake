@@ -83,15 +83,4 @@ namespace :db do
       puts "- #{table}"
     end
   end
-
-  desc "Load seed data"
-  task :seed => :init do
-    seed_file = "db/seeds.rb"
-    if File.exist?(seed_file)
-      load seed_file
-      puts "Seed data loaded"
-    else
-      puts "No seed file found at #{seed_file}"
-    end
-  end
 end
