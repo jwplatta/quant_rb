@@ -12,3 +12,5 @@ schwab_token.json
 token.json
 pkg
 .rspec_status
+/notebooks
+/options-trader-env
