@@ -34,6 +34,18 @@ module OptionsTrader
         @provider.get_price_history_every_ten_min(symbol: symbol, start_datetime: start_datetime, end_datetime: end_datetime)
       end
 
+      def get_price_history_every_fifteen_min(symbol:, start_datetime:, end_datetime:)
+        @provider.get_price_history_every_fifteen_min(
+          symbol: symbol, start_datetime: start_datetime, end_datetime: end_datetime
+        )
+      end
+
+      def get_price_history_every_thirty_min(symbol:, start_datetime:, end_datetime:)
+        @provider.get_price_history_every_thirty_min(
+          symbol: symbol, start_datetime: start_datetime, end_datetime: end_datetime
+        )
+      end
+
       def get_price_history(symbol:, start_datetime:, end_datetime:)
         kwargs = {
           start_datetime: start_datetime,
