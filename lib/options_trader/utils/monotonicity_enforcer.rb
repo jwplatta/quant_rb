@@ -33,9 +33,7 @@ module OptionsTrader
           break if violations.empty?
 
           iteration += 1
-          if iteration > MAX_ITERATIONS
-            break
-          end
+          break if iteration > MAX_ITERATIONS
 
           violation_ranges = group_contiguous_violations(violations)
           fix_violations(working_options, violation_ranges, violations)
