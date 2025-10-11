@@ -9,7 +9,7 @@ require_relative "../../lib/options_trader"
 
 EXPIRATION_DATE = '2025-06-13'
 VALID_TIME = '2025-06-10 14:20:00'
-STALENESS_THRESHOLD_MINUTES = 60
+STALENESS_THRESHOLD_MINUTES = 120
 UNDERLYING_SYMBOL = 'SPXW'
 DEFAULT_MIN_MARK = 0.025
 ROUND_TO = 3
@@ -23,12 +23,12 @@ Opt = Struct.new(
   :valid_time,
   :delta,
   :volume,
-  :staleness_minutes,
+  :staleness,
   :synthetic
 )
 
 # Step 1: Reconstruct option chain using LOCF + Staleness Filter
-def fetch_option_chain_locf(expiration_date, valid_time, staleness_minutes = 30)
+def fetch_option_chain_locf(expiration_date, valid_time, staleness_thresh = 30)
   sql = <<-SQL
     WITH latest_prices AS (
       SELECT DISTINCT ON (symbol)
@@ -39,7 +39,7 @@ def fetch_option_chain_locf(expiration_date, valid_time, staleness_minutes = 30)
         underlying_price,
         valid_time,
         volume,
-        EXTRACT(EPOCH FROM (TIMESTAMP '#{valid_time}' - valid_time)) / 60 as staleness_minutes
+        EXTRACT(EPOCH FROM (TIMESTAMP '#{valid_time}' - valid_time)) / 60 as staleness
       FROM option_chain_history
       WHERE expiration_date = '#{expiration_date}'
         AND valid_time <= '#{valid_time}'
@@ -47,13 +47,11 @@ def fetch_option_chain_locf(expiration_date, valid_time, staleness_minutes = 30)
       ORDER BY symbol, valid_time DESC
     )
     SELECT * FROM latest_prices
-    WHERE staleness_minutes < #{staleness_minutes}
+    WHERE staleness < #{staleness_thresh}
     ORDER BY contract_type, strike;
   SQL
 
   records = OptionsTrader::OptionChainHistory.connection.execute(sql)
-
-  puts "Found #{records.count} options within staleness threshold"
 
   calls = []
   put_opts = []
@@ -70,7 +68,7 @@ def fetch_option_chain_locf(expiration_date, valid_time, staleness_minutes = 30)
       valid_time: record['valid_time'],
       delta: record['delta']&.to_f,
       volume: record['volume']&.to_i || 0,
-      staleness_minutes: record['staleness_minutes'].to_f.round(2),
+      staleness: record['staleness'].to_f.round(2),
       synthetic: false
     )
 
@@ -114,7 +112,6 @@ end
 
 # Step 3: Build complete option arrays with synthetic options (nil marks)
 def build_complete_option_arrays(calls, put_opts, target_strikes, underlying_price)
-
   min_strike = target_strikes.min
   max_strike = target_strikes.max
   calls_by_strike = calls.index_by { |o| o.strike.to_i }
@@ -128,29 +125,9 @@ def build_complete_option_arrays(calls, put_opts, target_strikes, underlying_pri
       complete_calls << calls_by_strike[strike]
     else
       complete_calls << if strike == max_strike
-        Opt.new(
-          symbol: "SPXW#{EXPIRATION_DATE.gsub('-', '')}C#{(strike * 1000).to_i.to_s.rjust(8, '0')}",
-          strike: strike,
-          mark: DEFAULT_MIN_MARK,
-          delta: nil,
-          volume: 1,
-          underlying_price: underlying_price,
-          contract_type: 'CALL',
-          valid_time: VALID_TIME,
-          synthetic: true
-        )
+        create_option(strike, 'CALL', underlying_price, VALID_TIME, 1, DEFAULT_MIN_MARK, true)
       else
-        Opt.new(
-          symbol: "SPXW#{EXPIRATION_DATE.gsub('-', '')}C#{(strike * 1000).to_i.to_s.rjust(8, '0')}",
-          strike: strike,
-          mark: nil,
-          delta: nil,
-          volume: 1,
-          underlying_price: underlying_price,
-          contract_type: 'CALL',
-          valid_time: VALID_TIME,
-          synthetic: true
-        )
+        create_option(strike, 'CALL', underlying_price, VALID_TIME, 1, nil, true)
       end
     end
 
@@ -158,29 +135,9 @@ def build_complete_option_arrays(calls, put_opts, target_strikes, underlying_pri
       complete_puts << puts_by_strike[strike]
     else
       complete_puts << if strike == min_strike
-        Opt.new(
-          symbol: "SPXW#{EXPIRATION_DATE.gsub('-', '')}P#{(strike * 1000).to_i.to_s.rjust(8, '0')}",
-          strike: strike,
-          mark: DEFAULT_MIN_MARK,
-          delta: nil,
-          volume: 1,
-          underlying_price: underlying_price,
-          contract_type: 'PUT',
-          valid_time: VALID_TIME,
-          synthetic: true
-        )
+        create_option(strike, 'PUT', underlying_price, VALID_TIME, 1, DEFAULT_MIN_MARK, true)
       else
-        Opt.new(
-          symbol: "SPXW#{EXPIRATION_DATE.gsub('-', '')}P#{(strike * 1000).to_i.to_s.rjust(8, '0')}",
-          strike: strike,
-          mark: nil,
-          delta: nil,
-          volume: 1,
-          underlying_price: underlying_price,
-          contract_type: 'PUT',
-          valid_time: VALID_TIME,
-          synthetic: true
-        )
+        create_option(strike, 'PUT', underlying_price, VALID_TIME, 1, nil, true)
       end
     end
   end
@@ -188,66 +145,28 @@ def build_complete_option_arrays(calls, put_opts, target_strikes, underlying_pri
   [complete_calls, complete_puts]
 end
 
-# Step 4: Interpolate prices for options with nil marks
-def interpolate_nil_marks!(options, contract_type)
-  options.each_with_index do |opt, idx|
-    next unless opt.mark.nil?
+def create_option(strike, contract_type, underlying_price, valid_time, volume = 1, mark = nil, synthetic = false)
+  Opt.new(
+    symbol: create_option_symbol(strike, contract_type),
+    strike: strike,
+    mark: mark,
+    delta: nil,
+    volume: 1,
+    underlying_price: underlying_price,
+    contract_type: contract_type,
+    valid_time: valid_time,
+    synthetic: synthetic
+  )
+end
 
-    # Find lower bound (last option before this with non-nil mark)
-    lower_idx = (0...idx).reverse_each.find { |i| options[i].mark }
+def create_option_symbol(strike, contract_type)
+  "SPXW#{EXPIRATION_DATE.gsub('-', '')}#{contract_type[0]}#{(strike * 1000).to_i.to_s.rjust(8, '0')}"
+end
 
-    # Find upper bound (next option after this with non-nil mark)
-    upper_idx = ((idx + 1)...options.length).find { |i| options[i].mark }
-
-    # If we have both bounds, interpolate
-    if lower_idx && upper_idx
-      lower_opt = options[lower_idx]
-      upper_opt = options[upper_idx]
-
-      # Calculate step size
-      price_diff = upper_opt.mark - lower_opt.mark
-      strike_diff = upper_opt.strike - lower_opt.strike
-      step_size = price_diff / strike_diff.to_f
-
-      strike_offset = opt.strike - lower_opt.strike
-      opt.mark = lower_opt.mark + (step_size * strike_offset)
-    elsif lower_idx
-      # Extrapolate using slope from last two points
-      if lower_idx > 0
-        prev_opt_idx = (0...lower_idx).reverse_each.find { |i| options[i].mark }
-        prev_opt = options[prev_opt_idx]
-        lower_opt = options[lower_idx]
-
-        price_diff = lower_opt.mark - prev_opt.mark
-        strike_diff = lower_opt.strike - prev_opt.strike
-        step_size = price_diff / strike_diff.to_f
-
-        strike_offset = opt.strike - lower_opt.strike
-        opt.mark = lower_opt.mark + (step_size * strike_offset)
-      else
-        # Only one point, use it as constant
-        opt.mark = options[lower_idx].mark
-      end
-    elsif upper_idx
-      # Extrapolate using slope from first two points
-      if upper_idx < options.length - 1
-        upper_opt = options[upper_idx]
-        next_opt_idx = ((upper_idx + 1)...options.length).find { |i| options[i].mark }
-        next_opt = options[next_opt_idx]
-
-        price_diff = next_opt.mark - upper_opt.mark
-        strike_diff = next_opt.strike - upper_opt.strike
-        step_size = price_diff / strike_diff.to_f
-
-        strike_offset = opt.strike - upper_opt.strike
-        opt.mark = upper_opt.mark + (step_size * strike_offset)
-      else
-        # Only one point, use it as constant
-        opt.mark = options[upper_idx].mark
-      end
-    else
-      raise "Cannot interpolate option at strike #{opt.strike} (no bounds found)"
-    end
+# Step 3.5: Round marks to market convention (0.005 for SPX)
+def round_marks!(options, increment = 0.05)
+  options.each do |opt|
+    opt.mark = (opt.mark / increment).round * increment
   end
 end
 
@@ -286,8 +205,13 @@ puts_needing_interpolation = complete_puts.count { |p| p.mark.nil? }
 puts "Calls needing interpolation: #{calls_needing_interpolation}"
 puts "Puts needing interpolation: #{puts_needing_interpolation}"
 
-interpolate_nil_marks!(complete_calls, 'CALL')
-interpolate_nil_marks!(complete_puts, 'PUT')
+complete_calls = OptionsTrader::Utils::OptionPriceInterpolator.interpolate(complete_calls, contract_type: 'CALL')
+complete_puts = OptionsTrader::Utils::OptionPriceInterpolator.interpolate(complete_puts, contract_type: 'PUT')
+
+puts ""
+puts "=== Enforcing Monotonicity ==="
+complete_calls = OptionsTrader::Utils::MonotonicityEnforcer.enforce(complete_calls, contract_type: 'CALL')
+complete_puts = OptionsTrader::Utils::MonotonicityEnforcer.enforce(complete_puts, contract_type: 'PUT')
 
 calls_still_nil = complete_calls.count { |c| c.mark.nil? }
 puts_still_nil = complete_puts.count { |p| p.mark.nil? }
@@ -326,9 +250,8 @@ end
 puts "CSV written successfully!"
 puts ""
 
-# Generate chart for call prices (non-synthetic only)
 puts "=== Generating Call Price Chart (Non-Synthetic) ==="
-non_synthetic_calls = complete_calls.reject { |c| c.synthetic }
+non_synthetic_calls = complete_calls #.reject { |c| c.synthetic }
 chart_data = non_synthetic_calls.map { |c| [c.strike, c.mark] }
 puts "Plotting #{chart_data.length} non-synthetic calls"
 line_graph = OptionsTrader::Charts::LineGraph.new(width: 1200, height: 800)
