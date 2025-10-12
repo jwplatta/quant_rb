@@ -272,10 +272,10 @@ namespace :db do
   end
 
   desc "Generate a new migration file"
-  task :migration do
-    name = ENV['NAME']
+  task :migration, [:name] do |t, args|
+    name = args[:name]
     unless name
-      puts "Usage: rake generate:migration NAME=migration_name"
+      puts "Usage: rake db:migration[name]"
       exit 1
     end
 
