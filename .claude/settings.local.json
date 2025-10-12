@@ -1,0 +1,28 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(chmod:*)",
+      "Bash(NAME=add_backtest_indexes_and_constraints rake generate:migration)",
+      "Bash(./bin/create_backtest_db.sh:*)",
+      "Bash(export DATABASE_NAME_DEV='options_trader_db')",
+      "Bash(export DATABASE_USER_DEV='options_trader')",
+      "Bash(export DATABASE_PASSWORD_DEV='options_trader')",
+      "Bash(export DATABASE_PORT_DEV=6543)",
+      "Bash(export DATABASE_HOST_DEV='localhost')",
+      "Bash(pg_ctl:*)",
+      "Bash(psql:*)",
+      "Bash(export DATABASE_PASSWORD_DEV='')",
+      "Bash(rake:*)",
+      "Read(//Volumes/ext_docs/options_trader/polygon/minute_aggs_v1/**)",
+      "Bash(ruby:*)",
+      "Bash(echo $RAILS_ENV $RACK_ENV)",
+      "Bash(RAILS_ENV=development RACK_ENV=development rake polygon:status)",
+      "Bash(RAILS_ENV=development RACK_ENV=development rake db:migrate)",
+      "Bash(RAILS_ENV=development RACK_ENV=development rake \"polygon:import_spxw_date[2023,9,26]\")",
+      "Bash(RAILS_ENV=development RACK_ENV=development DEBUG=true LOG_LEVEL=DEBUG rake \"polygon:import_spxw_date[2023,9,26]\")",
+      "Bash(test:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

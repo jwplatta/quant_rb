@@ -1,12 +1,16 @@
 # trading_sim.rb
 
 SIM_CNT = 1000
-TRADING_DAYS = 100
-INITIAL_PORTFOLIO = 200_000.0
-TRADING_PERCENTAGE = 0.3
+TRADING_DAYS = 225
+INITIAL_PORTFOLIO = 100_000.0
 WIN_PROBABILITY = 0.9
-RETURN_RATE = 0.04
-LOSS_MULTIPLIER = 4.0
+CONTRACTS = 10
+EXIT_PRICE = 0.4
+EXIT_PRICES = [0.3, 0.4, 0.5, 0.8]
+LOSS_MULTIPLIER = 3.0
+CONTRACT_PRICE = 1.25
+FEES = 2.6
+COMMISSION = 2.6
 
 sim_prof_results = []
 
@@ -15,19 +19,17 @@ SIM_CNT.times do |sim|
   daily_log = []
 
   TRADING_DAYS.times do |day|
-    tradable_capital = portfolio * TRADING_PERCENTAGE
     profit = 0
 
-    if rand < WIN_PROBABILITY
-      # Win: earn 5% on tradable capital
-      profit = tradable_capital * RETURN_RATE
+    premium = CONTRACTS * CONTRACT_PRICE * 100 - FEES * CONTRACTS - COMMISSION * CONTRACTS
+
+    profit_loss = if rand < WIN_PROBABILITY
+      premium - (CONTRACTS * EXIT_PRICES.sample * 100) - FEES * CONTRACTS - COMMISSION * CONTRACTS
     else
-      # Loss: lose 4x the potential profit
-      potential_profit = tradable_capital * RETURN_RATE
-      profit = -potential_profit * LOSS_MULTIPLIER
+      premium - CONTRACTS * CONTRACT_PRICE * LOSS_MULTIPLIER * 100 - FEES * CONTRACTS - COMMISSION * CONTRACTS
     end
 
-    portfolio += profit
+    portfolio += profit_loss
 
     daily_log << {
       day: day + 1,

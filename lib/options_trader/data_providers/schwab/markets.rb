@@ -106,6 +106,32 @@ module OptionsTrader
           get_price_history(symbol, **kwargs)
         end
 
+        def get_price_history_every_fifteen_min(symbol:, start_datetime:, end_datetime:)
+          kwargs = {
+            start_datetime: start_datetime,
+            end_datetime: end_datetime,
+            period_type: SchwabRb::PriceHistory::PeriodTypes::DAY,
+            period: SchwabRb::PriceHistory::Periods::ONE_DAY,
+            frequency_type: SchwabRb::PriceHistory::FrequencyTypes::MINUTE,
+            frequency: SchwabRb::PriceHistory::Frequencies::EVERY_FIFTEEN_MINUTES
+          }
+
+          get_price_history(symbol, **kwargs)
+        end
+
+        def get_price_history_every_thirty_min(symbol:, start_datetime:, end_datetime:)
+          kwargs = {
+            start_datetime: start_datetime,
+            end_datetime: end_datetime,
+            period_type: SchwabRb::PriceHistory::PeriodTypes::DAY,
+            period: SchwabRb::PriceHistory::Periods::ONE_DAY,
+            frequency_type: SchwabRb::PriceHistory::FrequencyTypes::MINUTE,
+            frequency: SchwabRb::PriceHistory::Frequencies::EVERY_THIRTY_MINUTES
+          }
+
+          get_price_history(symbol, **kwargs)
+        end
+
         def get_price_history_everyday(symbol:, start_datetime:, end_datetime:)
           kwargs = {
             start_datetime: start_datetime,

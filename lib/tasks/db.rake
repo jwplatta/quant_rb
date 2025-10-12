@@ -84,14 +84,190 @@ namespace :db do
     end
   end
 
-  desc "Load seed data"
-  task :seed => :init do
-    seed_file = "db/seeds.rb"
-    if File.exist?(seed_file)
-      load seed_file
-      puts "Seed data loaded"
-    else
-      puts "No seed file found at #{seed_file}"
+  desc "Reindex a specific table"
+  task :reindex_table, [:table_name] => :init do |t, args|
+    table_name = args[:table_name]
+
+    unless table_name
+      puts "Error: Please provide a table name"
+      puts "Usage: rake db:reindex_table[table_name]"
+      exit 1
     end
+
+    puts "Reindexing table: #{table_name}"
+    puts "Analyzing table size and indexes before reindex..."
+
+    # Get table size info
+    size_query = <<-SQL
+      SELECT
+        pg_size_pretty(pg_total_relation_size('#{table_name}')) as total_size,
+        pg_size_pretty(pg_relation_size('#{table_name}')) as table_size,
+        pg_size_pretty(pg_indexes_size('#{table_name}')) as indexes_size
+    SQL
+
+    size_info = ActiveRecord::Base.connection.execute(size_query).first
+    puts "  Table size: #{size_info['table_size']}"
+    puts "  Indexes size: #{size_info['indexes_size']}"
+    puts "  Total size: #{size_info['total_size']}"
+
+    # Get row count
+    count_query = "SELECT COUNT(*) as count FROM #{table_name}"
+    row_count = ActiveRecord::Base.connection.execute(count_query).first['count']
+    puts "  Row count: #{row_count.to_s.reverse.gsub(/(\d{3})(?=\d)/, '\\1,').reverse}"
+
+    # Get index count
+    index_query = <<-SQL
+      SELECT COUNT(*) as count
+      FROM pg_indexes
+      WHERE tablename = '#{table_name}'
+    SQL
+    index_count = ActiveRecord::Base.connection.execute(index_query).first['count']
+    puts "  Index count: #{index_count}"
+
+    puts "\nEstimated time: ~#{(row_count.to_i / 100000.0 * index_count.to_i).round(1)} minutes (rough estimate)"
+    puts "\nStarting reindex..."
+
+    start_time = Time.now
+    begin
+      ActiveRecord::Base.connection.execute("REINDEX TABLE #{table_name}")
+      elapsed = Time.now - start_time
+      puts "✓ Successfully reindexed #{table_name} in #{elapsed.round(2)} seconds"
+    rescue => e
+      puts "✗ Error: #{e.message}"
+      exit 1
+    end
+  end
+
+  desc "Show table size and index information"
+  task :table_info, [:table_name] => :init do |t, args|
+    table_name = args[:table_name]
+
+    unless table_name
+      puts "Error: Please provide a table name"
+      puts "Usage: rake db:table_info[table_name]"
+      exit 1
+    end
+
+    puts "Table Information: #{table_name}"
+    puts "=" * 50
+
+    # Get table size info
+    size_query = <<-SQL
+      SELECT
+        pg_size_pretty(pg_total_relation_size('#{table_name}')) as total_size,
+        pg_size_pretty(pg_relation_size('#{table_name}')) as table_size,
+        pg_size_pretty(pg_indexes_size('#{table_name}')) as indexes_size
+    SQL
+
+    size_info = ActiveRecord::Base.connection.execute(size_query).first
+    puts "Table size: #{size_info['table_size']}"
+    puts "Indexes size: #{size_info['indexes_size']}"
+    puts "Total size: #{size_info['total_size']}"
+
+    # Get row count
+    count_query = "SELECT COUNT(*) as count FROM #{table_name}"
+    row_count = ActiveRecord::Base.connection.execute(count_query).first['count']
+    puts "Row count: #{row_count.to_s.reverse.gsub(/(\d{3})(?=\d)/, '\\1,').reverse}"
+
+    # Get indexes
+    index_query = <<-SQL
+      SELECT
+        indexname,
+        pg_size_pretty(pg_relation_size(indexname::regclass)) as index_size
+      FROM pg_indexes
+      WHERE tablename = '#{table_name}'
+      ORDER BY indexname
+    SQL
+
+    indexes = ActiveRecord::Base.connection.execute(index_query)
+    puts "\nIndexes (#{indexes.count}):"
+    indexes.each do |idx|
+      puts "  - #{idx['indexname']} (#{idx['index_size']})"
+    end
+  end
+
+  desc "Reset backtest database (for external PostgreSQL on port 6543)"
+  task :reset_backtest do
+    db_data_dir = ENV['BACKTEST_DB_DATA_DIR'] || '/Volumes/ext_docs/options_trader/db'
+
+    puts "Backtest Database Reset"
+    puts "=" * 50
+    puts "Data directory: #{db_data_dir}"
+    puts ""
+    puts "This will:"
+    puts "  1. Stop PostgreSQL server"
+    puts "  2. Remove database directory"
+    puts "  3. Recreate database cluster"
+    puts "  4. Start PostgreSQL server"
+    puts "  5. Create user and database"
+    puts "  6. Run migrations"
+    puts ""
+    print "Are you sure? (y/N): "
+    response = STDIN.gets.chomp
+
+    unless response.downcase == 'y'
+      puts "Operation cancelled"
+      exit 0
+    end
+
+    # Stop PostgreSQL if running
+    puts "\nStopping PostgreSQL server..."
+    system("pg_ctl -D #{db_data_dir} stop 2>/dev/null || true")
+    sleep 1
+
+    # Remove database directory
+    puts "Removing database directory..."
+    system("rm -rf #{db_data_dir}")
+
+    # Initialize new database cluster
+    puts "Initializing new database cluster..."
+    unless system("initdb -D #{db_data_dir} --auth-local=trust --auth-host=trust")
+      puts "Error: Failed to initialize database cluster"
+      exit 1
+    end
+
+    File.open("#{db_data_dir}/postgresql.conf", 'a') do |f|
+      f.puts "port = 6543"
+      f.puts "listen_addresses = 'localhost'"
+    end
+
+    pg_hba_path = "#{db_data_dir}/pg_hba.conf"
+    pg_hba_content = File.read(pg_hba_path)
+    pg_hba_content.gsub!(/host\s+all\s+all\s+127\.0\.0\.1\/32\s+\w+/, 'host    all             all             127.0.0.1/32            trust')
+    pg_hba_content.gsub!(/host\s+all\s+all\s+::1\/128\s+\w+/, 'host    all             all             ::1/128                 trust')
+    File.write(pg_hba_path, pg_hba_content)
+
+    puts "Starting PostgreSQL server..."
+    unless system("pg_ctl -D #{db_data_dir} -l #{db_data_dir}/log start")
+      puts "Error: Failed to start PostgreSQL"
+      exit 1
+    end
+    sleep 2
+
+    puts "Creating user and database..."
+    system("psql -h localhost -p 6543 -d postgres -c \"CREATE USER options_trader;\" 2>/dev/null || true")
+    system("psql -h localhost -p 6543 -d postgres -c \"CREATE DATABASE options_trader_db OWNER options_trader;\"")
+    system("psql -h localhost -p 6543 -d options_trader_db -c \"GRANT ALL PRIVILEGES ON DATABASE options_trader_db TO options_trader; GRANT ALL PRIVILEGES ON SCHEMA public TO options_trader;\"")
+    system("psql -h localhost -p 6543 -d options_trader_db -c \"GRANT pg_checkpoint TO options_trader;\"")  # Allow checkpoints for data safety
+
+    # Run migrations in development environment
+    puts "Running migrations..."
+    ENV['RAILS_ENV'] = 'development'
+    ENV['RACK_ENV'] = 'development'
+
+    # Load environment and run migrations
+    require_relative '../../config/environment'
+    ActiveRecord::Base.connection_pool.disconnect!
+    ActiveRecord::MigrationContext.new("db/migrate").migrate
+
+    puts "\n" + "=" * 50
+    puts "Backtest database reset completed successfully!"
+    puts "Database: options_trader_db"
+    puts "Host: localhost"
+    puts "Port: 6543"
+    puts "Data directory: #{db_data_dir}"
+    puts ""
+    puts "To use this database, run commands with:"
+    puts "  RAILS_ENV=development RACK_ENV=development"
   end
 end

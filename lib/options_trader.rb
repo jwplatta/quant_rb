@@ -39,6 +39,8 @@ module OptionsTrader
   # Require services
   require_relative "options_trader/services/markets"
   require_relative "options_trader/services/historical_markets"
+  require_relative "options_trader/services/polygon_importer"
+  require_relative "options_trader/services/historical_snapshot"
 
   # Require schwab modules (needed by strategies)
   require_relative "options_trader/schwab/quoteable"
@@ -72,6 +74,7 @@ module OptionsTrader
   # Require charts
   require_relative "options_trader/charts/chart_base"
   require_relative "options_trader/charts/monthly_progress"
+  require_relative "options_trader/charts/line_graph"
 
   # Require exports
   require_relative "options_trader/exports/transactions_by_order"
@@ -92,6 +95,11 @@ module OptionsTrader
 
   # Require MCP server
   require_relative "options_trader/mcp/server"
+
+  # Require Utils
+  require_relative "options_trader/utils/delta_interpolator"
+  require_relative "options_trader/utils/option_price_interpolator"
+  require_relative "options_trader/utils/monotonicity_enforcer"
 
   def self.create_bot(&block)
     builder = BotBuilder.new

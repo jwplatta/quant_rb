@@ -18,11 +18,11 @@ module OptionsTrader
         time_to_expiry:,
         risk_free_rate:,
         option_type: OptionsTrader::CALL,
-        dividend_yield: 0.0,
-        tolerance: 1e-6
+        dividend_yield: 1.5,
+        tolerance: 1e-20
       )
         objective_function = lambda do |volatility|
-          theoretical_price = CoxRossRubinstein.calculate(
+          theoretical_price = BlackScholes.calculate(
             spot_price: spot_price,
             strike_price: strike_price,
             time_to_expiry: time_to_expiry,
@@ -41,8 +41,7 @@ module OptionsTrader
         # Ensure opposite signs at bounds
         f_low = objective_function.call(vol_low)
         f_high = objective_function.call(vol_high)
-
-        return nil if f_low * f_high > 0
+        # return nil if f_low * f_high > 0
 
         brent_method(objective_function, vol_low, vol_high, tolerance)
       end
@@ -51,11 +50,11 @@ module OptionsTrader
 
       # Brent's method for root finding
       # Combines characteristics of secant and bisection methods
-      def self.brent_method(func, a, b, tolerance, max_iterations = 100)
+      def self.brent_method(func, a, b, tolerance, max_iterations = 1000)
         fa = func.call(a)
         fb = func.call(b)
 
-        return nil if fa * fb > 0
+        # return nil if fa * fb > 0
 
         # Ensure |f(a)| >= |f(b)|
         if fa.abs < fb.abs
@@ -69,7 +68,9 @@ module OptionsTrader
 
         (1..max_iterations).each do |_|
           # Check convergence
-          return b if fb.abs < tolerance || (b - a).abs < tolerance
+          if fb.abs < tolerance || (b - a).abs < tolerance
+            return b
+          end
 
           if fa != fc && fb != fc
             # Inverse quadratic interpolation

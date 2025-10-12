@@ -34,8 +34,13 @@ module OptionsTrader
       # @param dividend_yield [Float] Annualized dividend yield (default 0)
       # @return [Float] Option price
       def self.calculate(
-        spot_price:, strike_price:, time_to_expiry:, risk_free_rate:,
-        volatility:, option_type: OptionsTrader::CALL, dividend_yield: 0.0
+        spot_price:,
+        strike_price:,
+        time_to_expiry:,
+        risk_free_rate:,
+        volatility:,
+        option_type: OptionsTrader::CALL,
+        dividend_yield: 0.0
       )
         d1_val = d1(spot_price, strike_price, time_to_expiry, risk_free_rate, volatility)
         d2_val = d2(spot_price, strike_price, time_to_expiry, risk_free_rate, volatility)
@@ -43,12 +48,12 @@ module OptionsTrader
         case option_type
         when OptionsTrader::CALL
           # Call option: C = S*e^(-q*T)*N(d1) - K*e^(-r*T)*N(d2)
-          spot_price * Math.exp(-dividend_yield * time_to_expiry) * norm_cdf(d1_val) -
+          spot_price * norm_cdf(d1_val) -
           strike_price * Math.exp(-risk_free_rate * time_to_expiry) * norm_cdf(d2_val)
         when OptionsTrader::PUT
           # Put option: P = K*e^(-r*T)*N(-d2) - S*e^(-q*T)*N(-d1)
           strike_price * Math.exp(-risk_free_rate * time_to_expiry) * norm_cdf(-d2_val) -
-          spot_price * Math.exp(-dividend_yield * time_to_expiry) * norm_cdf(-d1_val)
+          spot_price * norm_cdf(-d1_val)
         else
           raise ArgumentError, "option_type must be CALL or PUT"
         end

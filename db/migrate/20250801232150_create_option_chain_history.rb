@@ -32,7 +32,6 @@ class CreateOptionChainHistory < ActiveRecord::Migration[8.0]
       t.integer :ask_size
 
       # Option data
-      t.string :option_root
       t.string :expiration_type
       t.decimal :intrinsic_value, precision: 10, scale: 2
       t.decimal :extrinsic_value, precision: 10, scale: 2
