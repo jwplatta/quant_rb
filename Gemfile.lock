@@ -62,7 +62,7 @@ GEM
       aws-eventstream (~> 1, >= 1.0.2)
     base64 (0.3.0)
     benchmark (0.4.1)
-    bigdecimal (3.2.2)
+    bigdecimal (3.3.1)
     clockwork (3.0.2)
       activesupport
       tzinfo
@@ -101,7 +101,7 @@ GEM
     io-stream (0.10.0)
     jmespath (1.6.2)
     json (2.13.2)
-    json-schema (5.2.1)
+    json-schema (6.0.0)
       addressable (~> 2.8)
       bigdecimal (~> 3.1)
     json_rpc_handler (0.1.1)
@@ -111,7 +111,7 @@ GEM
     lint_roller (1.1.0)
     logger (1.7.0)
     matrix (0.4.3)
-    mcp (0.2.0)
+    mcp (0.3.0)
       json-schema (>= 4.1)
       json_rpc_handler (~> 0.1)
     method_source (1.1.0)
