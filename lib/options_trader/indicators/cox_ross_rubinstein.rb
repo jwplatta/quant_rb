@@ -21,7 +21,7 @@ module OptionsTrader
         dividend_yield: 0.0
       )
         # Use daily timetimesteps by default (252 trading days per year)
-        timesteps ||= [1, (time_to_expiry * 252).round].max
+        timesteps ||= [1, (time_to_expiry * 365).round].max
         # Calculate CRR parameters
         dt = time_to_expiry / timesteps.to_f
         u = Math.exp(volatility * Math.sqrt(dt))

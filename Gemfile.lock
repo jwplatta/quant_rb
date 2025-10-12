@@ -259,7 +259,7 @@ PLATFORMS
 
 DEPENDENCIES
   activerecord (~> 8.0)
-  aws-sdk-s3
+  aws-sdk-s3 (~> 1)
   clockwork
   dotenv
   factory_bot (~> 6.5)

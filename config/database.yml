@@ -15,7 +15,11 @@ production:
 
 development:
   <<: *default
-  database: <%= ENV['DATABASE_NAME'] || 'options_trader_db_dev' %>
+  database: <%= ENV['DATABASE_NAME_DEV'] || 'options_trader_db' %>
+  username: <%= ENV['DATABASE_USER_DEV'] || 'postgres' %>
+  password: <%= ENV['DATABASE_PASSWORD_DEV'] %>
+  host: <%= ENV['DATABASE_HOST_DEV'] || 'localhost' %>
+  port: <%= ENV['DATABASE_PORT_DEV'] || 5432 %>
 
 test:
   adapter: postgresql

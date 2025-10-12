@@ -43,24 +43,22 @@ module OptionsTrader
     end
 
     def self.for_underlying_at_bitemporal_time(underlying_symbol, at_time = Time.current)
-      # Use a subquery to get the latest record for each symbol as of the specified time
       subquery = for_underlying(underlying_symbol)
         .where('valid_time <= ?', at_time)
         .where('transaction_time <= ?', at_time)
         .select('DISTINCT ON (symbol) *')
         .order(:symbol, valid_time: :desc, transaction_time: :desc)
 
-      # PostgreSQL requires an alias for subqueries used in FROM
       from("(#{subquery.to_sql}) AS option_chain_history")
         .order(:expiration_date, :strike, :contract_type)
     end
 
     def call?
-      contract_type == OptionsTrader::CALL
+      contract_type == 'CALL'
     end
 
     def put?
-      contract_type == OptionsTrader::PUT
+      contract_type == 'PUT'
     end
 
     def in_the_money?(underlying_price)
@@ -127,6 +125,34 @@ module OptionsTrader
     def price_range_percentage
       return nil unless high_price && low_price && low_price > 0
       ((high_price - low_price) / low_price) * 100
+    end
+
+    def self.fetch_with_locf(expiration_date:, underlying_symbol:, end_time:, window_minutes: 5)
+      window_start = Time.parse(end_time.to_s) - (window_minutes * 60)
+
+      sql = <<-SQL
+        SELECT DISTINCT ON (symbol)
+          symbol,
+          strike,
+          contract_type,
+          expiration_date,
+          mark,
+          underlying_price,
+          volume,
+          open_price,
+          close_price,
+          high_price,
+          low_price,
+          valid_time
+        FROM option_chain_history
+        WHERE expiration_date = '#{expiration_date}'
+          AND valid_time > '#{window_start}'
+          AND valid_time <= '#{end_time}'
+          AND mark > 0
+        ORDER BY symbol, valid_time DESC;
+      SQL
+
+      connection.execute(sql)
     end
   end
 end

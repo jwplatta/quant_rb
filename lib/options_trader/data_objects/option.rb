@@ -9,7 +9,7 @@ module OptionsTrader
         mark:,
         underlying_price:,
         expiration_date:,
-        days_to_expiration:,
+        days_to_expiration: 0,
         delta: nil,
         gamma: nil,
         theta: nil,
@@ -20,7 +20,12 @@ module OptionsTrader
         expiration_type: nil,
         settlement_type: nil,
         option_root: nil,
-        in_the_money: false
+        in_the_money: false,
+        open: nil,
+        high: nil,
+        low: nil,
+        close: nil,
+        timestamp: nil
       )
         @symbol = symbol
         @underlying_symbol = underlying_symbol
@@ -41,13 +46,18 @@ module OptionsTrader
         @settlement_type = settlement_type
         @option_root = option_root
         @in_the_money = in_the_money
+        @open = open
+        @high = high
+        @low = low
+        @close = close
+        @timestamp = timestamp
       end
 
-      attr_accessor :delta, :gamma, :theta, :vega, :rho
+      attr_accessor :delta, :gamma, :theta, :vega, :rho, :mark
 
-      attr_reader :symbol, :underlying_symbol, :strike, :put_call, :mark, :underlying_price,
+      attr_reader :symbol, :underlying_symbol, :strike, :put_call, :underlying_price,
         :expiration_date, :days_to_expiration, :open_interest, :total_volume, :expiration_type,
-        :settlement_type, :option_root, :in_the_money
+        :settlement_type, :option_root, :in_the_money, :open, :high, :low, :close, :timestamp
     end
   end
 end
