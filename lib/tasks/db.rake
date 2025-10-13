@@ -12,31 +12,72 @@ namespace :db do
   task :create => :init do
     config = ActiveRecord::Base.connection_db_config.configuration_hash
     db_name = config[:database]
-    admin_config = config.merge(database: 'postgres')
+    username = config[:username]
+    admin_config = config.merge(database: 'postgres', username: ENV['USER'])
 
+    begin
+      ActiveRecord::Base.connection_pool.disconnect!
+      ActiveRecord::Base.establish_connection(admin_config)
+      ActiveRecord::Base.connection.create_database(db_name)
+      created = true
+      puts "Database '#{db_name}' created successfully"
+    rescue ActiveRecord::DatabaseAlreadyExists
+      puts "Database already exists"
+      created = false
+    end
+
+    # Always set comprehensive permissions regardless of whether database was just created or already existed
     ActiveRecord::Base.establish_connection(admin_config)
-    ActiveRecord::Base.connection.create_database(db_name)
+    
+    # Ensure user exists and has CREATEDB privilege (matching bash script)
+    begin
+      ActiveRecord::Base.connection.execute("CREATE USER #{username}")
+    rescue ActiveRecord::StatementInvalid => e
+      # User already exists, that's fine
+    end
+    ActiveRecord::Base.connection.execute("ALTER USER #{username} CREATEDB")
+    
+    # Grant database-level privileges
+    ActiveRecord::Base.connection.execute("GRANT ALL PRIVILEGES ON DATABASE #{db_name} TO #{username}")
 
-    puts "Database '#{db_name}' created successfully"
-  rescue ActiveRecord::DatabaseAlreadyExists
-    puts "Database already exists"
+    # Connect to target database and grant schema-level privileges
+    db_config = config.merge(database: db_name, username: ENV['USER'])
+    ActiveRecord::Base.establish_connection(db_config)
+    ActiveRecord::Base.connection.execute("GRANT ALL PRIVILEGES ON SCHEMA public TO #{username}")
+    ActiveRecord::Base.connection.execute("GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO #{username}")
+    ActiveRecord::Base.connection.execute("GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO #{username}")
+    ActiveRecord::Base.connection.execute("GRANT ALL PRIVILEGES ON ALL FUNCTIONS IN SCHEMA public TO #{username}")
+    ActiveRecord::Base.connection.execute("ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO #{username}")
+    ActiveRecord::Base.connection.execute("ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO #{username}")
+    ActiveRecord::Base.connection.execute("ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON FUNCTIONS TO #{username}")
+
+    puts "Comprehensive permissions granted to #{username}"
   end
 
   desc "Run database migrations"
   task :migrate => :init do
     ActiveRecord::Base.connection_pool.disconnect!
+    # Ensure we're connected to the correct database for migrations
+    config = ActiveRecord::Base.connection_db_config.configuration_hash
+    ActiveRecord::Base.establish_connection(config)
     ActiveRecord::MigrationContext.new("db/migrate").migrate
     puts "Database migrated successfully"
   end
 
   desc "Rollback the last migration"
   task :rollback => :init do
+    ActiveRecord::Base.connection_pool.disconnect!
+    config = ActiveRecord::Base.connection_db_config.configuration_hash
+    ActiveRecord::Base.establish_connection(config)
     ActiveRecord::MigrationContext.new("db/migrate").rollback
     puts "Last migration rolled back"
   end
 
   desc "Rollback the last migration manually"
   task :rollback_manual => :init do
+    ActiveRecord::Base.connection_pool.disconnect!
+    config = ActiveRecord::Base.connection_db_config.configuration_hash
+    ActiveRecord::Base.establish_connection(config)
     # Get the last migration version
     result = ActiveRecord::Base.connection.execute(
       "SELECT version FROM schema_migrations ORDER BY version DESC LIMIT 1"
@@ -60,13 +101,15 @@ namespace :db do
 
   desc "Drop database"
   task :drop => :init do
-    # Get the current database configuration from ActiveRecord
     config = ActiveRecord::Base.connection_db_config.configuration_hash
     db_name = config[:database]
-    admin_config = config.merge(database: 'postgres')
+    # For admin operations, connect to 'postgres' system database instead of the target database
+    admin_config = config.merge(database: 'postgres', username: ENV['USER'])
 
+    ActiveRecord::Base.connection_pool.disconnect!
     ActiveRecord::Base.establish_connection(admin_config)
     ActiveRecord::Base.connection.drop_database(db_name)
+    ActiveRecord::Base.connection_pool.disconnect!
 
     puts "Database dropped successfully"
   end
@@ -204,7 +247,13 @@ namespace :db do
 
   desc "Reset backtest database (for external PostgreSQL on port 6543)"
   task :reset_backtest do
-    db_data_dir = ENV['BACKTEST_DB_DATA_DIR'] || '/Volumes/ext_docs/options_trader/db'
+    db_data_dir = ENV['DATABASE_DATA_DIR_DEV'] || File.expand_path('~/.options_trader/db')
+
+    unless db_data_dir && !db_data_dir.strip.empty?
+      puts "Error: Please set DATABASE_DATA_DIR_DEV environment variable to the PostgreSQL data directory"
+      puts "Example: export DATABASE_DATA_DIR_DEV='/path/to/your/data_directory'"
+      exit 1
+    end
 
     puts "Backtest Database Reset"
     puts "=" * 50
