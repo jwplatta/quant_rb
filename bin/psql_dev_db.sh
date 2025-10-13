@@ -5,7 +5,7 @@
 
 set -e  # Exit on any error
 
-DB_DATA_DIR='/Volumes/ext_docs/options_trader/db'
+DB_DATA_DIR='/Users/jplatta/.options_trader/db'
 DATABASE_NAME='options_trader_db'
 DATABASE_USER='options_trader'
 DATABASE_HOST='localhost'
@@ -13,9 +13,9 @@ DATABASE_PORT=6543
 
 echo "Connecting to backtest database..."
 
-if [ ! -d "/Volumes/ext_docs/options_trader" ]; then
-    echo "Error: External volume path /Volumes/ext_docs/options_trader does not exist"
-    echo "Please ensure the external drive is mounted"
+if [ ! -d "$DB_DATA_DIR" ]; then
+    echo "Error: Database data directory $DB_DATA_DIR does not exist"
+    echo "Please ensure the database is created"
     exit 1
 fi
 
@@ -37,5 +37,4 @@ echo "Host: $DATABASE_HOST"
 echo "Port: $DATABASE_PORT"
 echo "User: $DATABASE_USER"
 
-# Connect to the database
 psql -h "$DATABASE_HOST" -p "$DATABASE_PORT" -d "$DATABASE_NAME" -U "$DATABASE_USER"
