@@ -84,58 +84,74 @@ namespace :db do
     end
   end
 
-  desc "Reindex a specific table"
-  task :reindex_table, [:table_name] => :init do |t, args|
+  desc "Reindex individual indexes one at a time"
+  task :reindex, [:table_name] => :init do |t, args|
     table_name = args[:table_name]
 
     unless table_name
       puts "Error: Please provide a table name"
-      puts "Usage: rake db:reindex_table[table_name]"
+      puts "Usage: rake db:reindex_individual[table_name]"
       exit 1
     end
 
-    puts "Reindexing table: #{table_name}"
-    puts "Analyzing table size and indexes before reindex..."
-
-    # Get table size info
-    size_query = <<-SQL
-      SELECT
-        pg_size_pretty(pg_total_relation_size('#{table_name}')) as total_size,
-        pg_size_pretty(pg_relation_size('#{table_name}')) as table_size,
-        pg_size_pretty(pg_indexes_size('#{table_name}')) as indexes_size
-    SQL
-
-    size_info = ActiveRecord::Base.connection.execute(size_query).first
-    puts "  Table size: #{size_info['table_size']}"
-    puts "  Indexes size: #{size_info['indexes_size']}"
-    puts "  Total size: #{size_info['total_size']}"
-
-    # Get row count
-    count_query = "SELECT COUNT(*) as count FROM #{table_name}"
-    row_count = ActiveRecord::Base.connection.execute(count_query).first['count']
-    puts "  Row count: #{row_count.to_s.reverse.gsub(/(\d{3})(?=\d)/, '\\1,').reverse}"
-
-    # Get index count
     index_query = <<-SQL
-      SELECT COUNT(*) as count
+      SELECT
+        indexname,
+        pg_size_pretty(pg_relation_size(indexname::regclass)) as size
       FROM pg_indexes
       WHERE tablename = '#{table_name}'
+      ORDER BY pg_relation_size(indexname::regclass) DESC
     SQL
-    index_count = ActiveRecord::Base.connection.execute(index_query).first['count']
-    puts "  Index count: #{index_count}"
 
-    puts "\nEstimated time: ~#{(row_count.to_i / 100000.0 * index_count.to_i).round(1)} minutes (rough estimate)"
-    puts "\nStarting reindex..."
+    indexes = ActiveRecord::Base.connection.execute(index_query)
 
-    start_time = Time.now
-    begin
-      ActiveRecord::Base.connection.execute("REINDEX TABLE #{table_name}")
-      elapsed = Time.now - start_time
-      puts "✓ Successfully reindexed #{table_name} in #{elapsed.round(2)} seconds"
-    rescue => e
-      puts "✗ Error: #{e.message}"
-      exit 1
+    puts "Indexes for #{table_name} (largest first):"
+    indexes.each_with_index do |idx, i|
+      puts "  #{i+1}. #{idx['indexname']} (#{idx['size']})"
     end
+
+    puts "\nChoose indexes to reindex:"
+    puts "  a) All indexes"
+    puts "  s) Select specific indexes"
+    puts "  1-#{indexes.count}) Individual index number"
+    print "Choice: "
+
+    choice = STDIN.gets.chomp.downcase
+
+    selected_indexes = case choice
+    when 'a'
+      indexes
+    when 's'
+      puts "Enter index numbers (comma-separated, e.g., 1,3,5):"
+      selected_nums = STDIN.gets.chomp.split(',').map(&:strip).map(&:to_i)
+      selected_nums.map { |num| indexes[num-1] }.compact
+    else
+      num = choice.to_i
+      if num > 0 && num <= indexes.count
+        [indexes[num-1]]
+      else
+        puts "Invalid choice"
+        exit 1
+      end
+    end
+
+    puts "\nReindexing #{selected_indexes.count} indexes..."
+
+    selected_indexes.each_with_index do |idx, i|
+      index_name = idx['indexname']
+      puts "\n[#{i+1}/#{selected_indexes.count}] Reindexing #{index_name} (#{idx['size']})..."
+
+      start_time = Time.now
+      begin
+        ActiveRecord::Base.connection.execute("REINDEX INDEX #{index_name}")
+        elapsed = Time.now - start_time
+        puts "✓ Completed #{index_name} in #{elapsed.round(2)} seconds"
+      rescue => e
+        puts "✗ Error on #{index_name}: #{e.message}"
+      end
+    end
+
+    puts "\n✓ Individual reindex completed"
   end
 
   desc "Show table size and index information"
@@ -269,5 +285,38 @@ namespace :db do
     puts ""
     puts "To use this database, run commands with:"
     puts "  RAILS_ENV=development RACK_ENV=development"
+  end
+
+  desc "Generate a new migration file"
+  task :migration, [:name] do |t, args|
+    name = args[:name]
+    unless name
+      puts "Usage: rake db:migration[name]"
+      exit 1
+    end
+
+    # Validate migration name to prevent SQL injection and ensure valid Ruby class names
+    unless name.match?(/\A[a-zA-Z_][a-zA-Z0-9_]*\z/)
+      puts "Error: Invalid migration name. Use only letters, numbers, and underscores."
+      puts "Migration names must start with a letter or underscore."
+      exit 1
+    end
+
+    timestamp = Time.now.strftime("%Y%m%d%H%M%S")
+    filename = "#{timestamp}_#{name.downcase}.rb"
+    filepath = "db/migrate/#{filename}"
+
+    class_name = name.split('_').map(&:capitalize).join
+
+    migration_content = <<~RUBY
+      class #{class_name} < ActiveRecord::Migration[8.0]
+        def change
+          # Add your migration code here
+        end
+      end
+    RUBY
+
+    File.write(filepath, migration_content)
+    puts "Created migration: #{filepath}"
   end
 end
