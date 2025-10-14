@@ -85,6 +85,7 @@ module OptionsTrader
 
   # Require models
   require_relative "options_trader/models/option_chain_history"
+  require_relative "options_trader/models/price_history"
 
   # Require indicators
   require_relative "options_trader/indicators/greeks"
