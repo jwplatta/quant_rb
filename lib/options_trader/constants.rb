@@ -13,6 +13,8 @@ module OptionsTrader
     ONE_MIN = '1min'.freeze
     FIVE_MIN = '5min'.freeze
     TEN_MIN = '10min'.freeze
+    FIFTEEN_MIN = '15min'.freeze
+    THIRTY_MIN = '30min'.freeze
     DAILY = 'daily'.freeze
     HOURLY = 'hourly'.freeze
     WEEKLY = 'weekly'.freeze
