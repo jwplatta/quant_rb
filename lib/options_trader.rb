@@ -39,6 +39,7 @@ module OptionsTrader
   # Require services
   require_relative "options_trader/services/markets"
   require_relative "options_trader/services/historical_markets"
+  require_relative "options_trader/services/schwab_exporter"
   require_relative "options_trader/services/polygon_importer"
   require_relative "options_trader/services/historical_snapshot"
 
