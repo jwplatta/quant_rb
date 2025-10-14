@@ -20,7 +20,21 @@ module OptionsTrader
     WEEKLY = 'weekly'.freeze
     MONTHLY = 'monthly'.freeze
     YEARLY = 'yearly'.freeze
+
+    ALL_INTERVALS = [
+      ONE_MIN,
+      FIVE_MIN,
+      TEN_MIN,
+      FIFTEEN_MIN,
+      THIRTY_MIN,
+      HOURLY,
+      DAILY,
+      WEEKLY,
+      MONTHLY,
+      YEARLY
+    ]
   end
+
 
   COX_ROSS_RUBINSTEIN = 'CoxRossRubinstein'.freeze
   BLACK_SCHOLES = 'BlackScholes'.freeze
