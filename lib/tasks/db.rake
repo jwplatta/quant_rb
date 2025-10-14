@@ -5,7 +5,7 @@ namespace :db do
   desc "Initialize database connection"
   task :init do
     require_relative '../../config/environment'
-    puts "Database connection initialized"
+    puts "Connected to #{ActiveRecord::Base.connection_db_config.configuration_hash}"
   end
 
   desc "Create database"
@@ -22,25 +22,21 @@ namespace :db do
       created = true
       puts "Database '#{db_name}' created successfully"
     rescue ActiveRecord::DatabaseAlreadyExists
-      puts "Database already exists"
+      puts "Database '#{db_name}' already exists"
       created = false
     end
 
-    # Always set comprehensive permissions regardless of whether database was just created or already existed
     ActiveRecord::Base.establish_connection(admin_config)
-    
-    # Ensure user exists and has CREATEDB privilege (matching bash script)
+
     begin
       ActiveRecord::Base.connection.execute("CREATE USER #{username}")
     rescue ActiveRecord::StatementInvalid => e
       # User already exists, that's fine
     end
     ActiveRecord::Base.connection.execute("ALTER USER #{username} CREATEDB")
-    
-    # Grant database-level privileges
+
     ActiveRecord::Base.connection.execute("GRANT ALL PRIVILEGES ON DATABASE #{db_name} TO #{username}")
 
-    # Connect to target database and grant schema-level privileges
     db_config = config.merge(database: db_name, username: ENV['USER'])
     ActiveRecord::Base.establish_connection(db_config)
     ActiveRecord::Base.connection.execute("GRANT ALL PRIVILEGES ON SCHEMA public TO #{username}")
@@ -57,7 +53,7 @@ namespace :db do
   desc "Run database migrations"
   task :migrate => :init do
     ActiveRecord::Base.connection_pool.disconnect!
-    # Ensure we're connected to the correct database for migrations
+
     config = ActiveRecord::Base.connection_db_config.configuration_hash
     ActiveRecord::Base.establish_connection(config)
     ActiveRecord::MigrationContext.new("db/migrate").migrate
@@ -103,7 +99,6 @@ namespace :db do
   task :drop => :init do
     config = ActiveRecord::Base.connection_db_config.configuration_hash
     db_name = config[:database]
-    # For admin operations, connect to 'postgres' system database instead of the target database
     admin_config = config.merge(database: 'postgres', username: ENV['USER'])
 
     ActiveRecord::Base.connection_pool.disconnect!
@@ -112,11 +107,6 @@ namespace :db do
     ActiveRecord::Base.connection_pool.disconnect!
 
     puts "Database dropped successfully"
-  end
-
-  desc "Reset database (drop, create, migrate)"
-  task :reset => [:drop, :create, :migrate] do
-    puts "Database reset completed"
   end
 
   desc "Load schema information"
@@ -210,7 +200,6 @@ namespace :db do
     puts "Table Information: #{table_name}"
     puts "=" * 50
 
-    # Get table size info
     size_query = <<-SQL
       SELECT
         pg_size_pretty(pg_total_relation_size('#{table_name}')) as total_size,
@@ -223,12 +212,10 @@ namespace :db do
     puts "Indexes size: #{size_info['indexes_size']}"
     puts "Total size: #{size_info['total_size']}"
 
-    # Get row count
     count_query = "SELECT COUNT(*) as count FROM #{table_name}"
     row_count = ActiveRecord::Base.connection.execute(count_query).first['count']
     puts "Row count: #{row_count.to_s.reverse.gsub(/(\d{3})(?=\d)/, '\\1,').reverse}"
 
-    # Get indexes
     index_query = <<-SQL
       SELECT
         indexname,
@@ -344,7 +331,6 @@ namespace :db do
       exit 1
     end
 
-    # Validate migration name to prevent SQL injection and ensure valid Ruby class names
     unless name.match?(/\A[a-zA-Z_][a-zA-Z0-9_]*\z/)
       puts "Error: Invalid migration name. Use only letters, numbers, and underscores."
       puts "Migration names must start with a letter or underscore."
