@@ -6,7 +6,6 @@ module OptionsTrader
       class Markets < Base
         def get_quote(symbol)
           validate_symbol(symbol)
-          # log_operation(:info, "Fetching quote for symbol: #{symbol}")
 
           handle_api_errors("get_quote") do
             client.get_quote(symbol, return_data_objects: true)
@@ -15,7 +14,6 @@ module OptionsTrader
 
         def get_quotes(symbols)
           symbols.each { |symbol| validate_symbol(symbol) }
-          # log_operation(:info, "Fetching quotes for symbols: #{symbols.join(', ')}")
 
           handle_api_errors("get_quotes") do
             client.get_quotes(symbols, return_data_objects: true)
@@ -31,10 +29,6 @@ module OptionsTrader
           days_to_expiration: nil
         )
           validate_symbol(symbol)
-          # log_operation(
-          #   :info,
-          #   "Fetching option chain for symbol: #{symbol} with contract_type: #{contract_type}, strike_range: #{strike_range}, from_date: #{from_date}, to_date: #{to_date}, days_to_expiration: #{days_to_expiration}"
-          # )
 
           kwargs = {
             contract_type: contract_type,
