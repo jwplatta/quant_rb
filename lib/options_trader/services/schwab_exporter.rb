@@ -63,6 +63,7 @@ module OptionsTrader
         end
 
         return if price_history.candles.empty?
+        price_history.candles.select! { |candle| candle.datetime.year == fetch_start.year }
 
         FileUtils.mkdir_p(folder_path) if !Dir.exist?(folder_path)
 
@@ -112,8 +113,8 @@ module OptionsTrader
           return
         end
 
-        day_start = Time.new(date.year, date.month, date.day, 16, 0, 0, '-04:00').to_datetime
-        day_end = Time.new(date.year, date.month, date.day, 9, 30, 0, '-04:00').to_datetime
+        day_start = Time.new(date.year, date.month, date.day, 9, 30, 0, '-04:00').to_datetime
+        day_end = Time.new(date.year, date.month, date.day, 16, 0, 0, '-04:00').to_datetime
 
         begin
           logger.info("Fetching price history for #{symbol} from #{day_start} to #{day_end}")
