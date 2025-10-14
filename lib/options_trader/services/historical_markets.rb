@@ -13,6 +13,10 @@ module OptionsTrader
           get_price_history_every_five_min(symbol: symbol, start_datetime: start_datetime, end_datetime: end_datetime)
         when OptionsTrader::Intervals::TEN_MIN
           get_price_history_every_ten_min(symbol: symbol, start_datetime: start_datetime, end_datetime: end_datetime)
+        when OptionsTrader::Intervals::FIFTEEN_MIN
+          get_price_history_every_fifteen_min(symbol: symbol, start_datetime: start_datetime, end_datetime: end_datetime)
+        when OptionsTrader::Intervals::THIRTY_MIN
+          get_price_history_every_thirty_min(symbol: symbol, start_datetime: start_datetime, end_datetime: end_datetime)
         when OptionsTrader::Intervals::DAILY
           get_price_history_everyday(symbol: symbol, start_datetime: start_datetime, end_datetime: end_datetime)
         end
