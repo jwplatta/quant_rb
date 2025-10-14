@@ -7,11 +7,12 @@ class CreatePriceHistory < ActiveRecord::Migration[8.0]
       t.decimal :high, precision: 10, scale: 2
       t.decimal :low, precision: 10, scale: 2
       t.integer :volume, null: false, default: 0
+      t.string :interval, null: false
       t.timestamp :valid_time, null: false, index: true
-      t.timestamp :transaction_time, null: false, default: -> { 'CURRENT_TIMESTAMP' }, index: true
+      t.timestamps null: false
     end
 
-    add_index :price_history, [:symbol, :valid_time]
+    add_index :price_history, [:symbol, :valid_time, :interval], unique: true, name: 'index_price_history_on_symbol_and_time_and_interval'
 
     add_check_constraint :price_history, 'open >= 0', name: 'positive_open'
     add_check_constraint :price_history, 'close >= 0', name: 'positive_close'
