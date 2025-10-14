@@ -6,8 +6,9 @@ module OptionsTrader
     class PolygonImporter
       include OptionsTrader::Loggable
 
+      SOURCE = 'polygon'.freeze
       BASE_DATA_PATH = '/Volumes/ext_docs/options_trader/polygon/minute_aggs_v1'
-      BATCH_SIZE = 500
+      BATCH_SIZE = 1000
 
       def initialize(root_symbol:, underlying_symbol:, year: nil, month: nil, day: nil)
         @root_symbol = root_symbol
@@ -153,7 +154,8 @@ module OptionsTrader
           low_price: parse_decimal(row['low']),
           volume: parse_integer(row['volume']),
           valid_time: valid_time,
-          transaction_time: Time.current
+          transaction_time: Time.current,
+          source: SOURCE
         }
 
         @batch << attributes
