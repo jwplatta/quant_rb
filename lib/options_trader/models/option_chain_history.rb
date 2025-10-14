@@ -14,6 +14,7 @@ module OptionsTrader
     validates :underlying_price, numericality: { greater_than: 0 }, allow_nil: true
     validates :expiration_type, inclusion: { in: %w[W S M Q] }, allow_nil: true
     validates :volatility, numericality: { greater_than_or_equal_to: 0 }, allow_nil: true
+    validates :source, presence: true
 
     scope :calls, -> { where(contract_type: OptionsTrader::CALL) }
     scope :puts, -> { where(contract_type: OptionsTrader::PUT) }
