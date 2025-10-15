@@ -1,4 +1,25 @@
+# Rake tasks for managing Polygon.io data import and analysis
+#
+# These tasks work with historical options data downloaded from Polygon.io
+# and stored in CSV format on the local filesystem.
 namespace :polygon do
+  # Import minute-level options aggregates data from local CSV files
+  #
+  # This task imports historical options data that has been previously downloaded
+  # from Polygon.io and stored in CSV format. The data is organized in a directory
+  # structure by date: BASE_DATA_PATH/YYYY/MM/DD/SYMBOL.csv
+  #
+  # @param root_symbol [String] Option root symbol (e.g., 'SPXW')
+  # @param underlying_symbol [String] Underlying asset symbol (e.g., 'SPX') 
+  # @param year [Integer] Year to import (optional)
+  # @param month [Integer] Month to import (optional)
+  # @param day [Integer] Day to import (optional)
+  #
+  # @example Import all available SPXW data
+  #   rake polygon:import[SPXW,SPX]
+  #
+  # @example Import specific date
+  #   rake polygon:import[SPXW,SPX,2023,10,6]
   desc "Import polygon minute aggregates data for a specific symbol"
   task :import, [:root_symbol, :underlying_symbol, :year, :month, :day] => :environment do |t, args|
     unless args[:root_symbol] && args[:underlying_symbol]
@@ -48,6 +69,16 @@ namespace :polygon do
     end
   end
 
+  # Display import status and statistics for option chain history data
+  #
+  # Shows overview of imported data including:
+  # - Total record count
+  # - Records by root symbol
+  # - Date range of available data  
+  # - Contract type breakdown (calls vs puts)
+  #
+  # @example
+  #   rake polygon:status
   desc "Show import status and statistics"
   task :status => :environment do
     puts "Polygon Import Status"
@@ -75,6 +106,17 @@ namespace :polygon do
     end
   end
 
+  # Download day-level aggregates for a date range from Polygon.io API
+  #
+  # Downloads daily aggregated options data directly from Polygon.io API
+  # and saves it to local CSV files. Requires POLYGON_FILES_PATH environment
+  # variable to specify the download directory.
+  #
+  # @param start_date [String] Start date in YYYY-MM-DD format
+  # @param end_date [String] End date in YYYY-MM-DD format
+  #
+  # @example Download Q4 2023 data
+  #   POLYGON_FILES_PATH=/path/to/data rake polygon:download_day_aggs[2023-10-01,2023-12-31]
   desc "Download day aggregates for a date range"
   task :download_day_aggs, [:start_date, :end_date] => :environment do |t, args|
     unless args[:start_date] && args[:end_date]
@@ -130,6 +172,17 @@ namespace :polygon do
     puts "Done"
   end
 
+  # Download minute-level aggregates for a date range from Polygon.io API
+  #
+  # Downloads minute-by-minute aggregated options data directly from Polygon.io API
+  # and saves it to local CSV files. This provides higher granularity than day aggregates.
+  # Requires POLYGON_FILES_PATH environment variable to specify the download directory.
+  #
+  # @param start_date [String] Start date in YYYY-MM-DD format
+  # @param end_date [String] End date in YYYY-MM-DD format
+  #
+  # @example Download a single week of minute data
+  #   POLYGON_FILES_PATH=/path/to/data rake polygon:download_min_aggs[2023-10-01,2023-10-07]
   desc "Download minute aggregates for a date range"
   task :download_min_aggs, [:start_date, :end_date] => :environment do |t, args|
     unless args[:start_date] && args[:end_date]
