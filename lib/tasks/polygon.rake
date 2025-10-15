@@ -130,7 +130,7 @@ namespace :polygon do
     puts "Done"
   end
 
-  desc "Download minute aggregates for a date range"  
+  desc "Download minute aggregates for a date range"
   task :download_min_aggs, [:start_date, :end_date] => :environment do |t, args|
     unless args[:start_date] && args[:end_date]
       puts "Usage: rake polygon:download_min_aggs[start_date,end_date]"
