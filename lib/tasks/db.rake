@@ -345,8 +345,12 @@ namespace :db do
 
     migration_content = <<~RUBY
       class #{class_name} < ActiveRecord::Migration[8.0]
-        def change
+        def up
           # Add your migration code here
+        end
+
+        def down
+          # Add your rollback code here
         end
       end
     RUBY
