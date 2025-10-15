@@ -3,13 +3,48 @@ require 'date'
 
 module OptionsTrader
   module Services
+    # Imports historical options data from Polygon.io minute aggregates CSV files
+    # into the OptionChainHistory table.
+    #
+    # The importer processes CSV files organized in a directory structure:
+    #   BASE_DATA_PATH/YYYY/MM/DD/SYMBOL.csv
+    #
+    # Each CSV file contains minute-level option aggregates with columns:
+    #   - ticker: Option symbol (e.g., "O:SPXW231006C04200000")
+    #   - window_start: Unix timestamp in nanoseconds
+    #   - open, close, high, low: Price data
+    #   - volume: Trading volume
+    #
+    # @example Import all available SPXW data
+    #   importer = PolygonImporter.new(root_symbol: 'SPXW', underlying_symbol: 'SPX')
+    #   importer.import!
+    #
+    # @example Import specific date
+    #   importer = PolygonImporter.new(
+    #     root_symbol: 'SPXW', 
+    #     underlying_symbol: 'SPX',
+    #     year: 2023, month: 10, day: 6
+    #   )
+    #   importer.import!
     class PolygonImporter
       include OptionsTrader::Loggable
 
+      # Data source identifier for imported records
       SOURCE = 'polygon'.freeze
+      
+      # Base path where Polygon minute aggregates CSV files are stored
       BASE_DATA_PATH = '/Volumes/ext_docs/options_trader/polygon/minute_aggs_v1'
+      
+      # Number of records to batch before database insert
       BATCH_SIZE = 1000
 
+      # Initialize a new Polygon importer
+      #
+      # @param root_symbol [String] Option root symbol (e.g., 'SPXW')
+      # @param underlying_symbol [String] Underlying asset symbol (e.g., 'SPX')
+      # @param year [Integer, nil] Specific year to import (optional)
+      # @param month [Integer, nil] Specific month to import (optional)
+      # @param day [Integer, nil] Specific day to import (optional)
       def initialize(root_symbol:, underlying_symbol:, year: nil, month: nil, day: nil)
         @root_symbol = root_symbol
         @underlying_symbol = underlying_symbol
@@ -22,6 +57,15 @@ module OptionsTrader
         @batch = []
       end
 
+      # Start the import process for the configured symbol and date range
+      #
+      # This method orchestrates the entire import workflow:
+      # 1. Validates the data path exists
+      # 2. Imports either a specific date or all available data
+      # 3. Flushes any remaining batched records
+      # 4. Logs import statistics
+      #
+      # @raise [StandardError] if data path doesn't exist or import fails
       def import!
         logger.info("Starting import for #{@root_symbol} (underlying: #{@underlying_symbol})")
 
@@ -39,16 +83,25 @@ module OptionsTrader
 
       private
 
+      # Validates that the base data path exists
+      #
+      # @raise [StandardError] if the data path doesn't exist
       def validate_data_path!
         unless Dir.exist?(BASE_DATA_PATH)
           raise "Data path does not exist: #{BASE_DATA_PATH}"
         end
       end
 
+      # Checks if user requested import for a specific date
+      #
+      # @return [Boolean] true if year, month, and day are all specified
       def specific_date_requested?
         @year && @month && @day
       end
 
+      # Imports data for a specific date by looking for the corresponding CSV file
+      #
+      # Expected file path: BASE_DATA_PATH/YYYY/MM/DD/ROOT_SYMBOL.csv
       def import_specific_date
         date_path = File.join(BASE_DATA_PATH, @year.to_s, sprintf('%02d', @month), sprintf('%02d', @day))
         csv_file = File.join(date_path, "#{@root_symbol}.csv")
@@ -60,6 +113,10 @@ module OptionsTrader
         end
       end
 
+      # Imports all available data by recursively scanning directory structure
+      #
+      # Walks through the directory tree: BASE_DATA_PATH/YYYY/MM/DD/
+      # and processes any CSV files matching the root symbol
       def import_all_available_data
         year_dirs = Dir.glob(File.join(BASE_DATA_PATH, '*')).select { |d| File.directory?(d) }
 
@@ -89,6 +146,10 @@ module OptionsTrader
         end
       end
 
+      # Processes a single CSV file and imports all valid option records
+      #
+      # @param csv_file [String] Path to the CSV file to process
+      # @param date [Date] Trading date for the data
       def import_csv_file(csv_file, date)
         logger.info("Importing #{csv_file} for #{date}")
 
@@ -106,6 +167,21 @@ module OptionsTrader
         logger.info("Processed #{row_count} rows from #{csv_file}")
       end
 
+      # Processes a single CSV row and adds it to the batch for database insertion
+      #
+      # This method:
+      # 1. Parses the option ticker symbol to extract contract details
+      # 2. Converts timestamps and price data to appropriate formats
+      # 3. Adds the record to the batch for bulk insertion
+      #
+      # Option ticker format: O:SPXW231006C04200000
+      # - O: prefix indicates options
+      # - SPXW: root symbol
+      # - 231006: expiration date (YYMMDD)
+      # - C: call option (P for put)
+      # - 04200000: strike price * 1000 (4200.0)
+      #
+      # @param row [CSV::Row] CSV row containing option data
       def import_row(row)
         # Parse ticker to extract option details
         ticker = row['ticker']
@@ -165,6 +241,10 @@ module OptionsTrader
         end
       end
 
+      # Safely parses a decimal value from CSV data
+      #
+      # @param value [String, nil] Raw value from CSV
+      # @return [BigDecimal, nil] Parsed decimal or nil if invalid
       def parse_decimal(value)
         return nil if value.nil? || value.to_s.strip.empty?
         BigDecimal(value.to_s)
@@ -172,11 +252,20 @@ module OptionsTrader
         nil
       end
 
+      # Safely parses an integer value from CSV data
+      #
+      # @param value [String, nil] Raw value from CSV
+      # @return [Integer, nil] Parsed integer or nil if invalid
       def parse_integer(value)
         return nil if value.nil? || value.to_s.strip.empty?
         value.to_i
       end
 
+      # Flushes the current batch of records to the database using bulk upsert
+      #
+      # This method uses ActiveRecord's upsert_all to handle duplicate records
+      # gracefully with ON CONFLICT DO NOTHING behavior. It also includes
+      # error handling for database corruption issues and performance logging.
       def flush_batch
         return if @batch.empty?
 
@@ -223,6 +312,7 @@ module OptionsTrader
         end
       end
 
+      # Logs a summary of the import operation with statistics
       def log_import_summary
         logger.info("Import completed for #{@root_symbol}")
         logger.info("Records imported: #{@imported_count}")
