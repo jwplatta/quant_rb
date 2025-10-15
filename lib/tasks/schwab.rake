@@ -64,6 +64,66 @@ namespace :schwab do
 
     puts "Exported to: #{out_path}"
   end
+
+  desc "Download price history to CSV file"
+  task :download_price_history, [:symbol, :start_date, :end_date, :interval] => :environment do |_t, args|
+    unless args[:symbol] && args[:start_date] && args[:interval]
+      puts "Missing required parameters. Usage:"
+      puts "rake schwab:download_price_history[SYMBOL,START_DATE,END_DATE,INTERVAL]"
+      puts "Example: rake schwab:download_price_history['$SPX','2023-09-26','2023-09-27','1min']"
+      exit 1
+    end
+
+    if args[:interval] != 'daily' && !args[:end_date]
+      puts "END_DATE is required for intervals other than 'daily'"
+      exit 1
+    end
+
+    valid_intervals = [
+      OptionsTrader::Intervals::ONE_MIN,
+      OptionsTrader::Intervals::FIVE_MIN,
+      OptionsTrader::Intervals::TEN_MIN,
+      OptionsTrader::Intervals::FIFTEEN_MIN,
+      OptionsTrader::Intervals::THIRTY_MIN,
+      OptionsTrader::Intervals::DAILY
+    ]
+
+    unless valid_intervals.include?(args[:interval])
+      puts "Invalid interval: #{args[:interval]}"
+      puts "Valid intervals: #{valid_intervals.join(', ')}"
+      exit 1
+    end
+
+    begin
+      start_date = Date.parse(args[:start_date])
+      end_date = Date.parse(args[:end_date]) if args[:interval] != 'daily'
+
+      if args[:interval] != 'daily' && start_date > end_date
+        puts "Start date must be before or equal to end date"
+        exit 1
+      end
+    rescue ArgumentError => e
+      puts "Invalid date format: #{e.message}"
+      puts "Please use format: YYYY-MM-DD"
+      exit 1
+    end
+
+    base_path = ENV['HISTORICAL_FLATFILES_PATH']
+    unless base_path
+      puts "HISTORICAL_FLATFILES_PATH environment variable not set"
+      exit 1
+    end
+
+    OptionsTrader::Services::SchwabExporter.export(
+      symbol: args[:symbol],
+      start_date: start_date,
+      end_date: end_date,
+      interval: args[:interval],
+      output_dir: base_path
+    )
+
+    puts "Export completed for #{args[:symbol]} from #{start_date} to #{end_date} at #{args[:interval]} interval."
+  end
 end
 
 def validate_account_names(client, accounts_arg)
