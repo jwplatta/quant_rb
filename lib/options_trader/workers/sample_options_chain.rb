@@ -74,11 +74,11 @@ module OptionsTrader
           mark: option.mark,
           last_price: option.last,
           underlying_price: underlying_price,
-          delta: round_to_2_decimal(option.delta),
-          theta: round_to_2_decimal(option.theta),
-          vega: round_to_2_decimal(option.vega),
-          gamma: round_to_2_decimal(option.gamma),
-          rho: round_to_2_decimal(option.rho),
+          delta: round_decimal(option.delta),
+          theta: round_decimal(option.theta),
+          vega: round_decimal(option.vega),
+          gamma: round_decimal(option.gamma),
+          rho: round_decimal(option.rho),
           open_interest: option.open_interest,
           volume: option.total_volume,
           bid_size: option.bid_size,
@@ -88,7 +88,7 @@ module OptionsTrader
           intrinsic_value: option.intrinsic_value,
           extrinsic_value: option.extrinsic_value,
           time_value: option.time_value,
-          volatility: round_to_2_decimal(option.volatility),
+          volatility: round_decimal(option.volatility),
           high_52_week: option.high_52_week,
           low_52_week: option.low_52_week,
           high_price: option.high_price,
@@ -100,9 +100,9 @@ module OptionsTrader
         }
       end
 
-      def round_to_2_decimal(value)
+      def round_decimal(value)
         return nil if value.nil?
-        value.round(2)
+        value.round(3)
       end
     end
   end
