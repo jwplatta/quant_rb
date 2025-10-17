@@ -82,6 +82,7 @@ module OptionsTrader
 
   # Require job workers
   require_relative "options_trader/workers/sample_options_chain"
+  require_relative "options_trader/workers/sample_spx_option_chain_9dte"
 
   # Require models
   require_relative "options_trader/models/option_chain_history"
