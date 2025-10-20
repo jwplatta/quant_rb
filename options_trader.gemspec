@@ -39,7 +39,7 @@ Gem::Specification.new do |spec|
   spec.add_runtime_dependency "pg", "~> 1.6"
   spec.add_runtime_dependency "pqueue", ">= 2.0"
   spec.add_runtime_dependency "rake", ">= 13.0"
-  spec.add_runtime_dependency "schwab_rb", "~> 0.3.8"
+  spec.add_runtime_dependency "schwab_rb", ">= 0.3.8", "< 0.5.0"
   spec.add_runtime_dependency "sidekiq", ">= 7.0"
   spec.add_runtime_dependency "sqlite3", "~> 2.1"
 
