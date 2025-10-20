@@ -60,7 +60,7 @@ module OptionsTrader
             - **Usage**: Use with optional topic parameter for specific help sections
             - **Topics**: 'trading', 'bots', 'strategies', 'setup'
 
-            ### 2. Find Strategy Tool  
+            ### 2. Find Strategy Tool
             Find options strategies using sophisticated search criteria.
             - **Description**: Discover iron condors, vertical spreads, and single options
             - **Strategy Types**: iron condor, vertical spreads (call/put), single options
@@ -81,7 +81,7 @@ module OptionsTrader
             # Find SPX iron condor expiring January 31st
             find_strategy_tool(
               strategy_type: "ironcondor",
-              underlying_symbol: "$SPX", 
+              underlying_symbol: "$SPX",
               option_root: "SPXW",
               expiration_date: "2025-01-31",
               min_credit: 100.0,
@@ -93,7 +93,7 @@ module OptionsTrader
               strategy_type: "vertical",
               contract_type: "CALL",
               underlying_symbol: "SPY",
-              option_root: "SPY", 
+              option_root: "SPY",
               expiration_date: "2025-02-07",
               min_credit: 50.0
             )
@@ -449,7 +449,7 @@ module OptionsTrader
             SCHWAB_API_KEY="your_app_key"
             SCHWAB_APP_SECRET="your_app_secret"
             SCHWAB_CALLBACK_URI="https://localhost:8443/callback"
-            TOKEN_PATH="./schwab_token.json"
+            SCHWAB_TOKEN_PATH="./schwab_token.json"
 
             # Account Configuration
             TRADING_BROKERAGE_ACCOUNT="your_account_number"

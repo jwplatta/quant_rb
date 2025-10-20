@@ -14,8 +14,8 @@ module OptionsTrader
           @client = SchwabRb::Auth.init_client_easy(
             ENV['SCHWAB_API_KEY'],
             ENV['SCHWAB_APP_SECRET'],
-            ENV['APP_CALLBACK_URL'],
-            ENV['TOKEN_PATH']
+            ENV['SCHWAB_APP_CALLBACK_URL'],
+            ENV['SCHWAB_TOKEN_PATH']
           )
         end
 
@@ -34,7 +34,7 @@ module OptionsTrader
         private
 
         def validate_environment
-          required_vars = %w[SCHWAB_API_KEY SCHWAB_APP_SECRET APP_CALLBACK_URL TOKEN_PATH]
+          required_vars = %w[SCHWAB_API_KEY SCHWAB_APP_SECRET SCHWAB_APP_CALLBACK_URL SCHWAB_TOKEN_PATH]
           missing_vars = required_vars.select { |var| ENV[var].nil? || ENV[var].empty? }
 
           unless missing_vars.empty?
