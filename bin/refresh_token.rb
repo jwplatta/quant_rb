@@ -6,12 +6,12 @@ require 'schwab_rb'
 
 Dotenv.load
 
-token_path = ENV['TOKEN_PATH']
+token_path = ENV['SCHWAB_TOKEN_PATH']
 puts "Token path: #{token_path}"
 
-SchwabRb::Auth.init_client_easy(
+client = SchwabRb::Auth.init_client_easy(
   ENV['SCHWAB_API_KEY'],
   ENV['SCHWAB_APP_SECRET'],
-  ENV['APP_CALLBACK_URL'],
+  ENV['SCHWAB_APP_CALLBACK_URL'],
   token_path
 )

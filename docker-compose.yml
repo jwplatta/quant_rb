@@ -15,10 +15,10 @@ services:
     environment:
       REDIS_URL: redis://redis:6379/0
       RACK_ENV: production
-      TOKEN_PATH: /app/.schwab/token.json
+      SCHWAB_TOKEN_PATH: /app/.schwab_rb/token.json
     volumes:
       - .:/app
-      - /Users/jplatta/.schwab/token.json:/app/.schwab/token.json
+      - /Users/jplatta/.schwab_rb/token.json:/app/.schwab_rb/token.json
     restart: unless-stopped
 
   clockwork:
@@ -32,8 +32,8 @@ services:
     environment:
       REDIS_URL: redis://redis:6379/0
       RACK_ENV: production
-      TOKEN_PATH: /app/.schwab/token.json
+      SCHWAB_TOKEN_PATH: /app/.schwab_rb/token.json
     volumes:
       - .:/app
-      - /Users/jplatta/.schwab/token.json:/app/.schwab/token.json
+      - /Users/jplatta/.schwab_rb/token.json:/app/.schwab_rb/token.json
     restart: unless-stopped
