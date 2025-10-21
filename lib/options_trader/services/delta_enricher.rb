@@ -83,12 +83,6 @@ module OptionsTrader
           if opt.days_to_expiration.nil?
             missing_features << "days_to_expiration missing for option at index #{idx} (strike: #{opt.strike})"
           end
-
-          moneyness_value = opt.has_feature?(:moneyness) ? opt.moneyness : opt.moneyness
-          if moneyness_value.nil?
-            missing_features << "moneyness missing for option at index #{idx} (strike: #{opt.strike})"
-          end
-
           if opt.mark.nil?
             missing_features << "mark missing for option at index #{idx} (strike: #{opt.strike})"
           end
@@ -106,9 +100,7 @@ module OptionsTrader
           if !opt.respond_to?(:vvix) || opt.vvix.nil?
             missing_features << "vvix missing for option at index #{idx} (strike: #{opt.strike})"
           end
-          if !opt.respond_to?(:skew) || opt.skew.nil?
-            missing_features << "skew missing for option at index #{idx} (strike: #{opt.strike})"
-          end
+          # skew is optional - not validated
         end
 
         unless missing_features.empty?
