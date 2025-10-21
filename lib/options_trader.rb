@@ -39,6 +39,9 @@ module OptionsTrader
   # Require predictors
   require_relative "options_trader/predictors/greek_forge"
 
+  # Require queries
+  require_relative "options_trader/queries/option_chain_with_features"
+
   # Require services
   require_relative "options_trader/services/markets"
   require_relative "options_trader/services/historical_markets"
