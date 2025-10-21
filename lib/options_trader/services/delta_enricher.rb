@@ -61,13 +61,13 @@ module OptionsTrader
           features: options.map do |opt|
             {
               dte: opt.days_to_expiration,
-              moneyness: opt.moneyness,
+              moneyness: opt.has_feature?(:moneyness) ? opt.moneyness : opt.moneyness,
               mark: opt.mark,
               strike: opt.strike,
               underlying_price: opt.underlying_price,
-              vix9d: opt.vix9d,
-              vvix: opt.vvix,
-              skew: opt.skew
+              vix9d: opt.respond_to?(:vix9d) ? opt.vix9d : nil,
+              vvix: opt.respond_to?(:vvix) ? opt.vvix : nil,
+              skew: opt.respond_to?(:skew) ? opt.skew : nil
             }
           end,
           version: 'latest',
@@ -83,9 +83,12 @@ module OptionsTrader
           if opt.days_to_expiration.nil?
             missing_features << "days_to_expiration missing for option at index #{idx} (strike: #{opt.strike})"
           end
-          if opt.moneyness.nil?
+
+          moneyness_value = opt.has_feature?(:moneyness) ? opt.moneyness : opt.moneyness
+          if moneyness_value.nil?
             missing_features << "moneyness missing for option at index #{idx} (strike: #{opt.strike})"
           end
+
           if opt.mark.nil?
             missing_features << "mark missing for option at index #{idx} (strike: #{opt.strike})"
           end
@@ -95,13 +98,15 @@ module OptionsTrader
           if opt.underlying_price.nil? || opt.underlying_price <= 0
             missing_features << "underlying_price missing or invalid for option at index #{idx} (strike: #{opt.strike})"
           end
-          if opt.vix9d.nil?
+
+          # Check for dynamic features
+          if !opt.respond_to?(:vix9d) || opt.vix9d.nil?
             missing_features << "vix9d missing for option at index #{idx} (strike: #{opt.strike})"
           end
-          if opt.vvix.nil?
+          if !opt.respond_to?(:vvix) || opt.vvix.nil?
             missing_features << "vvix missing for option at index #{idx} (strike: #{opt.strike})"
           end
-          if opt.skew.nil?
+          if !opt.respond_to?(:skew) || opt.skew.nil?
             missing_features << "skew missing for option at index #{idx} (strike: #{opt.strike})"
           end
         end

@@ -163,15 +163,15 @@ RSpec.describe OptionsTrader::Services::DeltaEnricher do
       end
     end
 
-    context 'when moneyness is missing' do
+    context 'when underlying_price is zero (causing moneyness calculation to fail)' do
       let(:options) do
-        [create_option(strike: 6000.0, put_call: 'CALL', underlying_price: 6000.0, moneyness: nil)]
+        [create_option(strike: 6000.0, put_call: 'CALL', underlying_price: 0.0)]
       end
 
-      it 'raises an error' do
+      it 'raises an error for invalid underlying_price' do
         expect {
           enricher.send(:validate_required_features, options, 'CALL')
-        }.to raise_error(OptionsTrader::Services::DeltaEnricher::Error, /moneyness missing/)
+        }.to raise_error(OptionsTrader::Services::DeltaEnricher::Error, /underlying_price missing or invalid/)
       end
     end
 
@@ -301,23 +301,24 @@ RSpec.describe OptionsTrader::Services::DeltaEnricher do
     moneyness: 1.0,
     delta: nil
   )
-    option = double('Option',
+    # Create a real Option object so we can use the dynamic feature system
+    option = OptionsTrader::DataObjects::Option.new(
+      symbol: "TEST#{strike}#{put_call[0]}",
+      underlying_symbol: '$SPX',
       strike: strike,
       put_call: put_call,
-      underlying_price: underlying_price,
-      days_to_expiration: days_to_expiration,
       mark: mark,
-      vix9d: vix9d,
-      vvix: vvix,
-      skew: skew,
-      moneyness: moneyness
+      underlying_price: underlying_price,
+      expiration_date: '2025-12-31',
+      days_to_expiration: days_to_expiration,
+      delta: delta
     )
 
-    allow(option).to receive(:delta=) do |value|
-      allow(option).to receive(:delta).and_return(value)
-    end
-
-    allow(option).to receive(:delta).and_return(delta)
+    # Set dynamic features using the new set_feature method
+    option.set_feature(:vix9d, vix9d) if vix9d
+    option.set_feature(:vvix, vvix) if vvix
+    option.set_feature(:skew, skew) if skew
+    option.set_feature(:moneyness, moneyness) if moneyness
 
     option
   end
