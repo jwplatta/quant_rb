@@ -59,7 +59,6 @@ module OptionsTrader
             contract_type: 'PUT',
             features: features
           )
-
           records = call_records + put_records
         else
           records = OptionChainHistory.fetch_with_locf(
@@ -73,6 +72,9 @@ module OptionsTrader
         # Step 2: Convert to arrays and extract underlying price
         call_opts, put_opts, underlying_price = partition_records(records)
 
+        # Step 2.5: Extract feature values from first record (all records have same feature values)
+        feature_values = extract_feature_values(records.first) if features.any?
+
         # Step 3: Generate target strikes if not provided
         target_strikes = generate_target_strikes(
           underlying_price, min_strike: min_strike, max_strike: max_strike
@@ -80,7 +82,7 @@ module OptionsTrader
 
         # Step 4: Build complete option arrays with synthetic options
         complete_calls, complete_puts = build_complete_option_arrays(
-          call_opts, put_opts, target_strikes, underlying_price, expiration_date
+          call_opts, put_opts, target_strikes, underlying_price, expiration_date, feature_values
         )
 
         # Step 5: Interpolate missing prices and enforce monotonicity
@@ -103,9 +105,24 @@ module OptionsTrader
         underlying_price = records.first&.dig('underlying_price')&.to_f
 
         options = records.map { |record| build_option_from_record(record) }
-        calls, puts = options.partition { |option| option.put_call == 'CALL' }
 
-        [calls, puts, underlying_price]
+        call_opts, put_opts = options.partition { |option| option.put_call == 'CALL' }
+
+        [call_opts, put_opts, underlying_price]
+      end
+
+      def extract_feature_values(record)
+        return {} if record.nil?
+
+        feature_hash = {}
+        record.each do |key, value|
+          # Skip standard option fields
+          next if %w[symbol strike contract_type expiration_date mark volume open_price
+                     close_price high_price low_price valid_time dte underlying_price moneyness].include?(key)
+          # Collect feature values (vix9d, vvix, skew, etc.)
+          feature_hash[key] = value&.to_f if value
+        end
+        feature_hash
       end
 
       def build_option_from_record(record)
@@ -140,8 +157,7 @@ module OptionsTrader
         record.each do |key, value|
           # Skip standard option fields
           next if %w[symbol strike contract_type expiration_date mark volume open_price
-                     close_price high_price low_price valid_time dte underlying_price].include?(key)
-
+                     close_price high_price low_price valid_time dte underlying_price moneyness].include?(key)
           # Set dynamic features (vix9d, vvix, skew, moneyness, etc.)
           option.set_feature(key, value&.to_f) if value
         end
@@ -187,7 +203,7 @@ module OptionsTrader
         strikes.sort
       end
 
-      def build_complete_option_arrays(calls, puts, target_strikes, underlying_price, expiration_date)
+      def build_complete_option_arrays(calls, puts, target_strikes, underlying_price, expiration_date, feature_values = nil)
         min_strike = target_strikes.min
         max_strike = target_strikes.max
         calls_by_strike = calls.index_by(&:strike)
@@ -205,7 +221,8 @@ module OptionsTrader
               contract_type: 'CALL',
               underlying_price: underlying_price,
               expiration_date: expiration_date,
-              mark: (strike == max_strike ? DEFAULT_MIN_MARK : nil)
+              mark: (strike == max_strike ? DEFAULT_MIN_MARK : nil),
+              feature_values: feature_values
             )
           end
 
@@ -217,7 +234,8 @@ module OptionsTrader
               contract_type: 'PUT',
               underlying_price: underlying_price,
               expiration_date: expiration_date,
-              mark: (strike == min_strike ? DEFAULT_MIN_MARK : nil)
+              mark: (strike == min_strike ? DEFAULT_MIN_MARK : nil),
+              feature_values: feature_values
             )
           end
         end
@@ -225,8 +243,8 @@ module OptionsTrader
         [complete_calls, complete_puts]
       end
 
-      def create_synthetic_option(strike:, contract_type:, underlying_price:, expiration_date:, mark: nil)
-        DataObjects::Option.new(
+      def create_synthetic_option(strike:, contract_type:, underlying_price:, expiration_date:, mark: nil, feature_values: nil)
+        option = DataObjects::Option.new(
           symbol: create_option_symbol(strike, contract_type, expiration_date),
           underlying_symbol: @symbol,
           strike: strike,
@@ -240,6 +258,14 @@ module OptionsTrader
           total_volume: 1,
           timestamp: @datetime
         )
+
+        if feature_values
+          feature_values.each do |key, value|
+            option.set_feature(key, value)
+          end
+        end
+
+        option
       end
 
       def create_option_symbol(strike, contract_type, expiration_date)
