@@ -45,6 +45,7 @@ module OptionsTrader
   require_relative "options_trader/services/schwab_exporter"
   require_relative "options_trader/services/polygon_importer"
   require_relative "options_trader/services/historical_snapshot"
+  require_relative "options_trader/services/delta_enricher"
 
   # Require schwab modules (needed by strategies)
   require_relative "options_trader/schwab/quoteable"
