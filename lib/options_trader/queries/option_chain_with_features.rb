@@ -10,9 +10,10 @@ module OptionsTrader
       # @param contract_type [String] 'CALL' or 'PUT'
       # @param features [Hash] Optional features hash (e.g., { vix9d: '$VIX9D', skew: '$SKEW' })
       # @param source [String] Data source filter (default: 'polygon')
+      # @param moneyness_filter [String, nil] Optional moneyness filter (default: '<= 1.01', nil to disable)
       # @return [Array<Hash>] Array of enriched option records
       def self.fetch(underlying_symbol:, expiration_date:, end_time:, window_minutes:,
-                     contract_type:, features: {}, source: 'polygon')
+                     contract_type:, features: {}, source: 'polygon', max_moneyness: 1.01)
 
         start_time = calculate_start_time(end_time, window_minutes)
 
@@ -23,14 +24,19 @@ module OptionsTrader
           start_time: start_time,
           contract_type: contract_type,
           features: features,
-          source: source
+          source: source,
+          max_moneyness: max_moneyness
         )
+
+        File.open('option_chain_with_features.sql', 'w') do |file|
+          file.write(sql)
+        end
 
         ActiveRecord::Base.connection.execute(sql).to_a
       end
 
       def self.build_sql(underlying_symbol:, expiration_date:, end_time:, start_time:,
-                         contract_type:, features:, source:)
+                         contract_type:, features:, source:, max_moneyness:)
         conn = ActiveRecord::Base.connection
 
         exp_date = conn.quote(expiration_date.to_s)
@@ -62,7 +68,7 @@ module OptionsTrader
               AND contract_type = #{contract}
               AND source = #{src}
             ORDER BY symbol, valid_time DESC
-          )
+          )#{features_cte(features, start_t, end_t)}
           SELECT
             options.symbol,
             options.strike,
@@ -79,8 +85,8 @@ module OptionsTrader
             underlying.close as underlying_price,
             #{moneyness_select(contract_type)} as moneyness#{feature_selects(features)}
           FROM options
-          #{underlying_join(underlying_symbol)}#{feature_joins(features)}
-          WHERE #{moneyness_where(contract_type)}
+          #{underlying_join(underlying_symbol)}#{features_join(features)}
+          #{moneyness_where_clause(contract_type, max_moneyness)}
           ORDER BY options.strike
         SQL
       end
@@ -103,21 +109,48 @@ module OptionsTrader
         end
       end
 
-      # REVIEW: we might want to make this optional
-      def self.moneyness_where(contract_type)
-        "#{moneyness_select(contract_type)} <= 1.01"
+      def self.moneyness_where_clause(contract_type, max_moneyness)
+        return '' if max_moneyness.nil?
+
+        "WHERE #{moneyness_select(contract_type)} <= #{max_moneyness}"
       end
 
       def self.feature_selects(features)
         return '' if features.empty?
 
-        features.map { |alias_name, _symbol| ",\n            #{alias_name}.close as #{alias_name}" }.join
+        features.map { |alias_name, _symbol| ",\n            features.#{alias_name}" }.join
       end
 
-      def self.feature_joins(features)
+      def self.features_cte(features, start_time, end_time)
         return '' if features.empty?
 
-        "\n" + features.map { |alias_name, symbol| lateral_join(alias_name, symbol) }.join("\n")
+        feature_symbols = features.values.map { |sym| "'#{sanitize_symbol(sym)}'" }.join(', ')
+
+        case_statements = features.map do |alias_name, symbol|
+          "MAX(CASE WHEN symbol = '#{sanitize_symbol(symbol)}' THEN close END) as #{alias_name}"
+        end.join(",\n      ")
+
+        <<~SQL.chomp
+          ,
+          features AS (
+            SELECT
+              #{case_statements}
+            FROM (
+              SELECT DISTINCT ON (symbol) symbol, close
+              FROM price_history
+              WHERE symbol IN (#{feature_symbols})
+                AND valid_time <= #{end_time}
+                AND valid_time > #{start_time}
+              ORDER BY symbol, valid_time DESC
+            ) latest
+          )
+        SQL
+      end
+
+      def self.features_join(features)
+        return '' if features.empty?
+
+        "\nCROSS JOIN features"
       end
 
       def self.underlying_join(underlying_symbol)
@@ -130,19 +163,6 @@ module OptionsTrader
             ORDER BY valid_time DESC
             LIMIT 1
           ) underlying ON true
-        SQL
-      end
-
-      def self.lateral_join(alias_name, symbol)
-        <<~SQL.chomp
-          LEFT JOIN LATERAL (
-            SELECT close, valid_time
-            FROM price_history
-            WHERE symbol = '#{sanitize_symbol(symbol)}'
-              AND valid_time <= options.valid_time
-            ORDER BY valid_time DESC
-            LIMIT 1
-          ) #{alias_name} ON true
         SQL
       end
 
