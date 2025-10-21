@@ -5,6 +5,8 @@ require 'json'
 module OptionsTrader
   module Predictors
     class GreekForge
+      include OptionsTrader::Loggable
+
       class Error < OptionsTrader::Error; end
       class ConnectionError < Error; end
       class PredictionError < Error; end
@@ -13,11 +15,10 @@ module OptionsTrader
 
       attr_reader :host, :port, :scheme
 
-      def initialize(host: nil, port: nil, scheme: nil, logger: nil)
+      def initialize(host: nil, port: nil, scheme: nil)
         @host = host || OptionsTrader.configuration.greek_forge_host
         @port = port || OptionsTrader.configuration.greek_forge_port
         @scheme = scheme || OptionsTrader.configuration.greek_forge_scheme
-        @logger = logger || OptionsTrader.logger
       end
 
       def health(params: {}, headers: {})
@@ -75,7 +76,7 @@ module OptionsTrader
       end
 
       def perform_request(uri, req)
-        @logger.debug("GreekForge: HTTP #{req.method} #{uri}")
+        logger.debug("GreekForge: HTTP #{req.method} #{uri}")
 
         Net::HTTP.start(uri.host, uri.port, use_ssl: uri.scheme == 'https', read_timeout: 30) do |http|
           response = http.request(req)
@@ -85,29 +86,29 @@ module OptionsTrader
             parse_body(response)
           when Net::HTTPServiceUnavailable
             msg = "GreekForge service unavailable: #{response.body}"
-            @logger.error(msg)
+            logger.error(msg)
             raise ConnectionError, msg
           when Net::HTTPBadRequest, Net::HTTPUnprocessableEntity
             msg = "GreekForge prediction failed: #{response.body}"
-            @logger.error(msg)
+            logger.error(msg)
             raise PredictionError, msg
           else
             msg = "GreekForge HTTP #{response.code} #{response.message}: #{response.body}"
-            @logger.error(msg)
+            logger.error(msg)
             raise Error, msg
           end
         end
       rescue Net::OpenTimeout, Net::ReadTimeout => e
         msg = "GreekForge request timeout: #{e.message}"
-        @logger.error(msg)
+        logger.error(msg)
         raise TimeoutError, msg
       rescue SocketError, Errno::ECONNREFUSED, Errno::EHOSTUNREACH => e
         msg = "GreekForge connection failed (#{@host}:#{@port}): #{e.message}"
-        @logger.error(msg)
+        logger.error(msg)
         raise ConnectionError, msg
       rescue JSON::ParserError => e
         msg = "GreekForge invalid JSON response: #{e.message}"
-        @logger.error(msg)
+        logger.error(msg)
         raise InvalidResponseError, msg
       end
 
@@ -119,7 +120,7 @@ module OptionsTrader
           response.body
         end
       rescue JSON::ParserError
-        @logger.warn('GreekForge: Failed to parse JSON response; returning raw body')
+        logger.warn('GreekForge: Failed to parse JSON response; returning raw body')
         response.body
       end
     end
