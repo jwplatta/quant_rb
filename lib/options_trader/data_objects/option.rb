@@ -25,7 +25,8 @@ module OptionsTrader
         high: nil,
         low: nil,
         close: nil,
-        timestamp: nil
+        timestamp: nil,
+        **kwargs
       )
         @symbol = symbol
         @underlying_symbol = underlying_symbol
@@ -59,12 +60,39 @@ module OptionsTrader
         :expiration_date, :days_to_expiration, :open_interest, :total_volume, :expiration_type,
         :settlement_type, :option_root, :in_the_money, :open, :high, :low, :close, :timestamp
 
+      def call?
+        put_call == 'CALL'
+      end
+
+      def put?
+        put_call == 'PUT'
+      end
+
       def moneyness
         if call?
           underlying_price / strike.to_f
         else
           strike / underlying_price.to_f
         end
+      end
+
+      # Store and access dynamic features (e.g., vix9d, vvix, skew)
+      def set_feature(name, value)
+        @features ||= {}
+        @features[name.to_sym] = value
+
+        # Define singleton method for direct access
+        define_singleton_method(name.to_sym) do
+          @features[name.to_sym]
+        end
+      end
+
+      def features
+        @features || {}
+      end
+
+      def has_feature?(name)
+        @features&.key?(name.to_sym) || false
       end
     end
   end
