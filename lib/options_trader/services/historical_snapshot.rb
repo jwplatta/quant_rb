@@ -29,21 +29,46 @@ module OptionsTrader
 
         min_strike = kwargs[:min_strike]
         max_strike = kwargs[:max_strike]
+        features = kwargs[:features] || {}
 
-        generate_options_chain(expiration_date, window, min_strike, max_strike)
+        generate_options_chain(expiration_date, window, min_strike, max_strike, features)
       end
 
       private
 
-      def generate_options_chain(expiration_date, window, min_strike = nil, max_strike = nil)
+      def generate_options_chain(expiration_date, window, min_strike = nil, max_strike = nil, features = {})
         # Step 1: Fetch existing options using LOCF
+        # If features are requested, use the enriched query; otherwise use the basic query
 
-        records = OptionChainHistory.fetch_with_locf(
-          expiration_date: expiration_date,
-          underlying_symbol: @symbol,
-          end_time: @valid_time,
-          window_minutes: window
-        )
+        if features.any?
+          # Fetch CALLs and PUTs separately with enriched features
+          call_records = Queries::OptionChainWithFeatures.fetch(
+            underlying_symbol: @symbol,
+            expiration_date: expiration_date,
+            end_time: @valid_time,
+            window_minutes: window,
+            contract_type: 'CALL',
+            features: features
+          )
+
+          put_records = Queries::OptionChainWithFeatures.fetch(
+            underlying_symbol: @symbol,
+            expiration_date: expiration_date,
+            end_time: @valid_time,
+            window_minutes: window,
+            contract_type: 'PUT',
+            features: features
+          )
+
+          records = call_records + put_records
+        else
+          records = OptionChainHistory.fetch_with_locf(
+            expiration_date: expiration_date,
+            underlying_symbol: @symbol,
+            end_time: @valid_time,
+            window_minutes: window
+          )
+        end
 
         # Step 2: Convert to arrays and extract underlying price
         call_opts, put_opts, underlying_price = partition_records(records)
@@ -84,9 +109,14 @@ module OptionsTrader
       end
 
       def build_option_from_record(record)
-        days_to_expiration = (Date.parse(record['expiration_date']) - record['valid_time'].to_date).to_i
+        # Handle both enriched records (with 'dte') and basic records (calculate from dates)
+        days_to_expiration = if record['dte']
+                               record['dte'].to_i
+                             else
+                               (Date.parse(record['expiration_date']) - record['valid_time'].to_date).to_i
+                             end
 
-        DataObjects::Option.new(
+        option = DataObjects::Option.new(
           symbol: record['symbol'],
           underlying_symbol: @symbol,
           strike: record['strike'].to_i,
@@ -104,6 +134,19 @@ module OptionsTrader
           low: record.fetch('low_price', 0).to_f,
           timestamp: record['valid_time']
         )
+
+        # Store enriched features as dynamic attributes on the option object
+        # Features like vix9d, vvix, skew, moneyness will be accessible via opt.vix9d, etc.
+        record.each do |key, value|
+          # Skip standard option fields
+          next if %w[symbol strike contract_type expiration_date mark volume open_price
+                     close_price high_price low_price valid_time dte underlying_price].include?(key)
+
+          # Set dynamic features (vix9d, vvix, skew, moneyness, etc.)
+          option.set_feature(key, value&.to_f) if value
+        end
+
+        option
       end
 
       def generate_target_strikes(
@@ -154,7 +197,6 @@ module OptionsTrader
         complete_puts = []
 
         target_strikes.each do |strike|
-          # Handle calls
           if calls_by_strike[strike]
             complete_calls << calls_by_strike[strike]
           else
@@ -167,7 +209,6 @@ module OptionsTrader
             )
           end
 
-          # Handle puts
           if puts_by_strike[strike]
             complete_puts << puts_by_strike[strike]
           else

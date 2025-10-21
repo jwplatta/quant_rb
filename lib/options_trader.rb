@@ -36,12 +36,19 @@ module OptionsTrader
   require_relative "options_trader/data_providers/schwab/markets"
   require_relative "options_trader/data_providers/polygon/client"
 
+  # Require predictors
+  require_relative "options_trader/predictors/greek_forge"
+
+  # Require queries
+  require_relative "options_trader/queries/option_chain_with_features"
+
   # Require services
   require_relative "options_trader/services/markets"
   require_relative "options_trader/services/historical_markets"
   require_relative "options_trader/services/schwab_exporter"
   require_relative "options_trader/services/polygon_importer"
   require_relative "options_trader/services/historical_snapshot"
+  require_relative "options_trader/services/delta_enricher"
 
   # Require schwab modules (needed by strategies)
   require_relative "options_trader/schwab/quoteable"
