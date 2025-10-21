@@ -58,6 +58,14 @@ module OptionsTrader
       attr_reader :symbol, :underlying_symbol, :strike, :put_call, :underlying_price,
         :expiration_date, :days_to_expiration, :open_interest, :total_volume, :expiration_type,
         :settlement_type, :option_root, :in_the_money, :open, :high, :low, :close, :timestamp
+
+      def moneyness
+        if call?
+          underlying_price / strike.to_f
+        else
+          strike / underlying_price.to_f
+        end
+      end
     end
   end
 end
