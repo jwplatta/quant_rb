@@ -21,7 +21,7 @@ module OptionsTrader
     #
     # @example Import specific date
     #   importer = PolygonImporter.new(
-    #     root_symbol: 'SPXW', 
+    #     root_symbol: 'SPXW',
     #     underlying_symbol: 'SPX',
     #     year: 2023, month: 10, day: 6
     #   )
@@ -31,10 +31,11 @@ module OptionsTrader
 
       # Data source identifier for imported records
       SOURCE = 'polygon'.freeze
-      
+
       # Base path where Polygon minute aggregates CSV files are stored
+      # TODO: need to set this via configuration
       BASE_DATA_PATH = '/Volumes/ext_docs/options_trader/polygon/minute_aggs_v1'
-      
+
       # Number of records to batch before database insert
       BATCH_SIZE = 1000
 

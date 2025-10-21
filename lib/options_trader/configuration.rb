@@ -9,6 +9,7 @@ module OptionsTrader
     end
 
     attr_accessor :log_level, :log_file, :log_to_stdout
+    attr_accessor :greek_forge_host, :greek_forge_port, :greek_forge_scheme
 
     def accounts
       load_from_env_if_empty
@@ -20,6 +21,11 @@ module OptionsTrader
       @log_file = nil
       @log_to_stdout = true
       @accounts = {}
+
+      # Greek Forge configuration
+      @greek_forge_host = ENV['GREEK_FORGE_HOST'] || 'localhost'
+      @greek_forge_port = (ENV['GREEK_FORGE_PORT'] || '8000').to_i
+      @greek_forge_scheme = ENV['GREEK_FORGE_SCHEME'] || 'http'
     end
 
     def add_account(name, account_number)
