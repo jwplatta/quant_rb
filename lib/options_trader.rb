@@ -36,6 +36,9 @@ module OptionsTrader
   require_relative "options_trader/data_providers/schwab/markets"
   require_relative "options_trader/data_providers/polygon/client"
 
+  # Require predictors
+  require_relative "options_trader/predictors/greek_forge"
+
   # Require services
   require_relative "options_trader/services/markets"
   require_relative "options_trader/services/historical_markets"
