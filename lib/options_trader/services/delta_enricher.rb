@@ -15,7 +15,8 @@ module OptionsTrader
         enrich_calls(option_chain.call_opts, option_chain.underlying_price)
         enrich_puts(option_chain.put_opts, option_chain.underlying_price)
 
-        enforce_parity(option_chain.call_opts, option_chain.put_opts, option_chain.underlying_price)
+        # REVIEW: temporarily disabling because it causes monotonicity violations
+        # enforce_parity(option_chain.call_opts, option_chain.put_opts, option_chain.underlying_price)
 
         option_chain
       end
@@ -46,6 +47,15 @@ module OptionsTrader
         logger.debug("DeltaEnricher: Predicting deltas for #{options.size} PUT options")
 
         payload = build_payload(options, 'PUT')
+
+        # --- IGNORE ---
+        # File.open('put_delta_features.txt', 'w') do |f|
+        #   f << "dte,moneyness,mark,strike,underlying_price,vix9d,vvix\n"
+        #   payload[:features].each do |feat|
+        #     f << "#{feat[:dte]},#{feat[:moneyness]},#{feat[:mark]},#{feat[:strike]},#{feat[:underlying_price]},#{feat[:vix9d]},#{feat[:vvix]}\n"
+        #   end
+        # end
+
         result = @predictor.predict_deltas(payload)
 
         apply_deltas(options, result['predictions'])
@@ -66,8 +76,7 @@ module OptionsTrader
               strike: opt.strike,
               underlying_price: opt.underlying_price,
               vix9d: opt.respond_to?(:vix9d) ? opt.vix9d : nil,
-              vvix: opt.respond_to?(:vvix) ? opt.vvix : nil,
-              skew: opt.respond_to?(:skew) ? opt.skew : nil
+              vvix: opt.respond_to?(:vvix) ? opt.vvix : nil
             }
           end,
           version: 'latest',
@@ -93,14 +102,12 @@ module OptionsTrader
             missing_features << "underlying_price missing or invalid for option at index #{idx} (strike: #{opt.strike})"
           end
 
-          # Check for dynamic features
           if !opt.respond_to?(:vix9d) || opt.vix9d.nil?
             missing_features << "vix9d missing for option at index #{idx} (strike: #{opt.strike})"
           end
           if !opt.respond_to?(:vvix) || opt.vvix.nil?
             missing_features << "vvix missing for option at index #{idx} (strike: #{opt.strike})"
           end
-          # skew is optional - not validated
         end
 
         unless missing_features.empty?
