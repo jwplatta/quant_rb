@@ -48,7 +48,8 @@ module OptionsTrader
             end_time: @valid_time,
             window_minutes: window,
             contract_type: 'CALL',
-            features: features
+            features: features,
+            max_moneyness: 1.01
           )
 
           put_records = Queries::OptionChainWithFeatures.fetch(
@@ -57,7 +58,8 @@ module OptionsTrader
             end_time: @valid_time,
             window_minutes: window,
             contract_type: 'PUT',
-            features: features
+            features: features,
+            max_moneyness: 1.01
           )
           records = call_records + put_records
         else
@@ -70,7 +72,7 @@ module OptionsTrader
         end
 
         # Step 2: Convert to arrays and extract underlying price
-        call_opts, put_opts, underlying_price = partition_records(records)
+        call_opts, put_opts, underlying_price, dte = partition_records(records)
 
         # Step 2.5: Extract feature values from first record (all records have same feature values)
         feature_values = extract_feature_values(records.first) if features.any?
@@ -82,7 +84,7 @@ module OptionsTrader
 
         # Step 4: Build complete option arrays with synthetic options
         complete_calls, complete_puts = build_complete_option_arrays(
-          call_opts, put_opts, target_strikes, underlying_price, expiration_date, feature_values
+          call_opts, put_opts, target_strikes, underlying_price, dte, expiration_date, feature_values
         )
 
         # Step 5: Interpolate missing prices and enforce monotonicity
@@ -103,12 +105,13 @@ module OptionsTrader
 
       def partition_records(records)
         underlying_price = records.first&.dig('underlying_price')&.to_f
+        dte = records.first&.dig('dte')&.to_i
 
         options = records.map { |record| build_option_from_record(record) }
 
         call_opts, put_opts = options.partition { |option| option.put_call == 'CALL' }
 
-        [call_opts, put_opts, underlying_price]
+        [call_opts, put_opts, underlying_price, dte]
       end
 
       def extract_feature_values(record)
@@ -203,7 +206,7 @@ module OptionsTrader
         strikes.sort
       end
 
-      def build_complete_option_arrays(calls, puts, target_strikes, underlying_price, expiration_date, feature_values = nil)
+      def build_complete_option_arrays(calls, puts, target_strikes, underlying_price, dte, expiration_date, feature_values = nil)
         min_strike = target_strikes.min
         max_strike = target_strikes.max
         calls_by_strike = calls.index_by(&:strike)
@@ -220,6 +223,7 @@ module OptionsTrader
               strike: strike,
               contract_type: 'CALL',
               underlying_price: underlying_price,
+              days_to_expiration: dte,
               expiration_date: expiration_date,
               mark: (strike == max_strike ? DEFAULT_MIN_MARK : nil),
               feature_values: feature_values
@@ -233,6 +237,7 @@ module OptionsTrader
               strike: strike,
               contract_type: 'PUT',
               underlying_price: underlying_price,
+              days_to_expiration: dte,
               expiration_date: expiration_date,
               mark: (strike == min_strike ? DEFAULT_MIN_MARK : nil),
               feature_values: feature_values
@@ -243,7 +248,7 @@ module OptionsTrader
         [complete_calls, complete_puts]
       end
 
-      def create_synthetic_option(strike:, contract_type:, underlying_price:, expiration_date:, mark: nil, feature_values: nil)
+      def create_synthetic_option(strike:, contract_type:, underlying_price:, days_to_expiration:, expiration_date:, mark: nil, feature_values: nil)
         option = DataObjects::Option.new(
           symbol: create_option_symbol(strike, contract_type, expiration_date),
           underlying_symbol: @symbol,
@@ -252,7 +257,7 @@ module OptionsTrader
           mark: mark,
           underlying_price: underlying_price,
           expiration_date: expiration_date,
-          days_to_expiration: 0,
+          days_to_expiration: days_to_expiration,
           delta: nil,
           open_interest: 0,
           total_volume: 1,
