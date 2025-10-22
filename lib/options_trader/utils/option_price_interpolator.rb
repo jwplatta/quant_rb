@@ -17,7 +17,8 @@ module OptionsTrader
 
       def interpolate(options)
         # Create a copy to avoid modifying the original
-        working_options = options.map(&:dup)
+        # Use clone instead of dup to preserve singleton methods (e.g., dynamic features)
+        working_options = options.map(&:clone)
 
         working_options.each_with_index do |opt, idx|
           next unless opt.mark.nil?
