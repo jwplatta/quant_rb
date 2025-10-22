@@ -24,7 +24,8 @@ module OptionsTrader
 
       def enforce(options)
         # Create a copy of the options array to avoid modifying the original
-        working_options = options.map(&:dup).sort_by { |o| o.strike }
+        # Use clone instead of dup to preserve singleton methods (e.g., dynamic features)
+        working_options = options.map(&:clone).sort_by { |o| o.strike }
 
         iteration = 0
 
