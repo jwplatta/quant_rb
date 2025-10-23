@@ -128,7 +128,7 @@ module OptionsTrader
       ((high_price - low_price) / low_price) * 100
     end
 
-    def self.fetch_with_locf(expiration_date:, underlying_symbol:, end_time:, window_minutes: 5)
+    def self.fetch_with_locf(expiration_date:, underlying_symbol:, end_time:, window_minutes: 5, source: 'polygon')
       window_start = Time.parse(end_time.to_s) - (window_minutes * 60)
 
       sql = <<-SQL
@@ -150,6 +150,7 @@ module OptionsTrader
           AND valid_time > '#{window_start}'
           AND valid_time <= '#{end_time}'
           AND mark > 0
+          AND source = #{source}
         ORDER BY symbol, valid_time DESC;
       SQL
 
