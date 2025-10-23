@@ -18,6 +18,7 @@ RSpec.describe OptionsTrader::OptionChainHistory, type: :model do
 
   describe '5-minute time bucket queries' do
     let(:underlying_symbol) { '$SPX' }
+    let(:root_symbol) { 'SPXW' }
     let(:spx_call_symbol) { 'SPXW250810C06410' }
     let(:spx_put_symbol) { 'SPXW250810P06410' }
     let(:call_expiration) { Date.parse('2025-08-10') }
@@ -31,6 +32,7 @@ RSpec.describe OptionsTrader::OptionChainHistory, type: :model do
       # August 1st - 5-minute aligned timestamps
       described_class.create!(
         symbol: spx_call_symbol,
+        root_symbol: root_symbol,
         underlying_symbol: underlying_symbol,
         expiration_date: call_expiration,
         strike: call_strike,
@@ -39,11 +41,13 @@ RSpec.describe OptionsTrader::OptionChainHistory, type: :model do
         transaction_time: Time.parse('2025-08-01 09:45:00'),
         mark: 125.50, bid: 124.20, ask: 126.80, last_price: 125.00,
         underlying_price: 6532.15, delta: 0.64, theta: -2.47, vega: 8.95,
-        gamma: 0.0046, rho: 0.14, volume: 12
+        gamma: 0.0046, rho: 0.14, volume: 12,
+        source: 'polygon'
       )
 
       described_class.create!(
         symbol: spx_put_symbol,
+        root_symbol: root_symbol,
         underlying_symbol: underlying_symbol,
         expiration_date: call_expiration,
         strike: call_strike,
@@ -52,11 +56,13 @@ RSpec.describe OptionsTrader::OptionChainHistory, type: :model do
         transaction_time: Time.parse('2025-08-01 09:45:00'),
         mark: 126.75, bid: 125.50, ask: 127.00, last_price: 126.25,
         underlying_price: 6535.60, delta: -0.63, theta: -2.48, vega: 8.90,
-        gamma: 0.0045, rho: 0.15, volume: 18
+        gamma: 0.0045, rho: 0.15, volume: 18,
+        source: 'polygon'
       )
 
       described_class.create!(
         symbol: spx_call_symbol,
+        root_symbol: root_symbol,
         underlying_symbol: underlying_symbol,
         expiration_date: call_expiration,
         strike: call_strike,
@@ -65,11 +71,13 @@ RSpec.describe OptionsTrader::OptionChainHistory, type: :model do
         transaction_time: Time.parse('2025-08-01 10:00:00'),
         mark: 127.00, bid: 125.80, ask: 128.20, last_price: 126.50,
         underlying_price: 6538.92, delta: 0.65, theta: -2.46, vega: 8.92,
-        gamma: 0.0045, rho: 0.15, volume: 28
+        gamma: 0.0045, rho: 0.15, volume: 28,
+        source: 'polygon'
       )
 
       described_class.create!(
         symbol: spx_put_symbol,
+        root_symbol: root_symbol,
         underlying_symbol: underlying_symbol,
         expiration_date: call_expiration,
         strike: call_strike,
@@ -79,11 +87,13 @@ RSpec.describe OptionsTrader::OptionChainHistory, type: :model do
         mark: 128.50, bid: 127.30, ask: 129.70, last_price: 128.00,
         underlying_price: 6542.10, delta: -0.64, theta: -2.45,
         vega: 8.89, gamma: 0.0044, rho: 0.16,
-        volume: 35
+        volume: 35,
+        source: 'polygon'
       )
 
       described_class.create!(
         symbol: spx_call_symbol,
+        root_symbol: root_symbol,
         underlying_symbol: underlying_symbol,
         expiration_date: call_expiration,
         strike: call_strike,
@@ -92,11 +102,13 @@ RSpec.describe OptionsTrader::OptionChainHistory, type: :model do
         transaction_time: Time.parse('2025-08-01 10:05:00'),
         mark: 128.50, bid: 127.40, ask: 129.60, last_price: 128.25,
         underlying_price: 6544.33, delta: 0.66, theta: -2.44, vega: 8.88,
-        gamma: 0.0044, rho: 0.16, volume: 41
+        gamma: 0.0044, rho: 0.16, volume: 41,
+        source: 'polygon'
       )
 
       described_class.create!(
         symbol: spx_call_symbol,
+        root_symbol: root_symbol,
         underlying_symbol: underlying_symbol,
         expiration_date: call_expiration,
         strike: call_strike,
@@ -105,11 +117,13 @@ RSpec.describe OptionsTrader::OptionChainHistory, type: :model do
         transaction_time: Time.parse('2025-08-01 14:00:00'),
         mark: 130.25, bid: 129.10, ask: 131.40, last_price: 129.80,
         underlying_price: 6548.76, delta: 0.67, theta: -2.42, vega: 8.84,
-        gamma: 0.0043, rho: 0.17, volume: 58
+        gamma: 0.0043, rho: 0.17, volume: 58,
+        source: 'polygon'
       )
 
       described_class.create!(
         symbol: spx_call_symbol,
+        root_symbol: root_symbol,
         underlying_symbol: underlying_symbol,
         expiration_date: call_expiration,
         strike: call_strike,
@@ -118,12 +132,14 @@ RSpec.describe OptionsTrader::OptionChainHistory, type: :model do
         transaction_time: Time.parse('2025-08-01 14:05:00'),
         mark: 132.05, bid: 130.90, ask: 133.20, last_price: 131.60,
         underlying_price: 6552.41, delta: 0.68, theta: -2.40, vega: 8.81,
-        gamma: 0.0042, rho: 0.18, volume: 73
+        gamma: 0.0042, rho: 0.18, volume: 73,
+        source: 'polygon'
       )
 
       # August 4th data points
       described_class.create!(
         symbol: spx_call_symbol,
+        root_symbol: root_symbol,
         underlying_symbol: underlying_symbol,
         expiration_date: call_expiration,
         strike: call_strike,
@@ -132,11 +148,13 @@ RSpec.describe OptionsTrader::OptionChainHistory, type: :model do
         transaction_time: Time.parse('2025-08-04 09:30:00'),
         mark: 133.35, bid: 132.10, ask: 134.60, last_price: 133.00,
         underlying_price: 6548.92, delta: 0.67, theta: -2.38, vega: 8.76,
-        gamma: 0.0043, rho: 0.17, volume: 89, open_interest: 1245
+        gamma: 0.0043, rho: 0.17, volume: 89, open_interest: 1245,
+        source: 'polygon'
       )
 
       described_class.create!(
         symbol: spx_call_symbol,
+        root_symbol: root_symbol,
         underlying_symbol: underlying_symbol,
         expiration_date: call_expiration,
         strike: call_strike,
@@ -145,7 +163,8 @@ RSpec.describe OptionsTrader::OptionChainHistory, type: :model do
         transaction_time: Time.parse('2025-08-04 15:45:00'),
         mark: 137.00, bid: 135.80, ask: 138.20, last_price: 136.45,
         underlying_price: 6555.33, delta: 0.68, theta: -2.35, vega: 8.69,
-        gamma: 0.0042, rho: 0.18, volume: 112, open_interest: 1245
+        gamma: 0.0042, rho: 0.18, volume: 112, open_interest: 1245,
+        source: 'polygon'
       )
     end
 
