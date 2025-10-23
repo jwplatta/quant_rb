@@ -28,23 +28,6 @@ namespace :schwab do
     puts 'Token refreshed'
   end
 
-  desc 'List available accounts'
-  task :list_accounts => :environment do
-    accounts = schwab_client.available_accounts
-    if accounts.empty?
-      puts "No accounts configured. Please configure accounts using:"
-      puts "OptionsTrader.configure do |config|"
-      puts "  config.add_account('account_name', 'account_number')"
-      puts "end"
-    else
-      puts "Available accounts:"
-      accounts.each do |account_name|
-        account_number = OptionsTrader.account_number(account_name)
-        puts "  #{account_name}: #{account_number}"
-      end
-    end
-  end
-
   desc "Export Transactions by Order"
   task :export_transactions_by_order, [:account_names, :from_date, :to_date] => :environment do |_t, args|
     account_names = validate_account_names(schwab_client, args[:account_names])
