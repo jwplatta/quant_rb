@@ -16,11 +16,13 @@ module OptionsTrader
     scope :for_interval, ->(interval) { where(interval: interval) }
     scope :between_dates, ->(start_date, end_date) { where(valid_time: start_date..end_date) }
 
-    def self.latest_for_symbol(symbol, end_time, start_time = nil, interval = '5min')
-      query = for_symbol(symbol).where('valid_time <= ?', end_time)
-      query = query.where('valid_time > ?', start_time) if start_time
-      query = query.for_interval(interval) if interval
-      query.order(valid_time: :desc).first
+    def self.fetch_with_locf(symbol:, end_time:, window: 5, interval: '5min')
+      start_time = end_time - window.minutes
+      for_symbol(symbol)
+        .where('valid_time <= ?', end_time)
+        .where('valid_time > ?', start_time)
+        .where(interval: interval)
+        .order(valid_time: :desc).first
     end
 
     private
