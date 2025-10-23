@@ -71,7 +71,7 @@ module OptionsTrader
           features: options.map do |opt|
             {
               dte: opt.days_to_expiration,
-              moneyness: opt.has_feature?(:moneyness) ? opt.moneyness : opt.moneyness,
+              moneyness: opt.moneyness,
               mark: opt.mark,
               strike: opt.strike,
               underlying_price: opt.underlying_price,
