@@ -76,12 +76,10 @@ module OptionsTrader
         end
       end
 
-      # Store and access dynamic features (e.g., vix9d, vvix, skew)
       def set_feature(name, value)
         @features ||= {}
         @features[name.to_sym] = value
 
-        # Define singleton method for direct access
         define_singleton_method(name.to_sym) do
           @features[name.to_sym]
         end
