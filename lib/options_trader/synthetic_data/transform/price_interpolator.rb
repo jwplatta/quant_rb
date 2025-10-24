@@ -1,7 +1,7 @@
 module OptionsTrader
   module SyntheticData
-    module Utils
-      class OptionPriceInterpolator
+    module Transform
+      class PriceInterpolator
         # Interpolates and extrapolates option prices for options with nil marks
         # Returns a new array with interpolated prices
         #
