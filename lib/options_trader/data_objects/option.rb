@@ -26,6 +26,8 @@ module OptionsTrader
         low: nil,
         close: nil,
         timestamp: nil,
+        intrinsic: 0.0,
+        extrinsic: 0.0,
         **kwargs
       )
         @symbol = symbol
@@ -51,10 +53,12 @@ module OptionsTrader
         @high = high
         @low = low
         @close = close
+        @intrinsic = intrinsic
+        @extrinsic = extrinsic
         @timestamp = timestamp
       end
 
-      attr_accessor :delta, :gamma, :theta, :vega, :rho, :mark
+      attr_accessor :delta, :gamma, :theta, :vega, :rho, :mark, :intrinsic, :extrinsic
 
       attr_reader :symbol, :underlying_symbol, :strike, :put_call, :underlying_price,
         :expiration_date, :days_to_expiration, :open_interest, :total_volume, :expiration_type,
