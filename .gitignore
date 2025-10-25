@@ -16,3 +16,4 @@ pkg
 /options-trader-env
 *.json
 *.csv
+*.rdb
