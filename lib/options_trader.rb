@@ -102,7 +102,7 @@ module OptionsTrader
   # Require synthetic data pipeline
   require_relative "options_trader/synthetic_data/option_chain_pipeline"
   require_relative "options_trader/synthetic_data/transform/strike_adder"
-  require_relative "options_trader/synthetic_data/transform/price_interpolator"
+  require_relative "options_trader/synthetic_data/transform/linear_interpolator"
   require_relative "options_trader/synthetic_data/transform/monotonicity_enforcer"
 
   # Require MCP server
