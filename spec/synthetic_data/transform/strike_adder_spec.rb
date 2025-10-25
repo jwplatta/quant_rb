@@ -97,7 +97,7 @@ RSpec.describe OptionsTrader::SyntheticData::Transform::StrikeAdder do
 
         existing_call_5800 = result[:calls].find { |c| c.strike == 5800 }
         expect(existing_call_5800.mark).to eq(120.0)
-        expect(existing_call_5800.symbol).to eq(calls[0].symbol)
+        expect(existing_call_5800.symbol).to eq(call_opts[0].symbol)
 
         existing_put_5900 = result[:puts].find { |p| p.strike == 5900 }
         expect(existing_put_5900.mark).to eq(80.0)
