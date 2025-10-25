@@ -55,11 +55,11 @@ module OptionsTrader
     end
 
     def call?
-      contract_type == 'CALL'
+      contract_type == OptionsTrader::CALL
     end
 
     def put?
-      contract_type == 'PUT'
+      contract_type == OptionsTrader::PUT
     end
 
     def in_the_money?(underlying_price)
