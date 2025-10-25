@@ -1,6 +1,6 @@
 module OptionsTrader
-  CALL = 'call'.freeze
-  PUT = 'put'.freeze
+  CALL = 'CALL'.freeze
+  PUT = 'PUT'.freeze
   IRONCONDOR = 'ironcondor'.freeze
   VERTICAL = 'vertical'.freeze
   SINGLE = 'single'.freeze
