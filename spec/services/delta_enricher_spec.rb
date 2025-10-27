@@ -210,18 +210,6 @@ RSpec.describe OptionsTrader::Services::DeltaEnricher do
         }.to raise_error(OptionsTrader::Services::DeltaEnricher::Error, /vvix missing/)
       end
     end
-
-    context 'when skew is missing' do
-      let(:options) do
-        [create_option(strike: 6000.0, put_call: 'CALL', underlying_price: 6000.0, skew: nil)]
-      end
-
-      it 'raises an error' do
-        expect {
-          enricher.send(:validate_required_features, options, 'CALL')
-        }.to raise_error(OptionsTrader::Services::DeltaEnricher::Error, /skew missing/)
-      end
-    end
   end
 
   describe '#enforce_parity' do

@@ -24,6 +24,16 @@ require_relative '../lib/options_trader'
 require_relative '../config/environment'
 require 'factory_bot'
 
+# Run migrations on test database if needed
+# This ensures the test database schema is up to date before running tests
+begin
+  ActiveRecord::Migration.maintain_test_schema!
+rescue ActiveRecord::PendingMigrationError => e
+  puts "Running pending migrations on test database..."
+  ActiveRecord::MigrationContext.new("db/migrate").migrate
+  puts "Test database migrations complete"
+end
+
 # Load all factory definitions
 Dir[File.join(File.dirname(__FILE__), 'factories', '**', '*.rb')].each { |f| require f }
 

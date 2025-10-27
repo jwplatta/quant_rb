@@ -55,11 +55,11 @@ module OptionsTrader
     end
 
     def call?
-      contract_type == 'CALL'
+      contract_type == OptionsTrader::CALL
     end
 
     def put?
-      contract_type == 'PUT'
+      contract_type == OptionsTrader::PUT
     end
 
     def in_the_money?(underlying_price)
@@ -128,29 +128,46 @@ module OptionsTrader
       ((high_price - low_price) / low_price) * 100
     end
 
-    def self.fetch_with_locf(expiration_date:, underlying_symbol:, end_time:, window_minutes: 5)
-      window_start = Time.parse(end_time.to_s) - (window_minutes * 60)
+    def self.fetch_with_locf(expiration_date:, underlying_symbol:, end_time:, window: 5, source: 'polygon')
+      window_start = Time.parse(end_time.to_s) - (window * 60)
 
       sql = <<-SQL
-        SELECT DISTINCT ON (symbol)
-          symbol,
-          strike,
-          contract_type,
-          expiration_date,
-          mark,
-          underlying_price,
-          volume,
-          open_price,
-          close_price,
-          high_price,
-          low_price,
-          valid_time
-        FROM option_chain_history
-        WHERE expiration_date = '#{expiration_date}'
-          AND valid_time > '#{window_start}'
-          AND valid_time <= '#{end_time}'
-          AND mark > 0
-        ORDER BY symbol, valid_time DESC;
+        WITH options AS (
+          SELECT DISTINCT ON (symbol)
+            symbol,
+            strike,
+            contract_type,
+            expiration_date,
+            mark,
+            underlying_price,
+            volume,
+            open_price,
+            close_price,
+            high_price,
+            low_price,
+            valid_time
+          FROM option_chain_history
+          WHERE expiration_date = '#{expiration_date}'
+            AND valid_time > '#{window_start}'
+            AND valid_time <= '#{end_time}'
+            AND mark > 0
+            AND source = '#{source}'
+          ORDER BY symbol, valid_time DESC
+        )
+
+        SELECT
+          options.*,
+          underlying.close as underlying_price
+        FROM options
+        LEFT JOIN LATERAL (
+          SELECT close, valid_time
+          FROM price_history
+          WHERE symbol = '#{underlying_symbol}'
+            AND valid_time <= options.valid_time
+          ORDER BY valid_time DESC
+          LIMIT 1
+        ) underlying ON true
+        ORDER BY options.strike;
       SQL
 
       connection.execute(sql)

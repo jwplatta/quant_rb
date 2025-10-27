@@ -28,7 +28,7 @@ test:
   timeout: 5000
   prepared_statements: false
   database: options_trader_db_test
-  username: postgres
+  username: options_trader_test
   password:
   host: localhost
   port: 5432

@@ -39,9 +39,6 @@ module OptionsTrader
   # Require predictors
   require_relative "options_trader/predictors/greek_forge"
 
-  # Require queries
-  require_relative "options_trader/queries/option_chain_with_features"
-
   # Require services
   require_relative "options_trader/services/markets"
   require_relative "options_trader/services/historical_markets"
@@ -102,13 +99,14 @@ module OptionsTrader
   require_relative "options_trader/indicators/cox_ross_rubinstein"
   require_relative "options_trader/indicators/black_scholes"
 
+  # Require synthetic data pipeline
+  require_relative "options_trader/synthetic_data/option_chain_pipeline"
+  require_relative "options_trader/synthetic_data/transform/strike_adder"
+  require_relative "options_trader/synthetic_data/transform/linear_interpolator"
+  require_relative "options_trader/synthetic_data/transform/monotonicity_enforcer"
+
   # Require MCP server
   require_relative "options_trader/mcp/server"
-
-  # Require Utils
-  require_relative "options_trader/utils/delta_interpolator"
-  require_relative "options_trader/utils/option_price_interpolator"
-  require_relative "options_trader/utils/monotonicity_enforcer"
 
   def self.create_bot(&block)
     builder = BotBuilder.new
