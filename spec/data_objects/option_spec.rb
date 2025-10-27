@@ -148,13 +148,14 @@ RSpec.describe OptionsTrader::DataObjects::Option do
         expect(option.intrinsic).to eq(50.0)
       end
 
-      it 'raises error when underlying_price is nil for ITM option' do
+      it 'raises error when underlying_price is nil and option is manually set as ITM' do
+        # Create an option without a mark to avoid initialization calculating intrinsic
         option = described_class.new(
           symbol: 'SPXW241025C5800',
           underlying_symbol: 'SPX',
           strike: 5800,
           put_call: 'CALL',
-          mark: 60.0,
+          mark: nil,
           underlying_price: nil,
           expiration_date: '2024-10-25'
         )
@@ -253,13 +254,14 @@ RSpec.describe OptionsTrader::DataObjects::Option do
         expect(option.extrinsic).to eq(5.0)
       end
 
-      it 'raises error when underlying_price is nil for ITM option' do
+      it 'raises error when calculating extrinsic from mark with nil underlying_price and ITM' do
+        # Create an option without initialization values
         option = described_class.new(
           symbol: 'SPXW241025C5800',
           underlying_symbol: 'SPX',
           strike: 5800,
           put_call: 'CALL',
-          mark: 60.0,
+          mark: nil,
           underlying_price: nil,
           expiration_date: '2024-10-25'
         )
@@ -267,7 +269,8 @@ RSpec.describe OptionsTrader::DataObjects::Option do
         # Manually set in_the_money to trigger the error path
         allow(option).to receive(:in_the_money?).and_return(true)
 
-        expect { option.extrinsic }.to raise_error(ArgumentError, /underlying_price is nil/)
+        # The error should occur when trying to calc_extrinsic_from_mark
+        expect { option.calc_extrinsic_from_mark(60.0) }.to raise_error(ArgumentError, /underlying_price is nil/)
       end
 
       it 'returns nil when mark is nil for ITM option' do

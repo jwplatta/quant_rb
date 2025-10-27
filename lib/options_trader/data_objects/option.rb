@@ -6,10 +6,10 @@ module OptionsTrader
         underlying_symbol:,
         strike:,
         put_call:,
-        mark:,
         underlying_price:,
         expiration_date:,
         days_to_expiration: 0,
+        mark: nil,
         delta: nil,
         gamma: nil,
         theta: nil,
@@ -54,6 +54,8 @@ module OptionsTrader
         @intrinsic = intrinsic
         @extrinsic = extrinsic
         @timestamp = timestamp
+
+        init_price_values(mark, intrinsic, extrinsic)
       end
 
       attr_accessor :delta, :gamma, :theta, :vega, :rho, :mark, :intrinsic, :extrinsic
@@ -80,37 +82,14 @@ module OptionsTrader
         end
       end
 
-      # Smart calculation method that derives missing values from available ones
-      # Relationships: mark = extrinsic + intrinsic
-      # - intrinsic is calculated from strike and underlying_price (0 for OTM)
-      # - If extrinsic is set, mark = extrinsic + intrinsic
-      # - If mark is set, extrinsic = mark - intrinsic
-      def calculate_values!
-        # Now determine mark and extrinsic based on what's set
-        if @extrinsic && !@mark
-          # We have extrinsic, calculate mark
-          @mark = @extrinsic + calc_intrinsic
-        elsif @mark && !@extrinsic
-          # We have mark, calculate extrinsic
-          @extrinsic = @mark - calc_intrinsic
-        elsif !@mark && !@extrinsic
-          # Neither is set, can't calculate
-          # This is okay - they'll remain nil
-        end
-        # If both are set, leave them as-is
-
-        self
+      def calc_mark_from_extrinsic(extrinsic_val)
+        @extrinsic = extrinsic_val
+        @mark = extrinsic_val + intrinsic
       end
 
-      def mark
-        return @mark if @mark
-
-        # Try to calculate if we have extrinsic
-        if @extrinsic
-          @mark = @extrinsic + calc_intrinsic
-        end
-
-        @mark
+      def calc_extrinsic_from_mark(mark_val)
+        @mark = mark_val
+        @extrinsic = mark_val - intrinsic
       end
 
       def intrinsic
@@ -118,17 +97,11 @@ module OptionsTrader
         @intrinsic = calc_intrinsic
       end
 
-      def extrinsic
-        return @extrinsic if @extrinsic
-
-        # Try to calculate if we have mark
-        if @mark
-          @extrinsic = @mark - calc_intrinsic
-        end
-
-        @extrinsic
+      def reset_price_values!
+        @mark = nil
+        @intrinsic = nil
+        @extrinsic = nil
       end
-
 
       def moneyness
         if call?
@@ -157,8 +130,25 @@ module OptionsTrader
 
       private
 
+      def init_price_values(mark_val, intrinsic_val, extrinsic_val)
+        if mark_val && !intrinsic_val && !extrinsic_val
+          calc_extrinsic_from_mark(mark_val)
+        elsif intrinsic_val && extrinsic_val && !mark_val
+          @intrinsic = intrinsic_val
+          @extrinsic = extrinsic_val
+          @mark = intrinsic_val + extrinsic_val
+        elsif mark_val && intrinsic_val && !extrinsic_val
+          @mark = mark_val
+          @intrinsic = intrinsic_val
+          @extrinsic = mark_val - intrinsic_val
+        elsif mark_val && extrinsic_val && !intrinsic_val
+          @mark = mark_val
+          @extrinsic = extrinsic_val
+          @intrinsic = mark_val - extrinsic_val
+        end
+      end
+
       def calc_intrinsic
-        # For OTM options, intrinsic value is 0
         unless in_the_money?
           return 0.0
         end
