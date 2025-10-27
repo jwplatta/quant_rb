@@ -111,7 +111,7 @@ module OptionsTrader
           logger.info("Finding #{strategy_type} strategy for #{underlying_symbol} expiring #{expiration_date}")
 
           begin
-            unless OptionsTrader::VALID_STRATEGIES.include?(strategy_type.downcase)
+            unless OptionsTrader::VALID_STRATEGIES.include?(strategy_type.upcase)
               return ::MCP::Tool::Response.new([{
                                                type: "text",
                                                text: "**Error**: Invalid strategy type '#{strategy_type}'. Must be one of: #{OptionsTrader::VALID_STRATEGIES.join(', ')}."
@@ -202,10 +202,10 @@ module OptionsTrader
         end
 
         def self.format_strategy_result(strategy, strategy_type)
-          case strategy_type.downcase
-          when "ironcondor"
+          case strategy_type.upcase
+          when OptionsTrader::IRONCONDOR
             format_iron_condor(strategy)
-          when "vertical"
+          when OptionsTrader::VERTICAL
             format_spread(strategy)
           else
             "**Found Strategy**: #{strategy_type.upcase}\n\n#{strategy.to_json}"
@@ -246,7 +246,7 @@ module OptionsTrader
         def self.format_spread(strategy)
           short_leg = strategy.short_leg
           long_leg = strategy.long_leg
-          option_type = strategy.is_a?(OptionsTrader::CallSpread) ? "Call" : "Put"
+          option_type = strategy.is_a?(OptionsTrader::CallSpread) ? OptionsTrader::CALL : OptionsTrader::PUT
 
           <<~TEXT
             **#{option_type.upcase} SPREAD FOUND**
