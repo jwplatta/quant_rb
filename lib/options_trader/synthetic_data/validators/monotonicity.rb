@@ -38,6 +38,9 @@ module OptionsTrader
           curr_idx = 0
           next_idx = 1
 
+          max_iters = options.length * 2
+          iters = 0
+
           while true
             curr_mark = options[curr_idx].mark
             next_mark = options[next_idx].mark
@@ -54,7 +57,9 @@ module OptionsTrader
               next_idx += 1
             end
 
-            break if next_idx >= options.length
+            iters += 1
+
+            break if next_idx >= options.length || iters > max_iters
           end
         end
       end
