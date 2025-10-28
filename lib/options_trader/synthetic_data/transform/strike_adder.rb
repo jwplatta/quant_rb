@@ -65,7 +65,7 @@ module OptionsTrader
         end
 
         def add_strikes(calls:, put_opts:, features: {}, min_strike: nil, max_strike: nil)
-          raise ArgumentError, 'At least 3 call and 3 put options are required' unless calls.size > 1 && put_opts.size > 1
+          raise ArgumentError, 'At least 1 call and 1 put options are required' unless calls.size > 0 && put_opts.size > 0
 
           underlying_price = calls.first.underlying_price || put_opts.first.underlying_price
           dte = calls.first.days_to_expiration || put_opts.first.days_to_expiration
