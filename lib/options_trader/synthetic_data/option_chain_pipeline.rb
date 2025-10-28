@@ -11,22 +11,19 @@ module OptionsTrader
       # Initialize the pipeline with an option chain and context metadata
       #
       # @param option_chain [DataObjects::OptionsChain] The raw option chain to transform
-      # @param context [Hash] Context metadata
       # @option context [Float] :underlying_price Current underlying price
       # @option context [Integer] :dte Days to expiration
       # @option context [Date] :expiration_date Option expiration date
       # @option context [String] :underlying_symbol Underlying symbol (e.g., 'SPXW')
       # @option context [Time] :valid_time Timestamp for historical snapshot (optional)
-      def initialize(option_chain, context: {})
+      def initialize(option_chain)
         @original_chain = option_chain
-        @context = context
         @calls = option_chain.call_opts.dup
         @puts = option_chain.put_opts.dup
         @features = {}
         @pipeline_started = false
         @features_set = false
 
-        validate_context!
       end
 
       # Add market features to be propagated to synthetic options
@@ -50,20 +47,11 @@ module OptionsTrader
       #
       # @param method [String] 'adjust' (fix violations) or 'remove' (set violating prices to nil)
       # @return [self] For method chaining
-      def enforce_monotonicity(method: 'adjust')
+      def enforce_monotonicity(method: 'remove')
         start_pipeline!
 
-        @calls = Transform::MonotonicityEnforcer.enforce(
-          @calls,
-          contract_type: 'CALL',
-          method: method
-        )
-
-        @puts = Transform::MonotonicityEnforcer.enforce(
-          @puts,
-          contract_type: 'PUT',
-          method: method
-        )
+        @calls = Transform::MonotonicityEnforcer.enforce(@calls, method: method)
+        @puts = Transform::MonotonicityEnforcer.enforce(@puts, method: method)
 
         self
       end
@@ -92,8 +80,7 @@ module OptionsTrader
 
         result = Transform::StrikeAdder.add_strikes(
           calls: @calls,
-          puts: @puts,
-          context: @context,
+          put_opts: @puts,
           features: @features,
           min_strike: min_strike,
           max_strike: max_strike,
@@ -105,7 +92,7 @@ module OptionsTrader
         )
 
         @calls = result[:calls]
-        @puts = result[:puts]
+        @puts = result[:put_opts]
 
         self
       end
@@ -133,6 +120,9 @@ module OptionsTrader
           min_extrinsic: min_extrinsic
         )
 
+        Validators::Monotonicity.check(@calls)
+        Validators::Monotonicity.check(@puts)
+
         self
       end
 
@@ -142,22 +132,13 @@ module OptionsTrader
       def build
         DataObjects::OptionsChain.new(
           symbol: @original_chain.symbol,
-          underlying_price: @context[:underlying_price] || @original_chain.underlying_price,
+          underlying_price: @original_chain.underlying_price,
           call_opts: @calls,
           put_opts: @puts
         )
       end
 
       private
-
-      def validate_context!
-        required_keys = [:underlying_price, :dte, :expiration_date, :underlying_symbol]
-        missing_keys = required_keys - @context.keys
-
-        unless missing_keys.empty?
-          raise MissingContextError, "Missing required context keys: #{missing_keys.join(', ')}"
-        end
-      end
 
       def start_pipeline!
         @pipeline_started = true
