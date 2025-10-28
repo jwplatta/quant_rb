@@ -50,54 +50,37 @@ module OptionsTrader
         end
 
         def check_monotonicity(options)
-          # TODO: refactor while loop into one method
-
-          if @contract_type == 'CALL'
+          if is_call?
             sorted_opts = options.sort_by(&:strike)
-            curr_idx = 0
-            next_idx = 1
-
-            while true
-              curr_mark = sorted_opts[curr_idx].mark
-              next_mark = sorted_opts[next_idx].mark
-
-              if curr_mark.nil?
-                curr_idx = next_idx
-                next_idx += 1
-              elsif next_mark.nil?
-                next_idx += 1
-              elsif curr_mark < next_mark
-                raise MonotonicityViolationError, "CALL at strikes: #{sorted_opts[curr_idx].strike} and #{sorted_opts[next_idx].strike}"
-              else
-                curr_idx = next_idx
-                next_idx += 1
-              end
-
-              break if next_idx >= sorted_opts.length
-            end
+            compare_marks(sorted_opts)
           else
             sorted_opts = options.sort_by(&:strike).reverse
-            curr_idx = 0
-            next_idx = 1
+            compare_marks(sorted_opts)
+          end
+        end
 
-            while true
-              curr_mark = sorted_opts[curr_idx].mark
-              next_mark = sorted_opts[next_idx].mark
+        def compare_marks(options)
+          # NOTE: assumes options are sortd
+          curr_idx = 0
+          next_idx = 1
 
-              if curr_mark.nil?
-                curr_idx = next_idx
-                next_idx += 1
-              elsif next_mark.nil?
-                next_idx += 1
-              elsif curr_mark < next_mark
-                raise MonotonicityViolationError, "PUT at strikes: #{sorted_opts[curr_idx].strike} and #{sorted_opts[next_idx].strike}"
-              else
-                curr_idx = next_idx
-                next_idx += 1
-              end
+          while true
+            curr_mark = options[curr_idx].mark
+            next_mark = options[next_idx].mark
 
-              break if next_idx >= sorted_opts.length
+            if curr_mark.nil?
+              curr_idx = next_idx
+              next_idx += 1
+            elsif next_mark.nil?
+              next_idx += 1
+            elsif curr_mark < next_mark
+              raise MonotonicityViolationError, "CALL at strikes: #{options[curr_idx].strike} and #{options[next_idx].strike}"
+            else
+              curr_idx = next_idx
+              next_idx += 1
             end
+
+            break if next_idx >= options.length
           end
         end
 
