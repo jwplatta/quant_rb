@@ -48,7 +48,7 @@ module OptionsTrader
             elsif next_mark.nil?
               next_idx += 1
             elsif curr_mark < next_mark
-              raise MonotonicityViolationError, "CALL at strikes: #{options[curr_idx].strike} and #{options[next_idx].strike}"
+              raise MonotonicityViolationError, "At strikes: #{options[curr_idx].strike} and #{options[next_idx].strike}"
             else
               curr_idx = next_idx
               next_idx += 1
