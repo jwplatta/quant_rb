@@ -14,7 +14,6 @@ module OptionsTrader
         #
         # @param calls [Array<DataObjects::Option>] Array of call options
         # @param puts [Array<DataObjects::Option>] Array of put options
-        # @param context [Hash] Context hash containing :underlying_price, :dte, :expiration_date, :underlying_symbol
         # @param features [Hash] Feature values to propagate to synthetic options (e.g., vix9d, vvix, skew)
         # @param min_strike [Float, nil] Minimum strike price (optional)
         # @param max_strike [Float, nil] Maximum strike price (optional)
@@ -23,11 +22,10 @@ module OptionsTrader
         # @param inner_offset [Integer] ATM range for dense strikes (default: 225)
         # @param inner_step [Integer] Strike spacing within ATM range (default: 5)
         # @param outer_step [Integer] Strike spacing outside ATM range (default: 25)
-        # @return [Hash] { calls: Array, puts: Array }
+        # @return [Hash] { calls: Array, put_opts: Array }
         def self.add_strikes(
           calls:,
-          puts:,
-          context:,
+          put_opts:,
           features: {},
           min_strike: nil,
           max_strike: nil,
@@ -38,7 +36,6 @@ module OptionsTrader
           outer_step: DEFAULT_OUTER_STEP
         )
           new(
-            context: context,
             min_offset: min_offset,
             max_offset: max_offset,
             inner_offset: inner_offset,
@@ -46,7 +43,7 @@ module OptionsTrader
             outer_step: outer_step
           ).add_strikes(
             calls: calls,
-            puts: puts,
+            put_opts: put_opts,
             features: features,
             min_strike: min_strike,
             max_strike: max_strike
@@ -54,14 +51,12 @@ module OptionsTrader
         end
 
         def initialize(
-          context:,
           min_offset: DEFAULT_MIN_OFFSET,
           max_offset: DEFAULT_MAX_OFFSET,
           inner_offset: DEFAULT_INNER_OFFSET,
           inner_step: DEFAULT_INNER_STEP,
           outer_step: DEFAULT_OUTER_STEP
         )
-          @context = context
           @min_offset = min_offset
           @max_offset = max_offset
           @inner_offset = inner_offset
@@ -69,11 +64,13 @@ module OptionsTrader
           @outer_step = outer_step
         end
 
-        def add_strikes(calls:, puts:, features: {}, min_strike: nil, max_strike: nil)
-          underlying_price = @context[:underlying_price]
-          dte = @context[:dte]
-          expiration_date = @context[:expiration_date]
-          underlying_symbol = @context[:underlying_symbol]
+        def add_strikes(calls:, put_opts:, features: {}, min_strike: nil, max_strike: nil)
+          raise ArgumentError, 'At least 1 call and 1 put options are required' unless calls.size > 0 && put_opts.size > 0
+
+          underlying_price = calls.first.underlying_price || put_opts.first.underlying_price
+          dte = calls.first.days_to_expiration || put_opts.first.days_to_expiration
+          expiration_date = calls.first.expiration_date || put_opts.first.expiration_date
+          underlying_symbol = calls.first.underlying_symbol || put_opts.first.underlying_symbol
 
           # Generate target strikes
           target_strikes = generate_target_strikes(
@@ -86,7 +83,7 @@ module OptionsTrader
           complete_calls, complete_puts = build_complete_option_arrays(
             underlying_symbol: underlying_symbol,
             calls: calls,
-            puts: puts,
+            put_opts: put_opts,
             target_strikes: target_strikes,
             underlying_price: underlying_price,
             dte: dte,
@@ -94,7 +91,7 @@ module OptionsTrader
             feature_values: features
           )
 
-          { calls: complete_calls, puts: complete_puts }
+          { calls: complete_calls, put_opts: complete_puts }
         end
 
         private
@@ -139,7 +136,7 @@ module OptionsTrader
         def build_complete_option_arrays(
           underlying_symbol:,
           calls:,
-          puts:,
+          put_opts:,
           target_strikes:,
           underlying_price:,
           dte:,
@@ -149,7 +146,7 @@ module OptionsTrader
           min_strike = target_strikes.min
           max_strike = target_strikes.max
           calls_by_strike = calls.index_by(&:strike)
-          puts_by_strike = puts.index_by(&:strike)
+          puts_by_strike = put_opts.index_by(&:strike)
 
           complete_calls = []
           complete_puts = []

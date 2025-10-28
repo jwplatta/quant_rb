@@ -104,6 +104,7 @@ module OptionsTrader
   require_relative "options_trader/synthetic_data/transform/strike_adder"
   require_relative "options_trader/synthetic_data/transform/linear_interpolator"
   require_relative "options_trader/synthetic_data/transform/monotonicity_enforcer"
+  require_relative "options_trader/synthetic_data/validators/monotonicity"
 
   # Require MCP server
   require_relative "options_trader/mcp/server"

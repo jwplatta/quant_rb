@@ -1,11 +1,9 @@
 require 'spec_helper'
 
 RSpec.describe OptionsTrader::SyntheticData::Transform::MonotonicityEnforcer do
-  let(:underlying_price) { 5900.0 }
   let(:expiration_date) { Date.today + 1 }
-  let(:timestamp) { Time.now }
 
-  def create_option(strike:, mark:, contract_type:, open: nil, high: nil, low: nil, close: nil)
+  def create_option(strike:, mark:, contract_type:, underlying_price:, expiration_date:)
     OptionsTrader::DataObjects::Option.new(
       symbol: "SPX#{expiration_date.strftime('%y%m%d')}#{contract_type[0]}#{(strike * 1000).to_i}",
       underlying_symbol: 'SPX',
@@ -15,289 +13,262 @@ RSpec.describe OptionsTrader::SyntheticData::Transform::MonotonicityEnforcer do
       underlying_price: underlying_price,
       expiration_date: expiration_date,
       days_to_expiration: 1,
-      timestamp: timestamp,
-      open: open,
-      high: high,
-      low: low,
-      close: close
+      timestamp: Time.now
     )
   end
 
-  describe '.enforce for CALL options' do
-    it 'fixes simple monotonicity violation using midpoint' do
-      options = [
-        create_option(strike: 5800, mark: 120.0, contract_type: 'CALL'),
-        create_option(strike: 5850, mark: 90.0, contract_type: 'CALL'),
-        create_option(strike: 5900, mark: 95.0, contract_type: 'CALL'), # violation
-        create_option(strike: 5950, mark: 40.0, contract_type: 'CALL')
+  describe 'edge cases' do
+    let(:underlying_price) { 5800 } # ATM
+
+    it 'handles empty array' do
+      result = described_class.enforce([], method: 'remove')
+      expect(result).to eq([])
+    end
+
+    it 'handles single option' do
+      calls = [create_option(
+        strike: 5900, mark: 28.0,
+        contract_type: 'CALL',
+        underlying_price: underlying_price,
+        expiration_date: expiration_date
+      )]
+      result = described_class.enforce(calls, method: 'remove')
+
+      expect(result.length).to eq(1)
+      expect(result.first.mark).to eq(28.0)
+    end
+
+    it 'handles options with nil marks' do
+      calls = [
+        create_option(
+          strike: 5805,
+          mark: 120.0,
+          contract_type: 'CALL',
+          underlying_price: underlying_price,
+          expiration_date: expiration_date
+        ),
+        create_option(
+          strike: 5850,
+          mark: nil,
+          contract_type: 'CALL',
+          underlying_price: underlying_price, expiration_date: expiration_date
+        ),
+        create_option(
+          strike: 5900, mark: 28.0,
+          contract_type: 'CALL',
+          underlying_price: underlying_price, expiration_date: expiration_date
+        )
       ]
 
-      result = described_class.enforce(options, contract_type: 'CALL')
+      result = described_class.enforce(calls, method: 'remove')
 
-      # Verify monotonicity: each price should be greater than the next
-      (0...result.length - 1).each do |i|
-        expect(result[i].mark).to be > result[i + 1].mark
+      expect(result.find { |c| c.strike == 5805 }.mark).to eq(120.0)
+      expect(result.find { |c| c.strike == 5850 }.mark).to be_nil
+      expect(result.find { |c| c.strike == 5900 }.mark).to eq(28.0)
+    end
+  end
+
+  describe 'PUT option monotonicity enforcement' do
+    let(:underlying_price) { 6875.16 } # ATM
+    let(:expiration_date) { Date.parse("2025-10-28") }
+    let(:put_opts) do
+      [
+        create_option(
+          strike: 6830, mark: 2.7,
+          underlying_price: underlying_price, contract_type: 'PUT',
+          expiration_date: expiration_date
+        ),
+        create_option(
+          strike: 6840, mark: 3.3,
+          underlying_price: underlying_price, contract_type: 'PUT',
+          expiration_date: expiration_date
+        ),
+        create_option(
+          strike: 6845, mark: 3.85,
+          underlying_price: underlying_price, contract_type: 'PUT',
+          expiration_date: expiration_date
+        ),
+        create_option(
+          strike: 6855, mark: 5.05,
+          underlying_price: underlying_price, contract_type: 'PUT',
+          expiration_date: expiration_date
+        ),
+        create_option(
+          strike: 6860, mark: 5.04,
+          underlying_price: underlying_price, contract_type: 'PUT',
+          expiration_date: expiration_date
+        ),
+        create_option(
+          strike: 6870, mark: 9.8,
+          underlying_price: underlying_price, contract_type: 'PUT',
+          expiration_date: expiration_date
+        ),
+        create_option(
+          strike: 6880, mark: 11.7, # 6.86 extrinsic
+          underlying_price: underlying_price, contract_type: 'PUT',
+          expiration_date: expiration_date
+        ),
+        create_option(
+          strike: 6885, mark: 14.2, # 4.36 extrinsic
+          underlying_price: underlying_price, contract_type: 'PUT',
+          expiration_date: expiration_date
+        ),
+        create_option(
+          strike: 6890, mark: 14.2, # 4.36 extrinsic
+          underlying_price: underlying_price, contract_type: 'PUT',
+          expiration_date: expiration_date
+        ),
+        create_option(
+          strike: 6895, mark: 25.0, # 5.16 extrinsic
+          underlying_price: underlying_price, contract_type: 'PUT',
+          expiration_date: expiration_date
+        ),
+        create_option(
+          strike: 6900,
+          mark: 23.9, # extrinsic -0.94
+          underlying_price: underlying_price,
+          contract_type: 'PUT',
+          expiration_date: expiration_date
+        ),
+      ]
+    end
+    let(:enforcer) do
+      described_class.new(
+        method: 'remove'
+      )
+    end
+
+    it 'removes OTM violations' do
+      enforcer.instance_variable_set(:@underlying_price, underlying_price)
+      result = enforcer.fix_otm_puts(put_opts)
+      expect(result.count).to eq(6)
+      expect(result.find { |p| p.strike == 6830 }.mark).to eq(2.7)
+      expect(result.find { |p| p.strike == 6840 }.mark).to eq(3.3)
+      expect(result.find { |p| p.strike == 6845 }.mark).to eq(3.85)
+      expect(result.find { |p| p.strike == 6855 }.mark).to eq(5.05)
+      expect(result.find { |p| p.strike == 6860 }.mark).to eq(nil)
+      expect(result.find { |p| p.strike == 6870 }.mark).to eq(9.8)
+    end
+
+    it 'removes ITM violations' do
+      enforcer.instance_variable_set(:@underlying_price, underlying_price)
+      result = enforcer.fix_itm_puts(put_opts)
+      expect(result.count).to eq(5)
+      expect(result.find { |p| p.strike == 6880 }.mark).to eq(11.7)
+      expect(result.find { |p| p.strike == 6885 }.mark).to eq(14.2)
+      expect(result.find { |p| p.strike == 6890 }.mark).to eq(14.2)
+      expect(result.find { |p| p.strike == 6895 }.mark).to eq(nil)
+      expect(result.find { |p| p.strike == 6900 }.mark).to eq(23.9)
+    end
+    describe '#enforce' do
+      it 'does not raise' do
+        expect { enforcer.enforce(put_opts) }.not_to raise_error(
+          OptionsTrader::SyntheticData::Validators::MonotonicityViolationError
+        )
       end
-    end
 
-    it 'uses alternative prices when available' do
-      options = [
-        create_option(strike: 5800, mark: 120.0, contract_type: 'CALL'),
-        create_option(strike: 5850, mark: 95.0, contract_type: 'CALL', open: 80.0, high: 100.0, low: 75.0), # violation, but has valid alternative
-        create_option(strike: 5900, mark: 60.0, contract_type: 'CALL')
-      ]
-
-      result = described_class.enforce(options, contract_type: 'CALL')
-
-      expect(result[1].mark).to be_between(60.0, 120.0)
-    end
-
-    it 'handles multiple violations iteratively' do
-      options = [
-        create_option(strike: 5800, mark: 100.0, contract_type: 'CALL'),
-        create_option(strike: 5850, mark: 110.0, contract_type: 'CALL'), # violation
-        create_option(strike: 5900, mark: 105.0, contract_type: 'CALL'), # violation
-        create_option(strike: 5950, mark: 50.0, contract_type: 'CALL')
-      ]
-
-      result = described_class.enforce(options, contract_type: 'CALL')
-
-      (0...result.length - 1).each do |i|
-        expect(result[i].mark).to be > result[i + 1].mark
+      it 'raises error on unresolvable violations' do
+        bad_option = create_option(
+          strike: 6875, mark: 11.8,
+          underlying_price: underlying_price,
+          contract_type: 'PUT',
+          expiration_date: expiration_date
+        )
+        expect { enforcer.enforce(put_opts << bad_option) }.to raise_error(
+          OptionsTrader::SyntheticData::Validators::MonotonicityViolationError
+        )
       end
     end
   end
 
-  describe '.enforce for PUT options' do
-    it 'fixes simple monotonicity violation using midpoint' do
-      options = [
-        create_option(strike: 5800, mark: 40.0, contract_type: 'PUT'),
-        create_option(strike: 5850, mark: 60.0, contract_type: 'PUT'),
-        create_option(strike: 5900, mark: 55.0, contract_type: 'PUT'), # violation
-        create_option(strike: 5950, mark: 120.0, contract_type: 'PUT')
+  describe 'CALL option monotonicity enforcement' do
+    let(:underlying_price) { 6858.0 } # ATM
+    let(:expiration_date) { Date.parse("2025-10-28") }
+    let(:call_opts) do
+      [
+        create_option(
+          strike: 6840, mark: 19.01, # instrinsic is 18.0
+          underlying_price: underlying_price, contract_type: 'CALL',
+          expiration_date: expiration_date
+        ),
+        create_option(
+          strike: 6845, mark: 13.5, # instrinsic is 13.0
+          underlying_price: underlying_price, contract_type: 'CALL',
+          expiration_date: expiration_date
+        ),
+        create_option(
+          strike: 6850, mark: 14.00, # instrinsic is 8.0 and extrinsic is 3.0
+          underlying_price: underlying_price, contract_type: 'CALL',
+          expiration_date: expiration_date
+        ),
+        create_option(
+          strike: 6855, mark: 13.08, # instrinsic is 3.0 and extrinsic is 10.08
+          underlying_price: underlying_price, contract_type: 'CALL',
+          expiration_date: expiration_date
+        ),
+        ### ATM
+        create_option(
+          strike: 6865, mark: 10.9,
+          underlying_price: underlying_price, contract_type: 'CALL',
+          expiration_date: expiration_date
+        ),
+        create_option(
+          strike: 6870, mark: 11.0,
+          underlying_price: underlying_price, contract_type: 'CALL',
+          expiration_date: expiration_date
+        ),
+        create_option(
+          strike: 6875, mark: 6.5,
+          underlying_price: underlying_price, contract_type: 'CALL',
+          expiration_date: expiration_date
+        ),
+        create_option(
+          strike: 6880, mark: 6.5,
+          underlying_price: underlying_price, contract_type: 'CALL',
+          expiration_date: expiration_date
+        ),
       ]
-
-      result = described_class.enforce(options, contract_type: 'PUT')
-
-      (0...result.length - 1).each do |i|
-        expect(result[i].mark).to be < result[i + 1].mark
-      end
+    end
+    let(:enforcer) do
+      described_class.new(method: 'remove')
     end
 
-    it 'handles multiple violations iteratively' do
-      options = [
-        create_option(strike: 5800, mark: 100.0, contract_type: 'PUT'),
-        create_option(strike: 5850, mark: 90.0, contract_type: 'PUT'), # violation
-        create_option(strike: 5900, mark: 95.0, contract_type: 'PUT'), # violation
-        create_option(strike: 5950, mark: 150.0, contract_type: 'PUT')
-      ]
-
-      result = described_class.enforce(options, contract_type: 'PUT')
-
-      # Verify monotonicity: each price should be less than the next
-      (0...result.length - 1).each do |i|
-        expect(result[i].mark).to be < result[i + 1].mark
-      end
-    end
-  end
-
-  describe 'OHLC averaging strategy' do
-    it 'uses OHLC average when it satisfies monotonicity' do
-      options = [
-        create_option(strike: 5800, mark: 120.0, contract_type: 'CALL'),
-        create_option(strike: 5850, mark: 100.0, contract_type: 'CALL',
-                     open: 85.0, high: 90.0, low: 80.0, close: 87.0), # avg = 88.4
-        create_option(strike: 5900, mark: 60.0, contract_type: 'CALL')
-      ]
-
-      result = described_class.enforce(options, contract_type: 'CALL')
-
-      # The OHLC average should be used if it creates valid monotonicity
-      expect(result[1].mark).to be_between(60.0, 120.0)
-    end
-  end
-
-  describe 'method: remove' do
-    describe 'for CALL options' do
-      it 'removes violations by setting mark to nil from ATM towards OTM (higher strikes)' do
-        # ATM is around 5900
-        # OTM direction: 5900 -> 5950 -> 6000 (prices should decrease)
-        options = [
-          create_option(strike: 5850, mark: 80.0, contract_type: 'CALL'), # ITM
-          create_option(strike: 5900, mark: 60.0, contract_type: 'CALL'), # ATM
-          create_option(strike: 5950, mark: 40.0, contract_type: 'CALL'), # OTM
-          create_option(strike: 6000, mark: 50.0, contract_type: 'CALL')  # OTM - violation! (increased)
-        ]
-
-        result = described_class.enforce(options, contract_type: 'CALL', method: 'remove')
-
-        expect(result[0].mark).to eq(80.0)
-        expect(result[1].mark).to eq(60.0)
-        expect(result[2].mark).to eq(40.0)
-        expect(result[3].mark).to be_nil # violation removed
-      end
-
-      it 'removes violations by setting mark to nil from ATM towards ITM (lower strikes)' do
-        # ATM is around 5900
-        # ITM direction: 5900 -> 5850 -> 5800 (prices should increase)
-        options = [
-          create_option(strike: 5800, mark: 90.0, contract_type: 'CALL'),  # ITM - violation! (decreased)
-          create_option(strike: 5850, mark: 100.0, contract_type: 'CALL'), # ITM
-          create_option(strike: 5900, mark: 60.0, contract_type: 'CALL'),  # ATM
-          create_option(strike: 5950, mark: 40.0, contract_type: 'CALL')   # OTM
-        ]
-
-        result = described_class.enforce(options, contract_type: 'CALL', method: 'remove')
-
-        expect(result[0].mark).to be_nil # violation removed
-        expect(result[1].mark).to eq(100.0)
-        expect(result[2].mark).to eq(60.0)
-        expect(result[3].mark).to eq(40.0)
-      end
-
-      it 'handles multiple violations in both directions' do
-        options = [
-          create_option(strike: 5800, mark: 95.0, contract_type: 'CALL'),  # ITM - violation
-          create_option(strike: 5850, mark: 100.0, contract_type: 'CALL'), # ITM
-          create_option(strike: 5900, mark: 60.0, contract_type: 'CALL'),  # ATM
-          create_option(strike: 5950, mark: 40.0, contract_type: 'CALL'),  # OTM
-          create_option(strike: 6000, mark: 45.0, contract_type: 'CALL')   # OTM - violation
-        ]
-
-        result = described_class.enforce(options, contract_type: 'CALL', method: 'remove')
-
-        expect(result[0].mark).to be_nil # ITM violation
-        expect(result[1].mark).to eq(100.0)
-        expect(result[2].mark).to eq(60.0)
-        expect(result[3].mark).to eq(40.0)
-        expect(result[4].mark).to be_nil # OTM violation
-      end
+    it 'removes OTM violations' do
+      enforcer.instance_variable_set(:@underlying_price, underlying_price)
+      result = enforcer.fix_otm_calls(call_opts)
+      expect(result.count).to eq(4)
+      expect(result.find { |c| c.strike == 6865 }.mark).to eq(10.9)
+      expect(result.find { |c| c.strike == 6870 }.mark).to eq(nil)
+      expect(result.find { |c| c.strike == 6875 }.mark).to eq(6.5)
+      expect(result.find { |c| c.strike == 6880 }.mark).to eq(6.5)
     end
 
-    describe 'for PUT options' do
-      it 'removes violations by setting mark to nil from ATM towards OTM (lower strikes)' do
-        # ATM is around 5900
-        # OTM direction: 5900 -> 5850 -> 5800 (prices should decrease)
-        options = [
-          create_option(strike: 5800, mark: 35.0, contract_type: 'PUT'),  # OTM - violation! (increased)
-          create_option(strike: 5850, mark: 30.0, contract_type: 'PUT'),  # OTM
-          create_option(strike: 5900, mark: 60.0, contract_type: 'PUT'),  # ATM
-          create_option(strike: 5950, mark: 80.0, contract_type: 'PUT')   # ITM
-        ]
-
-        result = described_class.enforce(options, contract_type: 'PUT', method: 'remove')
-
-        expect(result[0].mark).to be_nil # violation removed
-        expect(result[1].mark).to eq(30.0)
-        expect(result[2].mark).to eq(60.0)
-        expect(result[3].mark).to eq(80.0)
-      end
-
-      it 'removes violations by setting mark to nil from ATM towards ITM (higher strikes)' do
-        # ATM is around 5900
-        # ITM direction: 5900 -> 5950 -> 6000 (prices should increase)
-        options = [
-          create_option(strike: 5850, mark: 30.0, contract_type: 'PUT'),  # OTM
-          create_option(strike: 5900, mark: 60.0, contract_type: 'PUT'),  # ATM
-          create_option(strike: 5950, mark: 80.0, contract_type: 'PUT'),  # ITM
-          create_option(strike: 6000, mark: 75.0, contract_type: 'PUT')   # ITM - violation! (decreased)
-        ]
-
-        result = described_class.enforce(options, contract_type: 'PUT', method: 'remove')
-
-        expect(result[0].mark).to eq(30.0)
-        expect(result[1].mark).to eq(60.0)
-        expect(result[2].mark).to eq(80.0)
-        expect(result[3].mark).to be_nil # violation removed
-      end
-
-      it 'handles multiple violations in both directions' do
-        options = [
-          create_option(strike: 5800, mark: 35.0, contract_type: 'PUT'),  # OTM - violation
-          create_option(strike: 5850, mark: 30.0, contract_type: 'PUT'),  # OTM
-          create_option(strike: 5900, mark: 60.0, contract_type: 'PUT'),  # ATM
-          create_option(strike: 5950, mark: 80.0, contract_type: 'PUT'),  # ITM
-          create_option(strike: 6000, mark: 75.0, contract_type: 'PUT')   # ITM - violation
-        ]
-
-        result = described_class.enforce(options, contract_type: 'PUT', method: 'remove')
-
-        expect(result[0].mark).to be_nil # OTM violation
-        expect(result[1].mark).to eq(30.0)
-        expect(result[2].mark).to eq(60.0)
-        expect(result[3].mark).to eq(80.0)
-        expect(result[4].mark).to be_nil # ITM violation
-      end
+    it 'removes ITM violations' do
+      enforcer.instance_variable_set(:@underlying_price, underlying_price)
+      result = enforcer.fix_itm_calls(call_opts)
+      expect(result.count).to eq(4)
+      expect(result.find { |c| c.strike == 6840 }.mark).to eq(19.01)
+      expect(result.find { |c| c.strike == 6845 }.mark).to eq(nil)
+      expect(result.find { |c| c.strike == 6850 }.mark).to eq(14.00)
+      expect(result.find { |c| c.strike == 6855 }.mark).to eq(13.08)
     end
 
-    describe 'error handling' do
-      it 'raises MissingUnderlyingPriceError when underlying_price is not set' do
-        option_without_price = double('Option', strike: 5900, mark: 60.0, underlying_price: nil)
-        allow(option_without_price).to receive(:respond_to?).with(:underlying_price).and_return(true)
-
-        options = [option_without_price]
-
-        expect {
-          described_class.enforce(options, contract_type: 'CALL', method: 'remove')
-        }.to raise_error(OptionsTrader::SyntheticData::Transform::MonotonicityEnforcer::MissingUnderlyingPriceError)
+    describe '#enforce' do
+      it 'does not raise' do
+        expect { enforcer.enforce(call_opts) }.not_to raise_error(
+          OptionsTrader::SyntheticData::Validators::MonotonicityViolationError
+        )
       end
-
-      it 'raises ArgumentError for invalid method parameter' do
-        options = [create_option(strike: 5900, mark: 60.0, contract_type: 'CALL')]
-
-        expect {
-          described_class.enforce(options, contract_type: 'CALL', method: 'invalid')
-        }.to raise_error(ArgumentError, /Invalid method/)
-      end
-    end
-
-    describe 'ATM strike detection' do
-      it 'correctly identifies ATM strike when underlying price is between strikes' do
-        # underlying_price = 5900, so ATM should be 5900
-        options = [
-          create_option(strike: 5850, mark: 100.0, contract_type: 'CALL'),
-          create_option(strike: 5900, mark: 60.0, contract_type: 'CALL'),  # ATM
-          create_option(strike: 5950, mark: 40.0, contract_type: 'CALL')
-        ]
-
-        result = described_class.enforce(options, contract_type: 'CALL', method: 'remove')
-
-        # No violations, all marks should remain
-        expect(result.all? { |o| o.mark }).to be true
-      end
-
-      it 'correctly identifies ATM strike when underlying price is exactly at a strike' do
-        # underlying_price = 5900
-        options = [
-          create_option(strike: 5850, mark: 100.0, contract_type: 'CALL'),
-          create_option(strike: 5900, mark: 60.0, contract_type: 'CALL'),  # ATM (exact match)
-          create_option(strike: 5950, mark: 40.0, contract_type: 'CALL')
-        ]
-
-        result = described_class.enforce(options, contract_type: 'CALL', method: 'remove')
-
-        expect(result.all? { |o| o.mark }).to be true
-      end
-    end
-  end
-
-  describe 'backward compatibility' do
-    it 'uses adjust method by default when method parameter is not specified' do
-      options = [
-        create_option(strike: 5800, mark: 120.0, contract_type: 'CALL'),
-        create_option(strike: 5850, mark: 90.0, contract_type: 'CALL'),
-        create_option(strike: 5900, mark: 95.0, contract_type: 'CALL'), # violation
-        create_option(strike: 5950, mark: 40.0, contract_type: 'CALL')
-      ]
-
-      result = described_class.enforce(options, contract_type: 'CALL')
-
-      # All marks should still be set (adjusted, not removed)
-      expect(result.all? { |o| o.mark }).to be true
-
-      # Verify monotonicity
-      (0...result.length - 1).each do |i|
-        expect(result[i].mark).to be > result[i + 1].mark
+      it 'raises error on unresolvable violations' do
+        bad_option = create_option(
+          strike: 6860, mark: 14.0,
+          underlying_price: underlying_price,
+          contract_type: 'CALL',
+          expiration_date: expiration_date
+        )
+        expect { enforcer.enforce(call_opts << bad_option) }.to raise_error(
+          OptionsTrader::SyntheticData::Validators::MonotonicityViolationError
+        )
       end
     end
   end
