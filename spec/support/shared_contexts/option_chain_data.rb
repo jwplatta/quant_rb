@@ -48,7 +48,7 @@ RSpec.shared_context 'realistic SPX option chain' do
       create_option(strike: 6890, contract_type: 'CALL', mark: 5.4),
       create_option(strike: 6900, contract_type: 'CALL', mark: 3.0),
       create_option(strike: 7000, contract_type: 'CALL', mark: 0.025),
-      create_option(strike: 7000, contract_type: 'CALL', mark: 0.1)
+      create_option(strike: 7100, contract_type: 'CALL', mark: 0.1)
     ]
   end
 
