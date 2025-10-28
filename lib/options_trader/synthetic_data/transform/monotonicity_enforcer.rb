@@ -1,8 +1,6 @@
 module OptionsTrader
   module SyntheticData
     module Transform
-      class MonotonicityViolationError < StandardError; end
-
       class MonotonicityEnforcer
         # Enforces no-arbitrage monotonicity constraints on option prices.
         #
@@ -27,17 +25,15 @@ module OptionsTrader
         # @param method [String] 'remove' (only mode supported for now)
         # @return [Array<DataObjects::Option>] Array with enforced monotonicity (violations set to nil)
         # @raise [MonotonicityViolationError] If unresolvable mark violations remain after fixing extrinsic
-        def self.enforce(options, underlying_price, method: 'remove')
+        def self.enforce(options, method: 'remove')
           new(
-            underlying_price: underlying_price,
             method: method
           ).enforce(options)
         end
 
         # @param underlying_price [Float] Current price of the underlying asset
         # @param method [String] Enforcement method ('remove' is the only supported mode)
-        def initialize(underlying_price:, method: 'remove')
-          @underlying_price = underlying_price
+        def initialize(method: 'remove')
           @method = method
         end
 
@@ -57,71 +53,24 @@ module OptionsTrader
           return [] if options.empty?
           return options if options.length == 1
 
+          @underlying_price = options.first.underlying_price
+          raise "All options must have underlying_price set" if @underlying_price.nil?
+
           @contract_type = options.first.put_call
           options.all? { |opt| opt.put_call == @contract_type } ||
             raise("All options must be of contract type #{@contract_type}")
 
           working_options = options.map(&:dup)
 
-          checked_opts = if is_call?
+          fixed_opts = if is_call?
             fix_otm_calls(working_options) + fix_itm_calls(working_options)
           else
             fix_otm_puts(working_options) + fix_itm_puts(working_options)
           end
 
-          check_monotonicity(checked_opts)
+          Validators::Monotonicity.check(fixed_opts)
 
-          checked_opts
-        end
-
-        # Verifies that mark monotonicity is satisfied across all options.
-        # Raises an error if any violations are found.
-        #
-        # For calls: sorts by ascending strike and verifies marks are non-increasing
-        # For puts: sorts by descending strike and verifies marks are non-increasing
-        #
-        # @param options [Array<DataObjects::Option>] Options to check
-        # @raise [MonotonicityViolationError] If mark monotonicity is violated
-        def check_monotonicity(options)
-          if is_call?
-            sorted_opts = options.sort_by(&:strike)
-            compare_marks(sorted_opts)
-          else
-            sorted_opts = options.sort_by(&:strike).reverse
-            compare_marks(sorted_opts)
-          end
-        end
-
-        # Compares consecutive option marks to detect violations.
-        # Assumes options are already sorted in the correct order for their contract type.
-        #
-        # Uses a two-pointer algorithm that skips over options with nil marks.
-        #
-        # @param options [Array<DataObjects::Option>] Pre-sorted options
-        # @raise [MonotonicityViolationError] If curr_mark < next_mark
-        def compare_marks(options)
-          # NOTE: assumes options are sortd
-          curr_idx = 0
-          next_idx = 1
-
-          while true
-            curr_mark = options[curr_idx].mark
-            next_mark = options[next_idx].mark
-
-            if curr_mark.nil?
-              curr_idx = next_idx
-              next_idx += 1
-            elsif next_mark.nil?
-              next_idx += 1
-            elsif curr_mark < next_mark
-              raise MonotonicityViolationError, "CALL at strikes: #{options[curr_idx].strike} and #{options[next_idx].strike}"
-            else
-              curr_idx = next_idx
-              next_idx += 1
-            end
-
-            break if next_idx >= options.length
-          end
+          fixed_opts
         end
 
         # Fixes extrinsic value violations in out-of-the-money call options.

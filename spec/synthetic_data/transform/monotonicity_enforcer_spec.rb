@@ -21,7 +21,7 @@ RSpec.describe OptionsTrader::SyntheticData::Transform::MonotonicityEnforcer do
     let(:underlying_price) { 5800 } # ATM
 
     it 'handles empty array' do
-      result = described_class.enforce([], underlying_price, method: 'remove')
+      result = described_class.enforce([], method: 'remove')
       expect(result).to eq([])
     end
 
@@ -32,7 +32,7 @@ RSpec.describe OptionsTrader::SyntheticData::Transform::MonotonicityEnforcer do
         underlying_price: underlying_price,
         expiration_date: expiration_date
       )]
-      result = described_class.enforce(calls, underlying_price, method: 'remove')
+      result = described_class.enforce(calls, method: 'remove')
 
       expect(result.length).to eq(1)
       expect(result.first.mark).to eq(28.0)
@@ -60,7 +60,7 @@ RSpec.describe OptionsTrader::SyntheticData::Transform::MonotonicityEnforcer do
         )
       ]
 
-      result = described_class.enforce(calls, underlying_price, method: 'remove')
+      result = described_class.enforce(calls, method: 'remove')
 
       expect(result.find { |c| c.strike == 5805 }.mark).to eq(120.0)
       expect(result.find { |c| c.strike == 5850 }.mark).to be_nil
@@ -124,20 +124,22 @@ RSpec.describe OptionsTrader::SyntheticData::Transform::MonotonicityEnforcer do
           expiration_date: expiration_date
         ),
         create_option(
-          strike: 6900, mark: 23.9, # extrinsic -0.94
-          underlying_price: underlying_price, contract_type: 'PUT',
+          strike: 6900,
+          mark: 23.9, # extrinsic -0.94
+          underlying_price: underlying_price,
+          contract_type: 'PUT',
           expiration_date: expiration_date
         ),
       ]
     end
     let(:enforcer) do
       described_class.new(
-        underlying_price: underlying_price,
         method: 'remove'
       )
     end
 
     it 'removes OTM violations' do
+      enforcer.instance_variable_set(:@underlying_price, underlying_price)
       result = enforcer.fix_otm_puts(put_opts)
       expect(result.count).to eq(6)
       expect(result.find { |p| p.strike == 6830 }.mark).to eq(2.7)
@@ -149,6 +151,7 @@ RSpec.describe OptionsTrader::SyntheticData::Transform::MonotonicityEnforcer do
     end
 
     it 'removes ITM violations' do
+      enforcer.instance_variable_set(:@underlying_price, underlying_price)
       result = enforcer.fix_itm_puts(put_opts)
       expect(result.count).to eq(5)
       expect(result.find { |p| p.strike == 6880 }.mark).to eq(11.7)
@@ -160,7 +163,7 @@ RSpec.describe OptionsTrader::SyntheticData::Transform::MonotonicityEnforcer do
     describe '#enforce' do
       it 'does not raise' do
         expect { enforcer.enforce(put_opts) }.not_to raise_error(
-          OptionsTrader::SyntheticData::Transform::MonotonicityViolationError
+          OptionsTrader::SyntheticData::Validators::MonotonicityViolationError
         )
       end
 
@@ -172,7 +175,7 @@ RSpec.describe OptionsTrader::SyntheticData::Transform::MonotonicityEnforcer do
           expiration_date: expiration_date
         )
         expect { enforcer.enforce(put_opts << bad_option) }.to raise_error(
-          OptionsTrader::SyntheticData::Transform::MonotonicityViolationError
+          OptionsTrader::SyntheticData::Validators::MonotonicityViolationError
         )
       end
     end
@@ -227,13 +230,11 @@ RSpec.describe OptionsTrader::SyntheticData::Transform::MonotonicityEnforcer do
       ]
     end
     let(:enforcer) do
-      described_class.new(
-        underlying_price: underlying_price,
-        method: 'remove'
-      )
+      described_class.new(method: 'remove')
     end
 
     it 'removes OTM violations' do
+      enforcer.instance_variable_set(:@underlying_price, underlying_price)
       result = enforcer.fix_otm_calls(call_opts)
       expect(result.count).to eq(4)
       expect(result.find { |c| c.strike == 6865 }.mark).to eq(10.9)
@@ -243,6 +244,7 @@ RSpec.describe OptionsTrader::SyntheticData::Transform::MonotonicityEnforcer do
     end
 
     it 'removes ITM violations' do
+      enforcer.instance_variable_set(:@underlying_price, underlying_price)
       result = enforcer.fix_itm_calls(call_opts)
       expect(result.count).to eq(4)
       expect(result.find { |c| c.strike == 6840 }.mark).to eq(19.01)
@@ -254,7 +256,7 @@ RSpec.describe OptionsTrader::SyntheticData::Transform::MonotonicityEnforcer do
     describe '#enforce' do
       it 'does not raise' do
         expect { enforcer.enforce(call_opts) }.not_to raise_error(
-          OptionsTrader::SyntheticData::Transform::MonotonicityViolationError
+          OptionsTrader::SyntheticData::Validators::MonotonicityViolationError
         )
       end
       it 'raises error on unresolvable violations' do
@@ -265,7 +267,7 @@ RSpec.describe OptionsTrader::SyntheticData::Transform::MonotonicityEnforcer do
           expiration_date: expiration_date
         )
         expect { enforcer.enforce(call_opts << bad_option) }.to raise_error(
-          OptionsTrader::SyntheticData::Transform::MonotonicityViolationError
+          OptionsTrader::SyntheticData::Validators::MonotonicityViolationError
         )
       end
     end
