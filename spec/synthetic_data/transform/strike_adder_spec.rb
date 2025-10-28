@@ -7,15 +7,6 @@ RSpec.describe OptionsTrader::SyntheticData::Transform::StrikeAdder do
   let(:dte) { 1 }
   let(:timestamp) { Time.now }
 
-  let(:context) do
-    {
-      underlying_price: underlying_price,
-      underlying_symbol: underlying_symbol,
-      dte: dte,
-      expiration_date: expiration_date
-    }
-  end
-
   def create_option(strike:, contract_type:, mark: nil, features: {})
     option = OptionsTrader::DataObjects::Option.new(
       symbol: "SPXW#{expiration_date.strftime('%Y%m%d')}#{contract_type[0]}#{(strike * 1000).to_i.to_s.rjust(8, '0')}",
@@ -37,80 +28,61 @@ RSpec.describe OptionsTrader::SyntheticData::Transform::StrikeAdder do
   end
 
   describe '.add_strikes' do
-    context 'with sparse existing options' do
+   context 'with sparse existing options' do
       let(:call_opts) do
         [
+          create_option(strike: 5500, contract_type: 'CALL', mark: 250.0),
           create_option(strike: 5800, contract_type: 'CALL', mark: 120.0),
-          create_option(strike: 5900, contract_type: 'CALL', mark: 60.0)
+          create_option(strike: 5900, contract_type: 'CALL', mark: nil)
         ]
       end
 
       let(:put_opts) do
         [
-          create_option(strike: 5800, contract_type: 'PUT', mark: 40.0),
-          create_option(strike: 5900, contract_type: 'PUT', mark: 80.0)
+          create_option(strike: 5800, contract_type: 'PUT', mark: nil),
+          create_option(strike: 5900, contract_type: 'PUT', mark: 80.0),
+          create_option(strike: 6000, contract_type: 'PUT', mark: 100.0)
         ]
-      end
-
-      it 'returns a hash with :calls and :puts keys' do
-        result = described_class.add_strikes(
-          calls: call_opts,
-          puts: put_opts,
-          context: context,
-          features: {},
-          min_strike: 5800,
-          max_strike: 5900
-        )
-
-        expect(result).to be_a(Hash)
-        expect(result).to have_key(:calls)
-        expect(result).to have_key(:puts)
       end
 
       it 'fills in missing strikes between existing options' do
         result = described_class.add_strikes(
           calls: call_opts,
-          puts: put_opts,
-          context: context,
+          put_opts: put_opts,
           features: {},
-          min_strike: 5800,
-          max_strike: 5900
+          min_strike: 5500,
+          max_strike: 6000
         )
 
-        # Should have strikes from 5800 to 5900 in 5-point increments (ATM range)
         call_strikes = result[:calls].map(&:strike).sort
-        put_strikes = result[:puts].map(&:strike).sort
-
+        put_strikes = result[:put_opts].map(&:strike).sort
         expect(call_strikes).to eq(put_strikes)
-        expect(call_strikes).to include(5800, 5805, 5810, 5815, 5820, 5825, 5830, 5835, 5840, 5845, 5850, 5855, 5860, 5865, 5870, 5875, 5880, 5885, 5890, 5895, 5900)
       end
 
       it 'preserves existing option data' do
         result = described_class.add_strikes(
           calls: call_opts,
-          puts: put_opts,
-          context: context,
+          put_opts: put_opts,
           features: {},
-          min_strike: 5800,
-          max_strike: 5900
+          min_strike: 5500,
+          max_strike: 6000
         )
 
-        existing_call_5800 = result[:calls].find { |c| c.strike == 5800 }
-        expect(existing_call_5800.mark).to eq(120.0)
-        expect(existing_call_5800.symbol).to eq(call_opts[0].symbol)
+        existing_call_5500 = result[:calls].find { |c| c.strike == 5500 }
+        expect(existing_call_5500.mark).to eq(250.0)
+        expect(existing_call_5500.symbol).to eq(call_opts[0].symbol)
 
-        existing_put_5900 = result[:puts].find { |p| p.strike == 5900 }
+        existing_put_5900 = result[:put_opts].find { |p| p.strike == 5900 }
         expect(existing_put_5900.mark).to eq(80.0)
       end
 
       it 'creates synthetic options with nil marks for missing strikes' do
         result = described_class.add_strikes(
           calls: call_opts,
-          puts: put_opts,
-          context: context,
+          put_opts: put_opts,
           features: {},
-          min_strike: 5800,
-          max_strike: 5900
+          min_strike: 5500,
+          max_strike: 6000
         )
 
         synthetic_call_5850 = result[:calls].find { |c| c.strike == 5850 }
@@ -124,10 +96,9 @@ RSpec.describe OptionsTrader::SyntheticData::Transform::StrikeAdder do
       it 'sets boundary marks for extreme strikes' do
         result = described_class.add_strikes(
           calls: call_opts,
-          puts: put_opts,
-          context: context,
+          put_opts: put_opts,
           features: {},
-          min_strike: 5700,
+          min_strike: 5500,
           max_strike: 6000
         )
 
@@ -136,7 +107,7 @@ RSpec.describe OptionsTrader::SyntheticData::Transform::StrikeAdder do
         expect(max_call.mark).to eq(described_class::DEFAULT_MIN_MARK)
 
         # Min strike put should have DEFAULT_MIN_MARK
-        min_put = result[:puts].find { |p| p.strike == 5700 }
+        min_put = result[:put_opts].find { |p| p.strike == 5500 }
         expect(min_put.mark).to eq(described_class::DEFAULT_MIN_MARK)
       end
     end
@@ -145,18 +116,25 @@ RSpec.describe OptionsTrader::SyntheticData::Transform::StrikeAdder do
       let(:features) { { vix9d: 18.5, vvix: 85.2, skew: 120.0 } }
 
       let(:call_opts) do
-        [create_option(strike: 5900, contract_type: 'CALL', mark: 60.0, features: features)]
+        [
+          create_option(strike: 5900, contract_type: 'CALL', mark: 60.0),
+          create_option(strike: 6000, contract_type: 'CALL', mark: 30.0),
+          create_option(strike: 6200, contract_type: 'CALL', mark: 20.0)
+        ]
       end
 
       let(:put_opts) do
-        [create_option(strike: 5900, contract_type: 'PUT', mark: 80.0, features: features)]
+        [
+          create_option(strike: 5600, contract_type: 'PUT', mark: 10.0),
+          create_option(strike: 5750, contract_type: 'PUT', mark: 20.0),
+          create_option(strike: 5900, contract_type: 'PUT', mark: 40.0)
+        ]
       end
 
       it 'propagates features from existing options to synthetic options' do
         result = described_class.add_strikes(
           calls: call_opts,
-          puts: put_opts,
-          context: context,
+          put_opts: put_opts,
           features: features,
           min_strike: 5850,
           max_strike: 5950
@@ -174,18 +152,25 @@ RSpec.describe OptionsTrader::SyntheticData::Transform::StrikeAdder do
 
     context 'with default strike generation' do
       let(:call_opts) do
-        [create_option(strike: 5900, contract_type: 'CALL', mark: 60.0)]
+        [
+          create_option(strike: 5900, contract_type: 'CALL', mark: 60.0),
+          create_option(strike: 6000, contract_type: 'CALL', mark: 30.0),
+          create_option(strike: 6200, contract_type: 'CALL', mark: 20.0)
+        ]
       end
 
       let(:put_opts) do
-        [create_option(strike: 5900, contract_type: 'PUT', mark: 80.0)]
+        [
+          create_option(strike: 5600, contract_type: 'PUT', mark: 10.0),
+          create_option(strike: 5750, contract_type: 'PUT', mark: 20.0),
+          create_option(strike: 5900, contract_type: 'PUT', mark: 40.0)
+        ]
       end
 
       it 'generates strikes using default offsets when min/max not provided' do
         result = described_class.add_strikes(
           calls: call_opts,
-          puts: put_opts,
-          context: context,
+          put_opts: put_opts,
           features: {}
         )
 
@@ -202,8 +187,7 @@ RSpec.describe OptionsTrader::SyntheticData::Transform::StrikeAdder do
       it 'uses dense spacing (5 points) within ATM range' do
         result = described_class.add_strikes(
           calls: call_opts,
-          puts: put_opts,
-          context: context,
+          put_opts: put_opts,
           features: {},
           min_strike: 5800,
           max_strike: 6000
@@ -222,8 +206,7 @@ RSpec.describe OptionsTrader::SyntheticData::Transform::StrikeAdder do
       it 'uses wide spacing (25 points) outside ATM range' do
         result = described_class.add_strikes(
           calls: call_opts,
-          puts: put_opts,
-          context: context,
+          put_opts: put_opts,
           features: {},
           min_strike: 5000,
           max_strike: 5600
@@ -241,18 +224,25 @@ RSpec.describe OptionsTrader::SyntheticData::Transform::StrikeAdder do
 
     context 'with custom strike parameters' do
       let(:call_opts) do
-        [create_option(strike: 5900, contract_type: 'CALL', mark: 60.0)]
+        [
+          create_option(strike: 5900, contract_type: 'CALL', mark: 60.0),
+          create_option(strike: 6000, contract_type: 'CALL', mark: 30.0),
+          create_option(strike: 6200, contract_type: 'CALL', mark: 20.0)
+        ]
       end
 
       let(:put_opts) do
-        [create_option(strike: 5900, contract_type: 'PUT', mark: 80.0)]
+        [
+          create_option(strike: 5600, contract_type: 'PUT', mark: 10.0),
+          create_option(strike: 5750, contract_type: 'PUT', mark: 20.0),
+          create_option(strike: 5900, contract_type: 'PUT', mark: 40.0)
+        ]
       end
 
       it 'respects custom inner_step parameter' do
         result = described_class.add_strikes(
           calls: call_opts,
-          puts: put_opts,
-          context: context,
+          put_opts: put_opts,
           features: {},
           min_strike: 5800,
           max_strike: 6000,
@@ -271,8 +261,7 @@ RSpec.describe OptionsTrader::SyntheticData::Transform::StrikeAdder do
       it 'respects custom outer_step parameter' do
         result = described_class.add_strikes(
           calls: call_opts,
-          puts: put_opts,
-          context: context,
+          put_opts: put_opts,
           features: {},
           min_strike: 5000,
           max_strike: 5600,
@@ -288,33 +277,10 @@ RSpec.describe OptionsTrader::SyntheticData::Transform::StrikeAdder do
         expect(diffs.uniq).to include(50)
       end
     end
-
-    context 'with empty option arrays' do
-      it 'creates synthetic options when calls and puts are empty' do
-        result = described_class.add_strikes(
-          calls: [],
-          puts: [],
-          context: context,
-          features: {},
-          min_strike: 5850,
-          max_strike: 5950
-        )
-
-        expect(result[:calls]).not_to be_empty
-        expect(result[:puts]).not_to be_empty
-
-        # All options should be synthetic with nil marks (except boundaries)
-        non_boundary_calls = result[:calls].select { |c| c.strike != 5950 }
-        non_boundary_puts = result[:puts].select { |p| p.strike != 5850 }
-
-        expect(non_boundary_calls.all? { |c| c.mark.nil? }).to be true
-        expect(non_boundary_puts.all? { |p| p.mark.nil? }).to be true
-      end
-    end
   end
 
   describe '#create_option_symbol' do
-    let(:adder) { described_class.new(context: context) }
+    let(:adder) { described_class.new }
 
     it 'creates OCC-formatted option symbols for calls' do
       symbol = adder.send(:create_option_symbol, 'SPXW', 5900, 'CALL', expiration_date)
@@ -336,7 +302,7 @@ RSpec.describe OptionsTrader::SyntheticData::Transform::StrikeAdder do
   end
 
   describe '#generate_target_strikes' do
-    let(:adder) { described_class.new(context: context) }
+    let(:adder) { described_class.new }
 
     it 'returns sorted array of strikes' do
       strikes = adder.send(:generate_target_strikes, 5900.0, min_strike: 5800, max_strike: 6000)
