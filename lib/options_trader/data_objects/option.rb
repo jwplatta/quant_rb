@@ -55,7 +55,7 @@ module OptionsTrader
         @extrinsic = extrinsic
         @timestamp = timestamp
 
-        init_price_values(mark, intrinsic, extrinsic)
+        set_price_values(mark, intrinsic, extrinsic)
       end
 
       attr_accessor :delta, :gamma, :theta, :vega, :rho, :mark, :intrinsic, :extrinsic
@@ -130,7 +130,7 @@ module OptionsTrader
 
       private
 
-      def init_price_values(mark_val, intrinsic_val, extrinsic_val)
+      def set_price_values(mark_val, intrinsic_val, extrinsic_val)
         if mark_val && !intrinsic_val && !extrinsic_val
           calc_extrinsic_from_mark(mark_val)
         elsif intrinsic_val && extrinsic_val && !mark_val
@@ -138,13 +138,17 @@ module OptionsTrader
           @extrinsic = extrinsic_val
           @mark = intrinsic_val + extrinsic_val
         elsif mark_val && intrinsic_val && !extrinsic_val
-          @mark = mark_val
-          @intrinsic = intrinsic_val
-          @extrinsic = mark_val - intrinsic_val
+          if mark > intrinsic_val
+            @mark = mark_val
+            @intrinsic = intrinsic_val
+            @extrinsic = mark_val - intrinsic_val
+          end
         elsif mark_val && extrinsic_val && !intrinsic_val
-          @mark = mark_val
-          @extrinsic = extrinsic_val
-          @intrinsic = mark_val - extrinsic_val
+          if mark_val >= extrinsic_val
+            @mark = mark_val
+            @extrinsic = extrinsic_val
+            @intrinsic = mark_val - extrinsic_val
+          end
         end
       end
 
