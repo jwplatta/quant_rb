@@ -150,7 +150,7 @@ module OptionsTrader
 
       def delta_enricher
         raise MissingGreekPredictorError, "Greek predictor is required for delta enrichment" if @greek_predictor.nil?
-        @delta_enricher ||= Transform::DeltaEnricher.new(predictor: @greek_predictor)
+        @delta_enricher ||= OptionsTrader::Services::DeltaEnricher.new(predictor: @greek_predictor)
       end
 
       def start_pipeline!
