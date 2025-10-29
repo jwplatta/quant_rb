@@ -26,6 +26,11 @@ module OptionsTrader
 
       attr_reader :symbol, :open, :close, :high, :low, :volume, :valid_time, :asset_type
 
+
+      def readable_symbol
+        symbol.to_s.gsub(/[\$\^]/, '').downcase.to_sym
+      end
+
       def mark(method: 'close')
         case method
         when 'close'

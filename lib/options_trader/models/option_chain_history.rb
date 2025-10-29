@@ -129,7 +129,8 @@ module OptionsTrader
     end
 
     def self.fetch_with_locf(expiration_date:, underlying_symbol:, end_time:, window: 5, source: 'polygon')
-      window_start = Time.parse(end_time.to_s) - (window * 60)
+      end_time = Time.parse(end_time.to_s)
+      window_start = end_time - (window * 60)
 
       sql = <<-SQL
         WITH options AS (
