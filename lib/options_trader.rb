@@ -31,6 +31,7 @@ module OptionsTrader
   # Require data objects
   require_relative "options_trader/data_objects/option"
   require_relative "options_trader/data_objects/options_chain"
+  require_relative "options_trader/data_objects/quote"
 
   # Require data providers
   require_relative "options_trader/data_providers/schwab/markets"
