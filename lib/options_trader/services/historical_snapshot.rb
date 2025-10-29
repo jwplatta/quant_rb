@@ -9,23 +9,24 @@ module OptionsTrader
 
       # @param symbol [String] Underlying symbol (e.g., 'SPXW')
       # @param valid_time [Time] Point in time for the historical snapshot
-      def initialize(valid_time:, window: DEFAULT_STALENESS_THRESHOLD_MINUTES)
+      def initialize(valid_time:)
         @valid_time = valid_time
-        @window = window
       end
 
-      attr_reader :valid_time, :window
+      attr_reader :valid_time
 
       def get_quote(symbol, **kwargs)
         interval = kwargs[:interval] || '5min'
-        generate_quote(symbol, interval: interval, window: window)
+        window = kwargs[:window] || DEFAULT_STALENESS_THRESHOLD_MINUTES
+        generate_quote(symbol, window, interval: interval)
       end
 
       def get_quotes(symbols, **kwargs)
         interval = kwargs[:interval] || '5min'
+        window = kwargs[:window] || DEFAULT_STALENESS_THRESHOLD_MINUTES
 
         symbols.map do |symbol|
-          generate_quote(symbol, interval: interval, window: window)
+          generate_quote(symbol, window, interval: interval)
         end
       end
 
@@ -39,14 +40,16 @@ module OptionsTrader
         expiration_date = kwargs[:expiration_date]
         raise ArgumentError, "expiration_date is required" if expiration_date.nil?
 
-        generate_options_chain(symbol, expiration_date)
+        window = kwargs[:window] || DEFAULT_STALENESS_THRESHOLD_MINUTES
+
+        generate_options_chain(symbol, expiration_date, window)
       end
 
       private
 
       # Core method that fetches historical data, generates synthetic options, interpolates prices,
       # and enforces monotonicity to create a complete, arbitrage-free option chain.
-      def generate_options_chain(underlying_symbol, expiration_date)
+      def generate_options_chain(underlying_symbol, expiration_date, window)
         # Step 1: Fetch existing options using LOCF
         # If features are requested, use the enriched query; otherwise use the basic query
         call_opts, put_opts = OptionChainHistory.fetch_with_locf(
@@ -109,15 +112,33 @@ module OptionsTrader
         end
       end
 
-      def generate_quote(symbol, window: 5, interval: '5min')
+      def generate_quote(symbol, window, interval: '5min')
         # def self.latest_for_symbol(symbol, end_time, start_time = nil, interval = '5min')
         # end_time: valid_time,
         # window_minutes: window
-        price_record = PriceHistory.fetch_latest(symbol, valid_time, window: window, interval: interval)
+        # fetch_with_locf(symbol:, end_time:, window: 5, interval: '5min')
+        price_record = PriceHistory.fetch_with_locf(
+          symbol: symbol,
+          end_time: valid_time,
+          window: window,
+          interval: interval
+        ).then do |price_record|
+          raise MissingPriceRecordError, "No valid price record found for symbol #{symbol} at #{valid_time}" if price_record.nil?
 
-        raise MissingPriceRecordError, "No valid price record found for symbol #{symbol} at #{valid_time}" if price_record.nil?
+          build_quote_from_record(price_record)
+        end
+      end
 
-        price_record
+      def build_quote_from_record(record)
+        DataObjects::Quote.new(
+          symbol: record.symbol,
+          open: record.open,
+          close: record.close,
+          high: record.high,
+          low: record.low,
+          volume: record.volume,
+          valid_time: record.valid_time
+        )
       end
     end
   end
