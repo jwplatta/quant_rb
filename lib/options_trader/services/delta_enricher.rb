@@ -9,11 +9,11 @@ module OptionsTrader
         @predictor = predictor
       end
 
-      def enrich(option_chain)
+      def enrich(option_chain, features={})
         logger.info("DeltaEnricher: Enriching option chain for #{option_chain.symbol}")
 
-        enrich_calls(option_chain.call_opts, option_chain.underlying_price)
-        enrich_puts(option_chain.put_opts, option_chain.underlying_price)
+        enrich_calls(option_chain.call_opts, features)
+        enrich_puts(option_chain.put_opts, features)
 
         # REVIEW: temporarily disabling because it causes monotonicity violations
         # enforce_parity(option_chain.call_opts, option_chain.put_opts, option_chain.underlying_price)
@@ -21,97 +21,81 @@ module OptionsTrader
         option_chain
       end
 
-      def enrich_batch(option_chains)
-        option_chains.map { |chain| enrich(chain) }
+      def enrich_batch(option_chains, features={})
+        option_chains.map { |chain| enrich(chain, features) }
       end
 
       private
 
-      def enrich_calls(options, underlying_price)
+      def enrich_calls(options, features={})
         return if options.empty?
 
-        logger.debug("DeltaEnricher: Predicting deltas for #{options.size} CALL options")
-
-        payload = build_payload(options, 'CALL')
+        payload = build_payload(options, features)
         result = @predictor.predict_deltas(payload)
 
         # Response structure: { predictions: [0.65, 0.45, ...], contract_type: 'CALL', model_version: '1.0.0', count: N }
         apply_deltas(options, result['predictions'])
-
-        logger.debug("DeltaEnricher: Successfully predicted #{result['count']} CALL deltas using model #{result['model_version']}")
       end
 
-      def enrich_puts(options, underlying_price)
+      def enrich_puts(options, features={})
         return if options.empty?
 
-        logger.debug("DeltaEnricher: Predicting deltas for #{options.size} PUT options")
-
-        payload = build_payload(options, 'PUT')
-
-        # --- IGNORE ---
-        # File.open('put_delta_features.txt', 'w') do |f|
-        #   f << "dte,moneyness,mark,strike,underlying_price,vix9d,vvix\n"
-        #   payload[:features].each do |feat|
-        #     f << "#{feat[:dte]},#{feat[:moneyness]},#{feat[:mark]},#{feat[:strike]},#{feat[:underlying_price]},#{feat[:vix9d]},#{feat[:vvix]}\n"
-        #   end
-        # end
+        payload = build_payload(options, features)
 
         result = @predictor.predict_deltas(payload)
 
         apply_deltas(options, result['predictions'])
-
-        logger.debug("DeltaEnricher: Successfully predicted #{result['count']} PUT deltas using model #{result['model_version']}")
       end
 
-      def build_payload(options, contract_type)
-        validate_required_features(options, contract_type)
+      def build_payload(options, features)
+        opt_features = options.map do |opt|
+          {
+            dte: opt.days_to_expiration,
+            moneyness: opt.moneyness,
+            mark: opt.mark,
+            strike: opt.strike,
+            underlying_price: opt.underlying_price
+          }.merge(features)
+        end
+
+        validate_required_features(opt_features)
 
         {
-          contract_type: contract_type,
-          features: options.map do |opt|
-            {
-              dte: opt.days_to_expiration,
-              moneyness: opt.moneyness,
-              mark: opt.mark,
-              strike: opt.strike,
-              underlying_price: opt.underlying_price,
-              vix9d: opt.respond_to?(:vix9d) ? opt.vix9d : nil,
-              vvix: opt.respond_to?(:vvix) ? opt.vvix : nil
-            }
-          end,
+          contract_type: options.first.put_call,
+          features: opt_features,
           version: 'latest',
           smooth: true,
           interpolate: false
         }
       end
 
-      def validate_required_features(options, contract_type)
+      def validate_required_features(features)
         missing_features = []
 
-        options.each_with_index do |opt, idx|
-          if opt.days_to_expiration.nil?
-            missing_features << "days_to_expiration missing for option at index #{idx} (strike: #{opt.strike})"
+        features.each_with_index do |feature, idx|
+          if feature[:dte].nil?
+            missing_features << "days_to_expiration missing for option at index #{idx} (strike: #{feature[:strike]})"
           end
-          if opt.mark.nil?
-            missing_features << "mark missing for option at index #{idx} (strike: #{opt.strike})"
+          if feature[:mark].nil?
+            missing_features << "mark missing for option at index #{idx} (strike: #{feature[:strike]})"
           end
-          if opt.strike.nil? || opt.strike <= 0
+          if feature[:strike].nil? || feature[:strike] <= 0
             missing_features << "strike missing or invalid for option at index #{idx}"
           end
-          if opt.underlying_price.nil? || opt.underlying_price <= 0
-            missing_features << "underlying_price missing or invalid for option at index #{idx} (strike: #{opt.strike})"
+          if feature[:underlying_price].nil? || feature[:underlying_price] <= 0
+            missing_features << "underlying_price missing or invalid for option at index #{idx} (strike: #{feature[:strike]})"
           end
 
-          if !opt.respond_to?(:vix9d) || opt.vix9d.nil?
-            missing_features << "vix9d missing for option at index #{idx} (strike: #{opt.strike})"
+          if feature[:vix9d].nil?
+            missing_features << "vix9d missing for option at index #{idx} (strike: #{feature[:strike]})"
           end
-          if !opt.respond_to?(:vvix) || opt.vvix.nil?
-            missing_features << "vvix missing for option at index #{idx} (strike: #{opt.strike})"
+          if feature[:vvix].nil?
+            missing_features << "vvix missing for option at index #{idx} (strike: #{feature[:strike]})"
           end
         end
 
         unless missing_features.empty?
-          error_msg = "Required features missing for #{contract_type} delta prediction:\n#{missing_features.join("\n")}"
+          error_msg = "Required features missing for prediction:\n#{missing_features.join("\n")}"
           logger.error(error_msg)
           raise Error, error_msg
         end
