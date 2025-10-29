@@ -7,6 +7,7 @@ module OptionsTrader
     class OptionChainPipeline
       class PipelineStateError < StandardError; end
       class MissingContextError < StandardError; end
+      class MissingGreekPredictorError < StandardError; end
 
       # Initialize the pipeline with an option chain and context metadata
       #
@@ -16,14 +17,14 @@ module OptionsTrader
       # @option context [Date] :expiration_date Option expiration date
       # @option context [String] :underlying_symbol Underlying symbol (e.g., 'SPXW')
       # @option context [Time] :valid_time Timestamp for historical snapshot (optional)
-      def initialize(option_chain)
+      def initialize(option_chain, greek_predictor: nil)
         @original_chain = option_chain
         @calls = option_chain.call_opts.dup
         @puts = option_chain.put_opts.dup
         @features = {}
         @pipeline_started = false
         @features_set = false
-
+        @greek_predictor = greek_predictor
       end
 
       # Add market features to be propagated to synthetic options
@@ -105,23 +106,30 @@ module OptionsTrader
       #
       # @param min_extrinsic [Float] Minimum extrinsic value (default: 0.025)
       # @return [self] For method chaining
-      def interpolate_prices(min_extrinsic: 0.025)
+      def interpolate_prices
         start_pipeline!
 
         @calls = Transform::LinearInterpolator.interpolate(
           @calls,
-          contract_type: 'CALL',
-          min_extrinsic: min_extrinsic
+          contract_type: OptionsTrader::CALL
         )
 
         @puts = Transform::LinearInterpolator.interpolate(
           @puts,
-          contract_type: 'PUT',
-          min_extrinsic: min_extrinsic
+          contract_type: OptionsTrader::PUT
         )
 
         Validators::Monotonicity.check(@calls)
         Validators::Monotonicity.check(@puts)
+
+        self
+      end
+
+      def enrich_deltas
+        start_pipeline!
+
+        @calls = delta_enricher.enrich(@calls)
+        @puts = delta_enricher.enrich(@puts)
 
         self
       end
@@ -139,6 +147,11 @@ module OptionsTrader
       end
 
       private
+
+      def delta_enricher
+        raise MissingGreekPredictorError, "Greek predictor is required for delta enrichment" if @greek_predictor.nil?
+        @delta_enricher ||= Transform::DeltaEnricher.new(predictor: @greek_predictor)
+      end
 
       def start_pipeline!
         @pipeline_started = true
