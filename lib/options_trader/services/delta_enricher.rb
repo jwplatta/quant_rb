@@ -1,8 +1,6 @@
 module OptionsTrader
   module Services
     class DeltaEnricher
-      include OptionsTrader::Loggable
-
       class Error < OptionsTrader::Error; end
 
       def initialize(predictor:)
@@ -10,8 +8,6 @@ module OptionsTrader
       end
 
       def enrich(option_chain, features={})
-        logger.info("DeltaEnricher: Enriching option chain for #{option_chain.symbol}")
-
         enrich_calls(option_chain.call_opts, features)
         enrich_puts(option_chain.put_opts, features)
 
@@ -96,7 +92,6 @@ module OptionsTrader
 
         unless missing_features.empty?
           error_msg = "Required features missing for prediction:\n#{missing_features.join("\n")}"
-          logger.error(error_msg)
           raise Error, error_msg
         end
       end
@@ -113,8 +108,6 @@ module OptionsTrader
       # - Smooth around ATM strikes for consistency
       def enforce_parity(call_opts, put_opts, underlying_price)
         return if call_opts.empty? || put_opts.empty?
-
-        logger.debug("DeltaEnricher: Enforcing put-call parity")
 
         call_opts_by_strike = call_opts.index_by(&:strike)
         put_opts_by_strike = put_opts.index_by(&:strike)
@@ -151,8 +144,6 @@ module OptionsTrader
             end
           end
         end
-
-        logger.debug("DeltaEnricher: Put-call parity enforced around ATM strike #{atm_strike}")
       end
     end
   end
