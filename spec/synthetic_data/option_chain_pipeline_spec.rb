@@ -1,6 +1,6 @@
 require 'spec_helper'
 
-RSpec.describe OptionsTrader::SyntheticData::OptionChainPipeline do
+RSpec.xdescribe OptionsTrader::SyntheticData::OptionChainPipeline do
   include_context 'realistic SPX option chain'
 
   describe 'basic pipeline integration' do

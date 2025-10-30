@@ -109,16 +109,9 @@ module OptionsTrader
       def interpolate_prices
         start_pipeline!
 
-        @calls = Transform::LinearInterpolator.interpolate(
-          @calls,
-          contract_type: OptionsTrader::CALL
-        )
-
-        @puts = Transform::LinearInterpolator.interpolate(
-          @puts,
-          contract_type: OptionsTrader::PUT
-        )
-
+        @calls = Transform::LinearInterpolator.interpolate(@calls)
+        @puts = Transform::LinearInterpolator.interpolate(@puts)
+        
         Validators::Monotonicity.check(@calls)
         Validators::Monotonicity.check(@puts)
 
