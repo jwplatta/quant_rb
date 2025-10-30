@@ -38,7 +38,7 @@ end
 Dir[File.join(File.dirname(__FILE__), 'factories', '**', '*.rb')].each { |f| require f }
 
 # Load all shared contexts
-Dir[File.join(File.dirname(__FILE__), 'support', 'shared_contexts', '**', '*.rb')].each { |f| require f }
+Dir[File.join(File.dirname(__FILE__), 'shared_contexts', '**', '*.rb')].each { |f| require f }
 
 RSpec.configure do |config|
   # Include FactoryBot methods
