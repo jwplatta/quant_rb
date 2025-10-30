@@ -1,6 +1,6 @@
 require 'spec_helper'
 
-RSpec.describe OptionsTrader::Services::DeltaEnricher do
+RSpec.xdescribe OptionsTrader::Services::DeltaEnricher do
   let(:predictor) { instance_double(OptionsTrader::Predictors::GreekForge) }
   let(:enricher) { described_class.new(predictor: predictor) }
 

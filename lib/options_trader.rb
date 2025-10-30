@@ -74,16 +74,10 @@ module OptionsTrader
   require_relative "options_trader/trades/order_manager"
   require_relative "options_trader/trades/risk_monitor"
 
-  # Require bots
-  require_relative "options_trader/automation/bot"
-
   # Require charts
   require_relative "options_trader/charts/chart_base"
   require_relative "options_trader/charts/monthly_progress"
   require_relative "options_trader/charts/line_graph"
-
-  # Require exports
-  require_relative "options_trader/exports/transactions_by_order"
 
   # Require job workers
   require_relative "options_trader/workers/sample_spx_option_chain_9dte"
@@ -91,14 +85,6 @@ module OptionsTrader
   # Require models
   require_relative "options_trader/models/option_chain_history"
   require_relative "options_trader/models/price_history"
-
-  # Require indicators
-  require_relative "options_trader/indicators/greeks"
-  require_relative "options_trader/indicators/implied_volatility"
-  require_relative "options_trader/indicators/historical_volatility"
-  require_relative "options_trader/indicators/vix_volatility"
-  require_relative "options_trader/indicators/cox_ross_rubinstein"
-  require_relative "options_trader/indicators/black_scholes"
 
   # Require synthetic data pipeline
   require_relative "options_trader/synthetic_data/option_chain_pipeline"
