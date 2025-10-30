@@ -28,26 +28,6 @@ namespace :schwab do
     puts 'Token refreshed'
   end
 
-  desc "Export Transactions by Order"
-  task :export_transactions_by_order, [:account_names, :from_date, :to_date] => :environment do |_t, args|
-    account_names = validate_account_names(schwab_client, args[:account_names])
-
-    from_date = args[:from_date] ? Date.parse(args[:from_date]) : Date.today
-    from_date = DateTime.new(from_date.year, from_date.month, from_date.day, 0, 0, 0)
-
-    to_date = args[:to_date] ? Date.parse(args[:to_date]) : Date.today
-    to_date = DateTime.new(to_date.year, to_date.month, to_date.day, 23, 59, 59)
-
-    out_path = OptionsTrader::Exports::TransactionsByOrder.export(
-      schwab_client: schwab_client,
-      from_date: from_date,
-      to_date: to_date,
-      account_names: account_names
-    )
-
-    puts "Exported to: #{out_path}"
-  end
-
   desc "Download price history to CSV file"
   task :download_price_history, [:symbol, :start_date, :end_date, :interval] => :environment do |_t, args|
     unless args[:symbol] && args[:start_date] && args[:interval]
