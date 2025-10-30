@@ -124,14 +124,6 @@ module OptionsTrader
             if lower_idx && upper_idx
               # Interpolate extrinsic values for the entire sequence
               interpolate_extrinsic_sequence(options, lower_idx, upper_idx, start_idx, end_idx)
-            elsif lower_idx || upper_idx
-              # TODO: want to delete this condition since
-              # the boundaries should be set already
-              binding.pry
-              # Use minimum extrinsic for all in sequence
-              (start_idx..end_idx).each do |i|
-                options[i].calc_mark_from_extrinsic(@min_extrinsic)
-              end
             else
               raise "Cannot interpolate options at strikes #{options[start_idx].strike}-#{options[end_idx].strike} (no bounds found)"
             end
