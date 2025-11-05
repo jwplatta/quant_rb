@@ -2,8 +2,6 @@
 
 module OptionsTrader
   class PutOption < StrategyBase
-    include Quoteable
-
     class << self
       def from_schwab_option(option, quantity: 1)
         PutOption.new(option.symbol, quantity: quantity).tap do |put_opt|

@@ -5,16 +5,14 @@ module OptionsTrader
     module Schwab
       class Markets < Base
         def get_quote(symbol)
-          validate_symbol(symbol)
-
+          # validate_symbol(symbol)
           handle_api_errors("get_quote") do
             client.get_quote(symbol, return_data_objects: true)
           end
         end
 
         def get_quotes(symbols)
-          symbols.each { |symbol| validate_symbol(symbol) }
-
+          # symbols.each { |symbol| validate_symbol(symbol) }
           handle_api_errors("get_quotes") do
             client.get_quotes(symbols, return_data_objects: true)
           end
@@ -28,8 +26,7 @@ module OptionsTrader
           to_date: nil,
           days_to_expiration: nil
         )
-          validate_symbol(symbol)
-
+          # validate_symbol(symbol)
           kwargs = {
             contract_type: contract_type,
             strike_range: strike_range

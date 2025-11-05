@@ -35,6 +35,7 @@ module OptionsTrader
 
   # Require data providers
   require_relative "options_trader/data_providers/schwab/markets"
+  require_relative "options_trader/data_providers/schwab/orders"
   require_relative "options_trader/data_providers/polygon/client"
 
   # Require predictors
@@ -47,10 +48,6 @@ module OptionsTrader
   require_relative "options_trader/services/polygon_importer"
   require_relative "options_trader/services/historical_snapshot"
   require_relative "options_trader/services/delta_enricher"
-
-  # Require schwab modules (needed by strategies)
-  require_relative "options_trader/schwab/quoteable"
-  require_relative "options_trader/schwab/schwab"
 
   # Then require strategy components
   require_relative "options_trader/strategies/strategy_base"

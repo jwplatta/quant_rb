@@ -1,0 +1,3 @@
+class BacktestOrderManager
+
+end

@@ -17,3 +17,5 @@ pkg
 *.json
 *.csv
 *.rdb
+*.log
+/logs
