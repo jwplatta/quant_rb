@@ -8,11 +8,13 @@ class TradesFileManager
   def initialize(file_path)
     @file_path = file_path
     trades_dir = File.dirname(file_path)
-    unless Dir.exist?(trades_dir)
-      FileUtils.mkdir_p(trades_dir)
-      unless File.exist?(file_path)
-        File.write(file_path, '{"trades": []}')
-      end
+
+    # Ensure the directory exists
+    FileUtils.mkdir_p(trades_dir) unless Dir.exist?(trades_dir)
+
+    # Create the file if it doesn't exist
+    unless File.exist?(file_path)
+      File.write(file_path, '{"trades": []}')
       @trades = []
     else
       @trades = read_trades
