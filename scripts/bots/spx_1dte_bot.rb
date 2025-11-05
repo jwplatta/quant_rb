@@ -162,6 +162,9 @@ def write_option_chain_to_file(opt_chain, expiration_date = nil)
 end
 
 class SPX1DTEBot
+  TRADE_WINDOW_START = "02:59 PM"
+  TRADE_WINDOW_END = "03:15 PM"
+
   def initialize(
     trade_finder:, trade_manager:, trades_file_manager:,
     order_manager:, logger:
@@ -181,16 +184,32 @@ class SPX1DTEBot
     while true
       @trade = if trades_file_manager.open_trade?
         trades_file_manager.get_open_trade
+      elsif inside_trade_window?
+        new_trade = trade_finder.search
+        send_order(new_trade) if new_trade.status == 'NEW'
       else
-        trade_finder.search
+        sleep_interval = seconds_until_trade_window_start
+        @logger.info "No trade to manage and outside trade window. Sleep #{sleep_interval / 60} minute."
+
+        sleep(sleep_interval) if sleep_interval > 0
       end
 
       next unless @trade
 
-      @trade = send_order(@trade) if @trade.status == 'NEW'
-
       @trade_manager.watch(@trade)
     end
+  end
+
+  def seconds_until_trade_window_start
+    now = Time.now
+    start_time = Time.parse(TRADE_WINDOW_START)
+    start_time += 24 * 60 * 60 if start_time <= now
+    (start_time - now).to_i
+  end
+
+  def inside_trade_window?
+    curr_time = Time.now
+    curr_time >= Time.parse(TRADE_WINDOW_START) && curr_time <= Time.parse(TRADE_WINDOW_END)
   end
 
   def send_order(trade)
@@ -253,18 +272,6 @@ bot.run
 # See the TradeFinder class.
 ##########################################
 
-# NOTE: goes in bot class
-trade = if @trades_file_manager.open_trade?
-  @trades_file_manager.get_open_trade
-else
-  new_trade = @trade_finder.search
-  # write_option_chain_to_file(
-  #   @trade_finder.options_chain,
-  #   @trade_finder.expiration_date
-  # )
-  new_trade
-end
-
 ##########################################
 # STEP 2: Send the trade
 # If the trade does not get filled in a short amount of time, then try reducing the price by 0.05.
@@ -281,32 +288,6 @@ end
 
 # NOTE: opening trade loop
 
-if trade.status == 'NEW'
-  puts "\n\n### Sending order for trade: #{trade.id} ###\n\n"
-  order_status = @order_manager.send_order(:open, trade.open_order_args)
-
-  if order_status == 'REJECTED'
-    # TODO: if the error can be handled, then try to handle it in the code and send the order again.
-    # Otherwise pause and try to find a new trade.
-    raise "Open order was rejected!"
-  elsif order_status == 'WORKING'
-    while order_status == 'WORKING' do
-      order_status, dtls = @order_manager.check_order_status(trade.id)
-      if order_status == 'FILLED'
-        puts "Order filled successfully."
-        trade.set_open(**dtls)
-        @trades_file_manager.save_trade(trade)
-        @order_manager.reset
-        break
-      end
-
-      puts "Order status: #{order_status}. Checking again in 5 seconds..."
-      sleep(5)
-    end
-  else
-    raise "Unexpected order status: #{order_status}"
-  end
-end
 
 ##########################################
 # STEP 3: Monitor the trade
@@ -315,7 +296,3 @@ end
 # If it's pass 11AM and the it still has not reached its profit target,
 # then close the trade for any profit or a small loss.
 ##########################################
-
-puts "\n\n### Monitoring trade: #{trade.id} ###\n\n"
-
-@trade_manager.watch(trade)
