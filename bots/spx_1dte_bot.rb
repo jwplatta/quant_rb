@@ -1,13 +1,6 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
-require_relative '../../lib/options_trader'
-require_relative './spx_1dte/data_objects'
-require_relative './spx_1dte/iron_condor_trade'
-require_relative './spx_1dte/trades_file_manager'
-require_relative './spx_1dte/paper_order_manager'
-require_relative './spx_1dte/trade_finder'
-require_relative './spx_1dte/trade_manager'
 require 'pry'
 require 'date'
 require 'schwab_rb'
@@ -15,26 +8,37 @@ require 'json'
 require 'fileutils'
 require 'logger'
 
+require_relative '../lib/options_trader'
+require_relative './spx_1dte/data_objects'
+require_relative './spx_1dte/iron_condor_trade'
+require_relative './spx_1dte/trades_file_manager'
+require_relative './spx_1dte/paper_order_manager'
+require_relative './spx_1dte/trade_finder'
+require_relative './spx_1dte/trade_manager'
+
 #####################
 ### CONFIGURATION ###
 #####################
 
+LOG_FILE = ENV.fetch('SPX_1DTE_LOG_FILE', 'logs/spx_1dte_bot.log')
+TRADES_FILE = ENV.fetch('SPX_1DTE_TRADES_FILE', 'trades/spx_1dte_trades.json')
+ACCOUNT_NAME = ENV.fetch('SPX_1DTE_ACCOUNT_NAME', 'TRADING_BROKERAGE_ACCOUNT')
+
 SchwabRb.configure do |config|
-  config.log_file = "schwab_rb.log"
-  config.log_level = "DEBUG"
+  config.log_file = LOG_FILE
+  config.log_level = "INFO"
   config.silence_output = false
 end
 
-bot_logger = Logger.new('logs/spx_1dte_bot.log')
+bot_logger = Logger.new(LOG_FILE)
 bot_logger.level = Logger::INFO
 bot_logger.formatter = proc do |severity, datetime, progname, msg|
   "[#{datetime.strftime('%Y-%m-%d %H:%M:%S')}] #{severity}: #{msg}\n"
 end
 
-TRADES_FILE = 'tmp/trades/spx_1dte_trades.json'
 UNDERLYING_SYMBOL = '$SPX'
 OPTION_ROOT = 'SPXW'
-ACCOUNT_NAME = 'TRADING_BROKERAGE_ACCOUNT'
+
 
 # TRADING PARAMETERS
 SPREAD_WIDTH = 20
@@ -213,7 +217,7 @@ class SPX1DTEBot
   end
 
   def send_order(trade)
-    logger.info "Send order for trade: #{trade.id}"
+    logger.info "Sending open order for trade #{trade.id}"
 
     order_status = order_manager.send_order(:open, trade.open_order_args)
 
