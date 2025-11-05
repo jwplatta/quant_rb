@@ -19,6 +19,8 @@ services:
     volumes:
       - .:/app
       - /Users/jplatta/.schwab_rb/token.json:/app/.schwab_rb/token.json
+      - /Users/jplatta/.schwab_rb/account_names.json:/app/.schwab_rb/account_names.json
+      - /Users/jplatta/.schwab_rb/account_hashes.json:/app/.schwab_rb/account_hashes.json
     restart: unless-stopped
 
   clockwork:
@@ -36,4 +38,26 @@ services:
     volumes:
       - .:/app
       - /Users/jplatta/.schwab_rb/token.json:/app/.schwab_rb/token.json
+      - /Users/jplatta/.schwab_rb/account_names.json:/app/.schwab_rb/account_names.json
+      - /Users/jplatta/.schwab_rb/account_hashes.json:/app/.schwab_rb/account_hashes.json
+    restart: unless-stopped
+
+  spx_1dte_bot:
+    build:
+      context: .
+      dockerfile: bots/Dockerfile
+    env_file:
+      - .env
+      - bots/.env
+    environment:
+      SCHWAB_TOKEN_PATH: /app/.schwab_rb/token.json
+      SCHWAB_HOME: /app/.schwab_rb
+      TZ: America/Chicago
+    volumes:
+      - .:/app
+      - /Users/jplatta/.schwab_rb/token.json:/app/.schwab_rb/token.json
+      - /Users/jplatta/.schwab_rb/account_names.json:/app/.schwab_rb/account_names.json
+      - /Users/jplatta/.schwab_rb/account_hashes.json:/app/.schwab_rb/account_hashes.json
+      - /Users/jplatta/.options_trader/bots/spx_1dte_bot.log:/app/logs/spx_1dte_bot.log
+      - /Users/jplatta/.options_trader/trades/spx_1dte_trades.json:/app/trades/spx_1dte_trades.json
     restart: unless-stopped
