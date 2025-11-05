@@ -1,41 +1,12 @@
 # frozen_string_literal: true
 
 require 'schwab_rb'
-require_relative 'accounts'
 
 module OptionsTrader
   module Schwab
     def client
       return @client if @client
       @client = OptionsTrader::DataProviders::Schwab::Client.instance
-    end
-
-    def set_account(account_name)
-      @account_name = account_name
-      @current_account = nil
-    end
-
-    def current_account_name
-      @account_name || raise("No account set. Call set_account(account_name) first.")
-    end
-
-    def current_account
-      @current_account ||= Accounts.new(current_account_name)
-    end
-
-    def available_accounts
-      Accounts.account_names
-    end
-
-    def account_exists?(account_name)
-      Accounts.accounts.key?(account_name.to_s)
-    end
-
-    def switch_account(account_name)
-      unless account_exists?(account_name)
-        raise "Account '#{account_name}' not found. Available accounts: #{available_accounts.join(', ')}"
-      end
-      set_account(account_name)
     end
 
     def reset_client
@@ -137,7 +108,6 @@ module OptionsTrader
 
     def preview_order(order)
       client.preview_order(account_hash, order, return_data_objects: true).then do |preview_data|
-        File.open('order_preview.json', 'w') { |f| f.write(preview_data.to_h.to_json) }
         preview_data
       end
     end

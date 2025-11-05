@@ -9,7 +9,7 @@ module OptionsTrader
 
     def initialize(
       underlying_symbol:,
-      markets_service:,
+      option_chain:,
       expiration_date: nil,
       expiration_type: nil,
       settlement_type: nil,
@@ -19,12 +19,12 @@ module OptionsTrader
     )
       @underlying_symbol = underlying_symbol
       @expiration_date = expiration_date
+      @option_chain = option_chain
       @quantity = quantity
       @expiration_type = expiration_type
       @settlement_type = settlement_type
       @option_root = option_root
       @increment = increment
-      @markets_service = markets_service
     end
 
     def find(
@@ -40,25 +40,18 @@ module OptionsTrader
       min_open_interest: 0,
       dist_from_strike: 0.07
     )
-      opt_chain = markets_service.get_option_chain(
-        underlying_symbol,
-        contract_type: 'ALL',
-        strike_range: 'OTM',
-        to_date: to_date || expiration_date,
-        from_date: from_date || expiration_date
-      )
 
-      return NullStrategy.new unless opt_chain
+      return NullStrategy.new unless @option_chain
 
       call_delta = short_call_delta || short_delta
       call_max_spread = max_call_spread || max_spread
 
       call_spreads = call_spread_search(
+        option_chain: @option_chain,
         max_spread: call_max_spread,
         min_open_interest: min_open_interest,
         dist_from_strike: dist_from_strike
       ).find(
-        opt_chain,
         return_spreads: true,
         short_delta: call_delta,
         max_spread: call_max_spread,
@@ -71,11 +64,11 @@ module OptionsTrader
       put_max_spread = max_put_spread || max_spread
 
       put_spreads = put_spread_search(
+        option_chain: @option_chain,
         max_spread: put_max_spread,
         min_open_interest: min_open_interest,
         dist_from_strike: dist_from_strike
       ).find(
-        opt_chain,
         return_spreads: true,
         short_delta: put_delta,
         max_spread: put_max_spread,
@@ -112,8 +105,9 @@ module OptionsTrader
 
     private
 
-    def call_spread_search(max_spread:, min_open_interest:, dist_from_strike:)
+    def call_spread_search(option_chain:,max_spread:, min_open_interest:, dist_from_strike:)
       VerticalSpreadSearch.new(
+        option_chain: option_chain,
         underlying_symbol: underlying_symbol,
         option_root: option_root,
         put_call: 'CALL',
@@ -121,13 +115,13 @@ module OptionsTrader
         expiration_type: expiration_type,
         settlement_type: settlement_type,
         increment: increment,
-        expiration_date: expiration_date,
-        markets_service: markets_service
+        expiration_date: expiration_date
       )
     end
 
-    def put_spread_search(max_spread:, min_open_interest:, dist_from_strike:)
+    def put_spread_search(option_chain:, max_spread:, min_open_interest:, dist_from_strike:)
       VerticalSpreadSearch.new(
+        option_chain: option_chain,
         underlying_symbol: underlying_symbol,
         option_root: option_root,
         put_call: 'PUT',
@@ -135,8 +129,7 @@ module OptionsTrader
         expiration_type: expiration_type,
         settlement_type: settlement_type,
         increment: increment,
-        expiration_date: expiration_date,
-        markets_service: markets_service
+        expiration_date: expiration_date
       )
     end
   end
