@@ -22,7 +22,6 @@
 #   to_date: DateTime.new(Date.today.year, Date.today.month, Date.today.day, 23, 59, 59, 0)
 # )
 
-
 class PaperOrderManager
   def initialize(schwab_orders, est_fees: nil, est_commissions: nil, logger: nil)
     @schwab_orders = schwab_orders
