@@ -1,0 +1,2 @@
+class RolloutFinder
+end

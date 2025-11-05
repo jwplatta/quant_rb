@@ -1,0 +1,163 @@
+require_relative 'util'
+
+class TradeManager
+  DEFAULT_SLEEP_INTERVAL = 30
+
+  def initialize(
+    markets,
+    order_manager,
+    exit_prof_thresh: 0.35, exit_loss_thresh: 3.0, exit_hour_thresh: 11,
+    est_fees_per_contract: 0.0, est_commission_per_contract: 0.0,
+    price_increment: 0.05, logger: nil, trades_file_manager: nil
+  )
+    @markets = markets
+    @order_manager = order_manager
+    @exit_prof_thresh = exit_prof_thresh
+    @exit_loss_thresh = exit_loss_thresh
+    @exit_hour_thresh = exit_hour_thresh
+    @est_fees_per_contract = est_fees_per_contract
+    @est_commission_per_contract = est_commission_per_contract
+    @price_increment = price_increment
+    @trades_file_manager = trades_file_manager
+    @logger = logger
+
+    @adjusting_trade = false
+    @closing_trade = false
+    @trade = nil
+  end
+
+  attr_reader :markets, :order_manager, :exit_prof_thresh, :exit_loss_thresh, :exit_hour_thresh, :trade,
+                :est_fees_per_contract, :est_commission_per_contract, :price_increment, :logger, :trades_file_manager
+
+  def watch(trade)
+    @trade = trade
+
+    while trade.open?
+      call_spread_price, call_spread_delta = check_spread(trade.call_spread.short_leg, trade.call_spread.long_leg)
+      put_spread_price, put_spread_delta = check_spread(trade.put_spread.short_leg, trade.put_spread.long_leg)
+      curr_contract_price = (call_spread_price + put_spread_price).round(2)
+
+      curr_contract_price = round_down_to_nearest(curr_contract_price, price_increment)
+      close_price = trade_close_price(curr_contract_price)
+
+      logger.info trade_progress_msg(trade, curr_contract_price, call_spread_price, put_spread_price, call_spread_delta, put_spread_delta)
+      logger.info trade_risk_msg(call_spread_delta, put_spread_delta)
+
+      if order_manager.order_sent
+        status, order_dtls = order_manager.check_order_status(trade.id)
+
+        if status == 'FILLED'
+          if closing_trade
+            trade.set_close(**order_dtls)
+            logger.info "Trade closed at price: #{order_dtls[:price]}"
+          # elsif adjusting_trade
+          #   trade.set_adjustment(**order_dtls)
+          else
+            raise "Unknown order type filled."
+          end
+
+          trades_file_manager.update_trade(trade)
+
+          sleep_interval = 0
+          closing_trade = false
+          adjusting_trade = false
+        elsif status == 'WORKING' && order_manager.check_fill_count < 3
+          @logger.info "Order working. Checking in #{sleep_interval} seconds"
+          sleep_interval = 5
+        elsif status == 'WORKING'
+          @logger.info "Order working too long. Canceling order and re-evaluating trade."
+          order_manager.cancel_order(trade.id)
+          closing_trade = false
+          adjusting_trade = false
+          sleep_interval = 0
+        end
+      elsif curr_contract_price <= time_adjusted_profit_target(trade.target_profit_price, trade.expiration_date)
+        @logger.info "Profit target reached. Closing trade at price: #{curr_contract_price}."
+
+        order_status = order_manager.send_order(:close, trade.close_order_args(curr_contract_price))
+        if order_status == 'WORKING'
+          closing_trade = true
+          sleep_interval = 5
+        elsif order_status == 'REJECTED'
+          sleep_interval = 0
+        else
+          raise "Unexpected order status when closing trade: #{order_status}"
+        end
+      elsif curr_contract_price >= trade.max_loss_price
+        @logger.info "Loss target reached. Closing trade. Current price: #{curr_contract_price}, Max loss price: #{trade.max_loss_price}."
+
+        order_status = order_manager.send_order(:close, trade.close_order_args(curr_contract_price))
+        if order_status == 'WORKING'
+          closing_trade = true
+          sleep_interval = 5
+        elsif order_status == 'REJECTED'
+          sleep_interval = 0
+        else
+          raise "Unexpected order status when closing trade: #{order_status}"
+        end
+      else
+        # NOTE: maybe you want to include some other conditions here. Is the market moving a lot today? Is the VIX or the VIX1D up?
+        # Are you approaching the exit time threshold?
+        sleep_interval = 30
+        @logger.info "Continuing to watch trade. Checking again in #{sleep_interval} seconds."
+      end
+
+      sleep(sleep_interval) unless trade.closed?
+    end
+  end
+
+  def trade_close_price(contract_price)
+    contract_price * trade.contracts * 100 - \
+      @est_fees_per_contract * trade.contracts - @est_commission_per_contract * trade.contracts
+  end
+
+  def check_spread(short_leg, long_leg)
+    short_leg_quote = markets.get_quote(short_leg.symbol)
+    long_leg_quote = markets.get_quote(long_leg.symbol)
+
+    [(short_leg_quote.mark - long_leg_quote.mark).round(2), short_leg_quote.delta.abs]
+  end
+
+  def trade_profitable?(trade, current_price)
+    current_price < trade.open_price
+  end
+
+  def profitability(trade, current_price)
+    (trade.open_price - current_price) / trade.open_price
+  end
+
+  def profitable?(trade, current_price)
+    profitability(trade, current_price) > 0.0
+  end
+
+  def near_profitable?(trade, current_price)
+    profit_target_price = trade.open_price * exit_prof_thresh
+    current_price <= profit_target_price + 0.1
+  end
+
+  def trade_risk_msg(call_spread_delta, put_spread_delta)
+    "CallSpreadDelta: #{call_spread_delta}/PutSpreadDelta: #{put_spread_delta}/TotalDelta: #{(call_spread_delta + put_spread_delta).round(2)}"
+  end
+
+  def trade_progress_msg(trade, curr_contract_price, call_spread_price, put_spread_price, call_spread_delta, put_spread_delta)
+    "CallSpreadPrice: #{call_spread_price}/PutSpreadPrice: #{put_spread_price}/TotalPrice: #{curr_contract_price}/Profitability: #{(profitability(trade, curr_contract_price) * 100).round(2)}%"
+  end
+
+  def time_adjusted_profit_target(target_profit_price, expiration_date)
+    if Date.today == expiration_date
+      hour = Time.now.hour
+
+      if hour < exit_hour_thresh - 1
+        target_profit_price
+      elsif hour >= exit_hour_thresh - 1 and hour < exit_hour_thresh
+        target_profit_price * 0.5
+      else
+        target_profit_price * 0.05
+      end
+    elsif Date.today < expiration_date.to_date
+      target_profit_price
+    else
+      raise "Trade has expired!"
+    end
+  end
+end
