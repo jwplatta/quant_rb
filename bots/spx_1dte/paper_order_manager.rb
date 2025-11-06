@@ -49,7 +49,7 @@ class PaperOrderManager
 
     @logger.info "Order preview #{@order_result.status} for #{order_instruction} order."
 
-    if @order_result.status == 'ACCEPTED' || @order_result.status == 'REJECTED' && order_instruction == :close
+    if @order_result.status == 'ACCEPTED' || (@order_result.status == 'REJECTED' && order_instruction == :close)
       # NOTE: schwab will reject these close orders because you don't have an existing trade in the account.
       #So just assume they get accepted.
       @order_sent = true
