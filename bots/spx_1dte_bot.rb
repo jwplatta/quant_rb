@@ -123,7 +123,6 @@ EST_COMMISSION_PER_CONTRACT = 2.6
   trades_file_manager: @trades_file_manager
 )
 
-
 def write_option_chain_to_file(opt_chain, expiration_date = nil)
   script_dir = File.dirname(__FILE__)
   safe_symbol = UNDERLYING_SYMBOL.to_s.gsub(/[^A-Za-z0-9_-]/, '').downcase
@@ -166,6 +165,7 @@ def write_option_chain_to_file(opt_chain, expiration_date = nil)
 end
 
 class SPX1DTEBot
+  MARKET_OPEN = "08:25 AM" # technically not the market open, but want to start monitoring before then
   TRADE_WINDOW_START = "02:59 PM"
   TRADE_WINDOW_END = "03:15 PM"
 
@@ -186,7 +186,11 @@ class SPX1DTEBot
 
   def run
     while true
-      @trade = if trades_file_manager.open_trade?
+      @trade = if outside_market_hours?
+        sleep_interval = seconds_until_market_open
+        @logger.info "Outside market hours. Sleeping for #{sleep_interval / 60} minutes."
+        sleep(sleep_interval)
+      elsif trades_file_manager.open_trade?
         trades_file_manager.get_open_trade
       elsif inside_trade_window?
         new_trade = trade_finder.search
@@ -194,8 +198,7 @@ class SPX1DTEBot
       else
         sleep_interval = seconds_until_trade_window_start
         @logger.info "No trade to manage and outside trade window. Sleep #{sleep_interval / 60} minute."
-
-        sleep(sleep_interval) if sleep_interval > 0
+        sleep(sleep_interval)
       end
 
       next unless @trade
@@ -209,6 +212,24 @@ class SPX1DTEBot
     start_time = Time.parse(TRADE_WINDOW_START)
     start_time += 24 * 60 * 60 if start_time <= now
     (start_time - now).to_i
+  end
+
+  def seconds_until_market_open
+    now = Time.now
+    market_open_time = Time.parse("#{Date.tomorrow} #{MARKET_OPEN}")
+
+    if market_open_time.wday == 6
+      market_open_time += 2 * 24 * 60 * 60
+    elsif market_open_time.wday == 0
+      market_open_time += 24 * 60 * 60
+    end
+
+    (market_open_time - now).to_i
+  end
+
+  def outside_market_hours?
+    curr_time = Time.now
+    (curr_time.hour < 8 && curr_time.min < 25) || (curr_time.hour >= 15 && curr_time.min > 20)
   end
 
   def inside_trade_window?
