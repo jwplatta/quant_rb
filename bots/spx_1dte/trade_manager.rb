@@ -34,6 +34,8 @@ class TradeManager
     @trade = trade
 
     while trade.open?
+      return if outside_market_hours?
+      
       call_spread_price, call_spread_delta = check_spread(trade.call_spread.short_leg, trade.call_spread.long_leg)
       put_spread_price, put_spread_delta = check_spread(trade.put_spread.short_leg, trade.put_spread.long_leg)
       curr_contract_price = (call_spread_price + put_spread_price).round(2)
@@ -106,6 +108,11 @@ class TradeManager
 
       sleep(@sleep_interval) unless trade.closed?
     end
+  end
+
+  def outside_market_hours?
+    curr_time = Time.now
+    (curr_time.hour < 8 && curr_time.min < 25) || (curr_time.hour >= 15 && curr_time.min > 20)
   end
 
   def trade_close_price(contract_price)
