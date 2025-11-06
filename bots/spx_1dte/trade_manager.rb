@@ -21,9 +21,10 @@ class TradeManager
     @trades_file_manager = trades_file_manager
     @logger = logger
 
+    @trade = nil
     @adjusting_trade = false
     @closing_trade = false
-    @trade = nil
+    @sleep_interval = DEFAULT_SLEEP_INTERVAL
   end
 
   attr_reader :markets, :order_manager, :exit_prof_thresh, :exit_loss_thresh, :exit_hour_thresh, :trade,
@@ -45,12 +46,13 @@ class TradeManager
 
       if order_manager.order_sent
         status, order_dtls = order_manager.check_order_status(trade.id)
+        logger.info "Order status: #{status}"
 
         if status == 'FILLED'
-          if closing_trade
+          if @closing_trade
             trade.set_close(**order_dtls)
             logger.info "Trade closed at price: #{order_dtls[:price]}"
-          # elsif adjusting_trade
+          # elsif @adjusting_trade
           #   trade.set_adjustment(**order_dtls)
           else
             raise "Unknown order type filled."
@@ -58,51 +60,51 @@ class TradeManager
 
           trades_file_manager.update_trade(trade)
 
-          sleep_interval = 0
-          closing_trade = false
-          adjusting_trade = false
+          @sleep_interval = 0
+          @closing_trade = false
+          @adjusting_trade = false
         elsif status == 'WORKING' && order_manager.check_fill_count < 3
-          @logger.info "Order working. Checking in #{sleep_interval} seconds"
-          sleep_interval = 5
+          logger.info "Order working. Checking in #{@sleep_interval} seconds"
+          @sleep_interval = 5
         elsif status == 'WORKING'
-          @logger.info "Order working too long. Canceling order and re-evaluating trade."
+          logger.info "Order working too long. Canceling order and re-evaluating trade."
           order_manager.cancel_order(trade.id)
-          closing_trade = false
-          adjusting_trade = false
-          sleep_interval = 0
+          @closing_trade = false
+          @adjusting_trade = false
+          @sleep_interval = 0
         end
       elsif curr_contract_price <= time_adjusted_profit_target(trade.target_profit_price, trade.expiration_date)
-        @logger.info "Profit target reached. Closing trade at price: #{curr_contract_price}."
+        logger.info "Profit target reached. Closing trade at price: #{curr_contract_price}."
 
         order_status = order_manager.send_order(:close, trade.close_order_args(curr_contract_price))
         if order_status == 'WORKING'
-          closing_trade = true
-          sleep_interval = 5
+          @closing_trade = true
+          @sleep_interval = 5
         elsif order_status == 'REJECTED'
-          sleep_interval = 0
+          @sleep_interval = 0
         else
           raise "Unexpected order status when closing trade: #{order_status}"
         end
       elsif curr_contract_price >= trade.max_loss_price
-        @logger.info "Loss target reached. Closing trade. Current price: #{curr_contract_price}, Max loss price: #{trade.max_loss_price}."
+        logger.info "Loss target reached. Closing trade. Current price: #{curr_contract_price}, Max loss price: #{trade.max_loss_price}."
 
         order_status = order_manager.send_order(:close, trade.close_order_args(curr_contract_price))
         if order_status == 'WORKING'
-          closing_trade = true
-          sleep_interval = 5
+          @closing_trade = true
+          @sleep_interval = 5
         elsif order_status == 'REJECTED'
-          sleep_interval = 0
+          @sleep_interval = 0
         else
           raise "Unexpected order status when closing trade: #{order_status}"
         end
       else
         # NOTE: maybe you want to include some other conditions here. Is the market moving a lot today? Is the VIX or the VIX1D up?
         # Are you approaching the exit time threshold?
-        sleep_interval = 30
-        @logger.info "Continuing to watch trade. Checking again in #{sleep_interval} seconds."
+        @sleep_interval = 30
+        logger.info "Continuing to watch trade. Checking again in #{@sleep_interval} seconds."
       end
 
-      sleep(sleep_interval) unless trade.closed?
+      sleep(@sleep_interval) unless trade.closed?
     end
   end
 
