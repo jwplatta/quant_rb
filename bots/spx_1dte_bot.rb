@@ -74,7 +74,7 @@ MAX_ADJUSTMENTS = 2
 # NOTE: exit conditions
 EXIT_LOSS_THRESH = 3.0 # times the original credit received
 EXIT_PROF_THRESH = 0.35 # times the original credit received
-EXIT_HOUR_THRESH = 11 # AM
+EXIT_HOUR_THRESH = 12 # PM
 
 EST_FEES_PER_CONTRACT = 2.1
 EST_COMMISSION_PER_CONTRACT = 2.6
