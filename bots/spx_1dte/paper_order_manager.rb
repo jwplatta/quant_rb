@@ -47,18 +47,19 @@ class PaperOrderManager
     reset # NOTE: clear any previous order state
     @order_result = schwab_orders.preview_order(order_instruction: order_instruction, **order_args)
 
-    @logger.info "Order preview #{@order_result.status} for #{order_instruction} order."
-
     if @order_result.status == 'ACCEPTED' || (@order_result.status == 'REJECTED' && order_instruction == :close)
+      @logger.info "Order preview ACCEPTED for #{order_instruction} order."
       # NOTE: schwab will reject these close orders because you don't have an existing trade in the account.
       #So just assume they get accepted.
       @order_sent = true
       @order_status = 'WORKING'
       set_wait_time
     elsif @order_result.status == 'REJECTED' && order_instruction == :open
+      @logger.info "Order preview REJECTED for #{order_instruction} order."
       @order_status = 'REJECTED'
     else
-      raise "Unexpected order preview status: #{@order_result.status}"
+      @logger.error "Unexpected order preview status: #{@order_result.status}"
+      @order_status = 'NONE'
     end
 
     @order_status
