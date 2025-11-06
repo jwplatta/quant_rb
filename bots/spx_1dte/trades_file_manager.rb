@@ -77,6 +77,10 @@ class TradesFileManager
   end
 
   def to_trade_object(trade_data)
+    expiration_date = if trade_data[:expiration_date].is_a?(String)
+      Date.parse(trade_data[:expiration_date])
+    end
+
     IronCondorTrade.new(
       id: trade_data[:id],
       put_spread: VerticalSpread.new(
@@ -106,6 +110,7 @@ class TradesFileManager
       status: trade_data[:status],
       price_increment: trade_data[:price_increment],
       adjustment_count: trade_data[:adjustment_count],
+      expiration_date: expiration_date,
       trade_history: trade_data[:trade_history].map { |th| th.transform_keys(&:to_sym) }
     )
   end
