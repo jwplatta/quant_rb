@@ -6,7 +6,7 @@ class TradeManager
   def initialize(
     markets,
     order_manager,
-    exit_prof_thresh: 0.35, exit_loss_thresh: 3.0, exit_hour_thresh: 11,
+    exit_prof_thresh: 0.35, exit_loss_thresh: 3.0, exit_hour_thresh: 12,
     est_fees_per_contract: 0.0, est_commission_per_contract: 0.0,
     price_increment: 0.05, logger: nil, trades_file_manager: nil
   )
@@ -73,7 +73,7 @@ class TradeManager
           @adjusting_trade = false
           @sleep_interval = 0
         end
-      elsif curr_contract_price <= time_adjusted_profit_target(trade.target_profit_price, trade.expiration_date)
+      elsif exit_profit?(curr_contract_price, trade)
         logger.info "Profit target reached. Closing trade at price: #{curr_contract_price}."
 
         order_status = order_manager.send_order(:close, trade.close_order_args(curr_contract_price))
@@ -85,7 +85,7 @@ class TradeManager
         else
           raise "Unexpected order status when closing trade: #{order_status}"
         end
-      elsif curr_contract_price >= trade.max_loss_price
+      elsif exit_loss?(curr_contract_price, trade)
         logger.info "Loss target reached. Closing trade. Current price: #{curr_contract_price}, Max loss price: #{trade.max_loss_price}."
 
         order_status = order_manager.send_order(:close, trade.close_order_args(curr_contract_price))
@@ -120,10 +120,6 @@ class TradeManager
     [(short_leg_quote.mark - long_leg_quote.mark).round(2), short_leg_quote.delta.abs]
   end
 
-  def trade_profitable?(trade, current_price)
-    current_price < trade.open_price
-  end
-
   def profitability(trade, current_price)
     (trade.open_price - current_price) / trade.open_price
   end
@@ -145,7 +141,58 @@ class TradeManager
     "CallSpreadPrice: #{call_spread_price}/PutSpreadPrice: #{put_spread_price}/TotalPrice: #{curr_contract_price}/Profitability: #{(profitability(trade, curr_contract_price) * 100).round(2)}%"
   end
 
+  def exit_profit?(current_price, trade)
+    now = Time.now
+    today = now.to_date
+
+    if today < trade.expiration_date
+      # NOTE: if day before expiration, then trade was just opened
+      false
+    elsif now >= market_open_time_today && now < exit_time_today
+      current_price <= exit_prof_thresh
+    elsif now >= exit_time_today
+      # NOTE: after exit hour threshold, be more aggressive about exiting
+      profitability(trade, current_price) >= 0.0
+    else
+      false
+    end
+  end
+
+  def exit_loss?(current_price, trade)
+    now = Time.now
+    today = now.to_date
+
+    if today < trade.expiration_date
+      # NOTE: if day before expiration, then trade was just opened
+      false
+    elsif now >= market_open_time_today && now < exit_time_today
+      current_price >= exit_loss_thresh
+    # NOTE: think this condition just get handled with the exit_profit
+    # elsif now >= exit_time_today
+    #   # NOTE: after exit hour threshold, be more aggressive about exiting
+    #   profitability(trade, current_price) <= 0.0
+    else
+      false
+    end
+  end
+
+  def adjust_trade?(current_price, trade)
+    # TODO: implement adjustment logic
+  end
+
+  def exit_time_today
+    now = Time.now
+    Time.new(now.year, now.month, now.day, exit_hour_thresh, 0, 0)
+  end
+
+  def market_open_time_today
+    now = Time.now
+    Time.new(now.year, now.month, now.day, 8, 30, 0)
+  end
+
   def time_adjusted_profit_target(target_profit_price, expiration_date)
+    raise "Expiration date must be a Date object" unless expiration_date.is_a?(Date)
+
     if Date.today == expiration_date
       hour = Time.now.hour
 
@@ -153,10 +200,12 @@ class TradeManager
         target_profit_price
       elsif hour >= exit_hour_thresh - 1 and hour < exit_hour_thresh
         target_profit_price * 0.5
+      elsif hour >= exit_hour_thresh && hour < 14
+        target_profit_price * 0.01
       else
-        target_profit_price * 0.05
+        0.0
       end
-    elsif Date.today < expiration_date.to_date
+    elsif Date.today < expiration_date
       target_profit_price
     else
       raise "Trade has expired!"
