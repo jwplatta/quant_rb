@@ -229,7 +229,7 @@ class SPX1DTEBot
 
   def outside_market_hours?
     curr_time = Time.now
-    (curr_time.hour < 8 && curr_time.min < 25) || (curr_time.hour >= 15 && curr_time.min > 20)
+    (curr_time.hour <= 8 && curr_time.min < 25) || (curr_time.hour >= 15 && curr_time.min > 15)
   end
 
   def inside_trade_window?
