@@ -166,6 +166,7 @@ end
 
 class SPX1DTEBot
   MARKET_OPEN = "08:25 AM" # technically not the market open, but want to start monitoring before then
+  MARKET_CLOSE = "03:15 PM"
   TRADE_WINDOW_START = "02:59 PM"
   TRADE_WINDOW_END = "03:15 PM"
 
@@ -216,15 +217,22 @@ class SPX1DTEBot
 
   def seconds_until_market_open
     now = Time.now
-    market_open_time = Time.parse("#{Date.tomorrow} #{MARKET_OPEN}")
+    market_open_time = Time.parse("#{Date.today} #{MARKET_OPEN}")
+    market_close_time = Time.parse("#{Date.today} #{MARKET_CLOSE}")
 
-    if market_open_time.wday == 6
-      market_open_time += 2 * 24 * 60 * 60
-    elsif market_open_time.wday == 0
+    if now <= market_open_time
+      (market_open_time - now).to_i
+    elsif now >= market_close_time
       market_open_time += 24 * 60 * 60
-    end
 
-    (market_open_time - now).to_i
+      if market_open_time.wday == 6
+        market_open_time += 2 * 24 * 60 * 60
+      elsif market_open_time.wday == 0
+        market_open_time += 24 * 60 * 60
+      end
+
+      (market_open_time - now).to_i
+    end
   end
 
   def outside_market_hours?
