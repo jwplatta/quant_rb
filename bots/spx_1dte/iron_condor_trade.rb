@@ -2,6 +2,12 @@ require 'schwab_rb'
 require 'securerandom'
 
 class IronCondorTrade
+  class << self
+    def existing_open_trade
+      # TODO: implement logic to find existing open trade
+    end
+  end
+
   def initialize(
     id: nil,
     put_spread:,
@@ -261,6 +267,7 @@ class IronCondorTrade
   def to_h
     {
       id: id,
+      expiration_date: expiration_date,
       open_price: open_price,
       open_fees: open_fees,
       open_commissions: open_commissions,
