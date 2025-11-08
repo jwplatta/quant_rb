@@ -8,7 +8,7 @@ class TradeManager
     order_manager,
     exit_prof_thresh: 0.35, exit_loss_thresh: 3.0, exit_hour_thresh: 12,
     est_fees_per_contract: 0.0, est_commission_per_contract: 0.0,
-    price_increment: 0.05, logger: nil, trades_file_manager: nil
+    price_increment: 0.05, logger: nil
   )
     @markets = markets
     @order_manager = order_manager
@@ -18,7 +18,6 @@ class TradeManager
     @est_fees_per_contract = est_fees_per_contract
     @est_commission_per_contract = est_commission_per_contract
     @price_increment = price_increment
-    @trades_file_manager = trades_file_manager
     @logger = logger
 
     @trade = nil
@@ -28,14 +27,14 @@ class TradeManager
   end
 
   attr_reader :markets, :order_manager, :exit_prof_thresh, :exit_loss_thresh, :exit_hour_thresh, :trade,
-                :est_fees_per_contract, :est_commission_per_contract, :price_increment, :logger, :trades_file_manager
+                :est_fees_per_contract, :est_commission_per_contract, :price_increment, :logger
 
   def watch(trade)
     @trade = trade
 
     while trade.open?
       return if outside_market_hours?
-      
+
       call_spread_price, call_spread_delta = check_spread(trade.call_spread.short_leg, trade.call_spread.long_leg)
       put_spread_price, put_spread_delta = check_spread(trade.put_spread.short_leg, trade.put_spread.long_leg)
       curr_contract_price = (call_spread_price + put_spread_price).round(2)
@@ -59,8 +58,6 @@ class TradeManager
           else
             raise "Unknown order type filled."
           end
-
-          trades_file_manager.update_trade(trade)
 
           @sleep_interval = 0
           @closing_trade = false
