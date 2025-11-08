@@ -79,7 +79,8 @@ EXIT_HOUR_THRESH = 12 # PM
 EST_FEES_PER_CONTRACT = 2.1
 EST_COMMISSION_PER_CONTRACT = 2.6
 
-@trades_file_manager = TradesFileManager.new(TRADES_FILE)
+
+TradesFileManager.setup(TRADES_FILE)
 @schwab_markets = OptionsTrader::DataProviders::Schwab::Markets.new
 @schwab_orders = OptionsTrader::DataProviders::Schwab::Orders.new(account_name: ACCOUNT_NAME)
 @order_manager = PaperOrderManager.new(
@@ -119,8 +120,7 @@ EST_COMMISSION_PER_CONTRACT = 2.6
   est_fees_per_contract: EST_FEES_PER_CONTRACT,
   est_commission_per_contract: EST_COMMISSION_PER_CONTRACT,
   price_increment: PRICE_INCREMENT,
-  logger: bot_logger,
-  trades_file_manager: @trades_file_manager
+  logger: bot_logger
 )
 
 def write_option_chain_to_file(opt_chain, expiration_date = nil)
@@ -171,19 +171,16 @@ class SPX1DTEBot
   TRADE_WINDOW_END = "03:15 PM"
 
   def initialize(
-    trade_finder:, trade_manager:, trades_file_manager:,
-    order_manager:, logger:
+    trade_finder:, trade_manager:, order_manager:, logger:
   )
     @trade_finder = trade_finder
     @trade_manager = trade_manager
-    @trades_file_manager = trades_file_manager
     @order_manager = order_manager
     @logger = logger
     @trade = nil
   end
 
-  attr_reader :trade_finder, :trade_manager,
-    :trades_file_manager, :order_manager, :trade, :logger
+  attr_reader :trade_finder, :trade_manager, :order_manager, :trade, :logger
 
   def run
     while true
@@ -191,8 +188,8 @@ class SPX1DTEBot
         sleep_interval = seconds_until_market_open
         @logger.info "Outside market hours. Sleeping for #{sleep_interval / 60} minutes."
         sleep(sleep_interval)
-      elsif trades_file_manager.open_trade?
-        trades_file_manager.get_open_trade
+      elsif !open_trade.nil?
+        open_trade
       elsif inside_trade_window?
         new_trade = trade_finder.search
         send_order(new_trade) if new_trade.status == 'NEW'
@@ -206,6 +203,10 @@ class SPX1DTEBot
 
       @trade_manager.watch(@trade)
     end
+  end
+
+  def open_trade
+    IronCondorTrade.open_trade
   end
 
   def seconds_until_trade_window_start
@@ -260,7 +261,6 @@ class SPX1DTEBot
         if order_status == 'FILLED'
 
           trade.set_open(**dtls)
-          trades_file_manager.save_trade(trade)
           order_manager.reset
 
           logger.info "Order filled for trade: #{trade.id}"
@@ -280,7 +280,6 @@ end
 bot = SPX1DTEBot.new(
   trade_finder: @trade_finder,
   trade_manager: @trade_manager,
-  trades_file_manager: @trades_file_manager,
   order_manager: @order_manager,
   logger: bot_logger
 )
