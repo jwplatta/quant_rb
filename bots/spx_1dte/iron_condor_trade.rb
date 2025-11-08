@@ -1,10 +1,12 @@
 require 'schwab_rb'
 require 'securerandom'
+require_relative 'trades_file_manager'
 
 class IronCondorTrade
   class << self
-    def existing_open_trade
+    def open_trade
       # TODO: implement logic to find existing open trade
+      TradesFileManager.instance.open_trade
     end
   end
 
@@ -82,6 +84,8 @@ class IronCondorTrade
     @total_credit_debit += credit_debit
     @total_fees += fees if fees
     @total_commissions += commissions if commissions
+
+    trades_file_manager.create(self)
   end
 
   def set_adjustment(**order_details)
@@ -98,6 +102,8 @@ class IronCondorTrade
     @total_credit_debit += credit_debit
     @total_fees += fees if fees
     @total_commissions += commissions if commissions
+
+    trades_file_manager.update(self)
   end
 
   def set_close(**order_details)
@@ -116,6 +122,8 @@ class IronCondorTrade
     @total_credit_debit += credit_debit
     @total_fees += fees if fees
     @total_commissions += commissions if commissions
+
+    trades_file_manager.update(self)
   end
 
   def calc_credit_debit(price, quantity, credit_debit_type)
@@ -288,5 +296,11 @@ class IronCondorTrade
       price_increment: price_increment,
       trade_history: trade_history.map(&:to_h)
     }
+  end
+
+  private
+
+  def trades_file_manager
+    TradesFileManager.instance
   end
 end
