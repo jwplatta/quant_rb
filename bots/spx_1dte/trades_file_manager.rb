@@ -39,6 +39,8 @@ class TradesFileManager
     open_trades = @trades.select { |trade| trade.status == 'OPEN' }
     if open_trades.count > 1
       raise "Multiple open trades found! Need to fix."
+    elsif open_trades.empty?
+      nil
     else
       @open_trade = open_trades.first
     end
