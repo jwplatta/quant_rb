@@ -3,77 +3,109 @@ require 'date'
 require 'fileutils'
 require_relative 'iron_condor_trade'
 require_relative 'data_objects'
+require 'singleton'
 
 class TradesFileManager
-  def initialize(file_path)
-    @file_path = file_path
+  include Singleton
+
+  def self.setup(file_path)
+    instance.file_path = file_path
+
     trades_dir = File.dirname(file_path)
 
-    # Ensure the directory exists
     FileUtils.mkdir_p(trades_dir) unless Dir.exist?(trades_dir)
 
-    # Create the file if it doesn't exist
     unless File.exist?(file_path)
       File.write(file_path, '{"trades": []}')
-      @trades = []
-    else
-      @trades = read_trades
     end
   end
 
-  attr_reader :trades
+  def initialize
+    @trades = nil
+    @open_trade = nil
+  end
 
-  def read_trades
-    json_data = File.read(@file_path)
-    data = JSON.parse(json_data, symbolize_names: true)
-    @trades = data[:trades].map do |trade_data|
-      trade_data = trade_data.transform_keys(&:to_sym)
+  attr_accessor :file_path
+
+  def trades
+    return @trades unless @trades.nil?
+
+    @trades = read_all
+  end
+
+  def open_trade
+    return @open_trade unless @open_trade.nil?
+
+    open_trades = @trades.select { |trade| trade.status == 'OPEN' }
+    if open_trades.count > 1
+      raise "Multiple open trades found! Need to fix."
+    else
+      @open_trade = open_trades.first
     end
   end
 
   def reload
-    @trades = read_trades
+    @open_trade = nil
+    @trades = nil
+    trades
   end
 
   def open_trade?
-    trades.any? { |trade| trade[:status] == 'OPEN' }
+    trades.any? { |trade| trade.status == 'OPEN' }
   end
 
-  def get_open_trade
-    trades = @trades.select { |trade| trade[:status] == 'OPEN' }
-    if trades.count > 1
-      raise "Multiple open trades found! Need to fix."
-    else
-      to_trade_object(trades.first)
+  def read_all
+    json_data = File.read(file_path)
+    data = JSON.parse(json_data, symbolize_names: true)
+
+    @trades = data[:trades].map do |trade_data|\
+      to_trade_object(trade_data)
     end
+  rescue JSON::ParserError => e
+    @trades = []
   end
 
-  def update_trade(trade)
-    trades.find { |t| t[:id] == trade.id }.then do |existing_trade|
-      if existing_trade
-        existing_trade.merge!(trade.to_h) # NOTE: I think this will update the trade in place
-        write_trades(@trades)
-      else
-        raise "Trade with ID #{trade.id} not found!"
-      end
-    end
-  end
-
-  # NOTE: expects at trade object
-  def save_trade(trade)
-    raise "Trade with ID #{trade.id} already exists!" unless uniq_trade?(trade)
-
-    @trades << trade.to_h
+  def update(trade)
+    new_trades = trades.reject { |t| t.id == trade.id }
+    new_trades << trade
+    @trades = new_trades
     write_trades(@trades)
   end
 
-  def uniq_trade?(trade)
-    !@trades.any? { |t| t[:id] == trade.id }
+  def create(new_trade)
+    raise ArgumentError, "trade must respond to :to_h" unless new_trade.respond_to?(:to_h)
+
+    trades # ensure @trades is loaded
+
+    exists = @trades.any? do |t|
+      if t.respond_to?(:id)
+        t.id == new_trade.id
+      elsif t.is_a?(Hash)
+        t[:id] == new_trade.id
+      else
+        false
+      end
+    end
+
+    raise "Trade with ID #{new_trade.id} already exists!" if exists
+
+    @trades << new_trade
+
+    write_trades(@trades)
+  end
+
+  def delete(trade_id)
+    trades = @trades.reject { |trade| trade.id == trade_id }
+    if trades.length == @trades.length
+      raise "Trade with ID #{trade_id} not found!"
+    end
+    @trades = trades
+    write_trades(@trades)
   end
 
   def write_trades(trades)
     data = { trades: trades.map(&:to_h) }
-    File.write(@file_path, JSON.pretty_generate(data))
+    File.write(file_path, JSON.pretty_generate(data))
   end
 
   def to_trade_object(trade_data)
