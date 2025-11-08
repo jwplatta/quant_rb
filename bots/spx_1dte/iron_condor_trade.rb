@@ -10,6 +10,11 @@ class IronCondorTrade
     end
   end
 
+  NEW_STATUS = 'NEW'.freeze
+  OPEN_STATUS = 'OPEN'.freeze
+  CLOSED_STATUS = 'CLOSED'.freeze
+  STATUSES = [NEW_STATUS, OPEN_STATUS, CLOSED_STATUS].freeze
+
   def initialize(
     id: nil,
     put_spread:,
@@ -27,7 +32,7 @@ class IronCondorTrade
     contracts: 1,
     exit_prof_thresh: EXIT_PROF_THRESH,
     exit_loss_thresh: EXIT_LOSS_THRESH,
-    status: 'NEW',
+    status: NEW_STATUS,
     price_increment: 0.05,
     trade_history: [],
     adjustment_count: 0
@@ -77,7 +82,7 @@ class IronCondorTrade
 
     update_history(price, fees, commissions, quantity)
 
-    @status = 'OPEN'
+    @status = OPEN_STATUS
     @open_price = price
     @open_fees = fees
     @open_commissions = commissions
@@ -115,7 +120,7 @@ class IronCondorTrade
 
     update_history(price, fees, commissions, quantity)
 
-    @status = 'CLOSED'
+    @status = CLOSED_STATUS
     @close_price = price
     @close_fees = fees
     @close_commissions = commissions
@@ -147,11 +152,11 @@ class IronCondorTrade
   end
 
   def open?
-    status == 'OPEN'
+    status == OPEN_STATUS
   end
 
   def closed?
-    status == 'CLOSED'
+    status == CLOSED_STATUS
   end
 
   def close_loss_price
