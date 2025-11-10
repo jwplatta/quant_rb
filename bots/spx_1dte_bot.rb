@@ -262,7 +262,7 @@ class SPX1DTEBot
         order_status, dtls = order_manager.check_order_status(trade.id)
         if order_status == 'FILLED'
 
-          trade.set_open(**dtls)
+          trade.open(**dtls)
           order_manager.reset
 
           logger.info "Order filled for trade: #{trade.id}"

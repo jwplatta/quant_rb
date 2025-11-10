@@ -72,7 +72,7 @@ class IronCondorTrade
     total_credit_debit - total_fees - total_commissions
   end
 
-  def set_open(**order_details)
+  def open(**order_details)
     fees = order_details.delete(:fees)
     commissions = order_details.delete(:commissions)
     price = order_details.delete(:price)
@@ -92,7 +92,7 @@ class IronCondorTrade
     trades_file_manager.create(self)
   end
 
-  def set_adjustment(**order_details)
+  def adjust(**order_details)
     # TODO: need to update the spreads if the contracts changed.
     fees = order_details.delete(:fees)
     commissions = order_details.delete(:commissions)
@@ -110,7 +110,7 @@ class IronCondorTrade
     trades_file_manager.update(self)
   end
 
-  def set_close(**order_details)
+  def close(**order_details)
     fees = order_details.delete(:fees)
     commissions = order_details.delete(:commissions)
     price = order_details.delete(:price)

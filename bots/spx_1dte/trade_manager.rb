@@ -56,10 +56,10 @@ class TradeManager
 
         if status == 'FILLED'
           if @closing_trade
-            trade.set_close(**order_dtls)
+            trade.close(**order_dtls)
             logger.info "Trade closed at price: #{order_dtls[:price]}"
           # elsif @adjusting_trade
-          #   trade.set_adjustment(**order_dtls)
+          #   trade.adjust(**order_dtls)
           else
             raise "Unknown order type filled."
           end
