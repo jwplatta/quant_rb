@@ -36,7 +36,7 @@ class TradesFileManager
   def open_trade
     return @open_trade unless @open_trade.nil?
 
-    open_trades = @trades.select { |trade| trade.status == 'OPEN' }
+    open_trades = trades.select { |trade| trade.status == IronCondorTrade::OPEN_STATUS }
     if open_trades.count > 1
       raise "Multiple open trades found! Need to fix."
     elsif open_trades.empty?
@@ -53,6 +53,7 @@ class TradesFileManager
   end
 
   def open_trade?
+    binding.pry
     trades.any? { |trade| trade.status == 'OPEN' }
   end
 
