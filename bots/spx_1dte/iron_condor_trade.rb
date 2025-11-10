@@ -5,7 +5,6 @@ require_relative 'trades_file_manager'
 class IronCondorTrade
   class << self
     def open_trade
-      # TODO: implement logic to find existing open trade
       TradesFileManager.instance.open_trade
     end
   end
