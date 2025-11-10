@@ -8,7 +8,7 @@ class TradeManager
     order_manager,
     exit_prof_thresh: 0.35, exit_loss_thresh: 3.0, exit_hour_thresh: 12,
     est_fees_per_contract: 0.0, est_commission_per_contract: 0.0,
-    price_increment: 0.05, logger: nil
+    price_increment: 0.05, max_prof_checks: 30, logger: nil
   )
     @markets = markets
     @order_manager = order_manager
@@ -18,6 +18,8 @@ class TradeManager
     @est_fees_per_contract = est_fees_per_contract
     @est_commission_per_contract = est_commission_per_contract
     @price_increment = price_increment
+    @max_prof_checks = max_prof_checks
+    @prof_checks = 0
     @logger = logger
 
     @trade = nil
@@ -31,6 +33,7 @@ class TradeManager
 
   def watch(trade)
     @trade = trade
+    @prof_checks = 0
 
     while trade.open?
       return if outside_market_hours?
@@ -42,7 +45,9 @@ class TradeManager
       curr_contract_price = round_down_to_nearest(curr_contract_price, price_increment)
       close_price = trade_close_price(curr_contract_price)
 
-      logger.info trade_progress_msg(trade, curr_contract_price, call_spread_price, put_spread_price, call_spread_delta, put_spread_delta)
+      logger.info trade_progress_msg(
+        trade, curr_contract_price, call_spread_price, put_spread_price, call_spread_delta, put_spread_delta
+      )
       logger.info trade_risk_msg(call_spread_delta, put_spread_delta)
 
       if order_manager.order_sent
@@ -107,6 +112,15 @@ class TradeManager
     end
   end
 
+  def reset
+    # REVIEW: might be an unnecessary helper, but ensures the status is cleared
+    # between trades
+    @trade = nil
+    @adjusting_trade = false
+    @closing_trade = false
+    @prof_checks = 0
+  end
+
   def outside_market_hours?
     curr_time = Time.now
     (curr_time.hour < 8 && curr_time.min < 25) || (curr_time.hour >= 15 && curr_time.min > 20)
@@ -156,6 +170,7 @@ class TradeManager
       current_price <= exit_prof_thresh
     elsif now >= exit_time_today
       # NOTE: after exit hour threshold, be more aggressive about exiting
+
       profitability(trade, current_price) >= 0.0
     else
       false
@@ -172,9 +187,17 @@ class TradeManager
     elsif now >= market_open_time_today && now < exit_time_today
       current_price >= exit_loss_thresh
     # NOTE: think this condition just get handled with the exit_profit
-    # elsif now >= exit_time_today
-    #   # NOTE: after exit hour threshold, be more aggressive about exiting
-    #   profitability(trade, current_price) <= 0.0
+    elsif now >= exit_time_today
+      # NOTE: basically if the price isn't improving after 15 minutes, then just exit
+      if profitability(trade, current_price) <= 0.0
+        @prof_checks += 1
+        logger.info "Profitability check failed at #{now}. Profitability checks: #{@prof_checks}"
+      else
+        logger.info "Profitability check passed at #{now}."
+        @prof_checks = 0
+      end
+
+      @prof_checks >= @max_prof_checks
     else
       false
     end
