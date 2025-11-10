@@ -89,7 +89,7 @@ TradesFileManager.setup(TRADES_FILE)
   est_commissions: EST_COMMISSION_PER_CONTRACT,
   logger: bot_logger
 )
-@trade_finder = TradeFinder.new(
+@trade_finder = IronCondorFinder.new(
   UNDERLYING_SYMBOL,
   @schwab_markets,
   spread_width: SPREAD_WIDTH,
@@ -202,6 +202,8 @@ class SPX1DTEBot
       next unless @trade
 
       @trade_manager.watch(@trade)
+      @trade_manager.reset
+      @logger.info "Trade #{@trade.id} closed. Resetting trade."
     end
   end
 
@@ -301,7 +303,7 @@ bot.run
 # Other things to consider:
 # - Is one of the legs providing all the credit? If so, then try to balance it out with affecting the risk profile too much.
 
-# See the TradeFinder class.
+# See the IronCondorFinder class.
 ##########################################
 
 ##########################################
