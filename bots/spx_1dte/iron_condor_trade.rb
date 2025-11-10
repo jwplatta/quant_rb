@@ -14,6 +14,11 @@ class IronCondorTrade
   CLOSED_STATUS = 'CLOSED'.freeze
   STATUSES = [NEW_STATUS, OPEN_STATUS, CLOSED_STATUS].freeze
 
+  OPEN_ACTION = 'OPEN'.freeze
+  ADJUST_ACTION = 'ADJUST'.freeze
+  CLOSE_ACTION = 'CLOSE'.freeze
+  ACTIONS = [OPEN_ACTION, ADJUST_ACTION, CLOSE_ACTION].freeze
+
   def initialize(
     id: nil,
     put_spread:,
@@ -79,7 +84,7 @@ class IronCondorTrade
     quantity = order_details.delete(:quantity)
     credit_debit = calc_credit_debit(price, quantity, @cached_order_args[:credit_debit])
 
-    update_history(price, fees, commissions, quantity)
+    update_history(OPEN_ACTION,price, fees, commissions, quantity)
 
     @status = OPEN_STATUS
     @open_price = price
@@ -100,7 +105,7 @@ class IronCondorTrade
     quantity = order_details.delete(:quantity)
     credit_debit = calc_credit_debit(price, quantity, @cached_order_args[:credit_debit])
 
-    update_history(price, fees, commissions, quantity)
+    update_history(ADJUST_ACTION, price, fees, commissions, quantity)
 
     @adjustment_count += 1
     @total_credit_debit += credit_debit
@@ -117,7 +122,7 @@ class IronCondorTrade
     quantity = order_details.delete(:quantity)
     credit_debit = calc_credit_debit(price, quantity, @cached_order_args[:credit_debit])
 
-    update_history(price, fees, commissions, quantity)
+    update_history(CLOSE_ACTION, price, fees, commissions, quantity)
 
     @status = CLOSED_STATUS
     @close_price = price
@@ -138,8 +143,9 @@ class IronCondorTrade
     end
   end
 
-  def update_history(price, fees, commissions, quantity)
+  def update_history(action, price, fees, commissions, quantity)
     trade_event = @cached_order_args.dup
+    trade_event[:action] = action
     trade_event[:fees] = fees
     trade_event[:commissions] = commissions
     trade_event[:price] = price
