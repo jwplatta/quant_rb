@@ -2,7 +2,7 @@ require_relative 'data_objects'
 require_relative 'util'
 require_relative 'iron_condor_trade'
 
-class TradeFinder
+class IronCondorFinder
   def initialize(
     underlying_symbol,
     markets,
