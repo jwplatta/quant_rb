@@ -13,7 +13,7 @@ require_relative './spx_1dte/data_objects'
 require_relative './spx_1dte/iron_condor_trade'
 require_relative './spx_1dte/trades_file_manager'
 require_relative './spx_1dte/paper_order_manager'
-require_relative './spx_1dte/trade_finder'
+require_relative './spx_1dte/iron_condor_finder'
 require_relative './spx_1dte/trade_manager'
 
 #####################
