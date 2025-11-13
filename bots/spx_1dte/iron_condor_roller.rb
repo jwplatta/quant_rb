@@ -57,12 +57,6 @@ class IronCondorRoller
     new_untested_spread = move_spread_up(untested_spread, untested_spread.contract_type, move_size)
 
     while new_untested_spread.delta <= max_delta
-      puts "NEW TESTED SPREAD #{new_tested_spread.short_leg.contract_type}: #{new_tested_spread.short_leg.strike}/#{new_tested_spread.long_leg.strike} " \
-           "PRICE: #{new_tested_spread.price} DELTA: #{new_tested_spread.delta}"
-      puts "NEW UNTESTED SPREAD #{new_untested_spread.short_leg.contract_type}: #{new_untested_spread.short_leg.strike}/#{new_untested_spread.long_leg.strike} " \
-           "PRICE: #{new_untested_spread.price} DELTA: #{new_untested_spread.delta}"
-      puts "--------------------------------------"
-
       cost_to_roll_tested = roll_price(tested_spread, new_tested_spread).abs
       credit_from_untested = roll_price(untested_spread, new_untested_spread)
 
@@ -80,7 +74,6 @@ class IronCondorRoller
 
     if @_search_attempts < max_search_attempts
       @_search_attempts += 1
-      puts "Could not find valid strategy on attempt #{@_search_attempts}. Retrying..."
       sleep(5)
       search(tested_spread: tested_spread, untested_spread: untested_spread, move_size: move_size)
     else
