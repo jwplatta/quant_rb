@@ -188,7 +188,7 @@ class TradeManager
       current_price >= exit_loss_thresh
     # NOTE: think this condition just get handled with the exit_profit
     elsif now >= exit_time_today
-      # NOTE: basically if the price isn't improving after 15 minutes, then just exit
+      # NOTE: if the price isn't improving after an extended period of time, then just exit.
       if profitability(trade, current_price) <= 0.0
         @prof_checks += 1
         logger.info "Profitability check failed at #{now}. Profitability checks: #{@prof_checks}"
