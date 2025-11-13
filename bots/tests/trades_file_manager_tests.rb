@@ -4,7 +4,7 @@ require 'fileutils'
 require_relative '../spx_1dte/trades_file_manager'
 require_relative '../spx_1dte/iron_condor_trade'
 
-TradesFileManager.setup('bots/tests/test_trades.json')
+TradesFileManager.setup('bots/tests/fixtures/test_trades.json')
 tf_manager = TradesFileManager.instance
 
 ### TEST #trades ###
@@ -12,7 +12,7 @@ raise "Expected 0 trades, got #{tf_manager.trades.length}" unless tf_manager.tra
 
 ### TEST #reload ###
 ### TEST #read_all ###
-TradesFileManager.setup('bots/tests/open_trade_example.json')
+TradesFileManager.setup('bots/tests/fixtures/open_trade_example.json')
 tf_manager.reload
 
 raise "Expected 3 trades, got #{tf_manager.trades.length}" unless tf_manager.trades.length == 3
@@ -25,14 +25,14 @@ raise "Expected open_trade? to be true" unless tf_manager.open_trade?
 
 open_trade = tf_manager.open_trade
 
-TradesFileManager.setup('bots/tests/all_closed_trades_example.json')
+TradesFileManager.setup('bots/tests/fixtures/all_closed_trades_example.json')
 tf_manager.reload
 
 raise "Expected 2 trades, got #{tf_manager.trades.length}" unless tf_manager.trades.length == 2
 raise "Expected open_trade? to be false" if tf_manager.open_trade?
 
 ### TEST #create ###
-test_file = 'bots/tests/test_trades.json'
+test_file = 'bots/tests/fixtures/test_trades.json'
 TradesFileManager.setup(test_file)
 tf_manager.reload
 tf_manager.create(open_trade)
