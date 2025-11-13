@@ -22,7 +22,6 @@ class TradesFileManager
 
   def initialize
     @trades = nil
-    @open_trade = nil
   end
 
   attr_accessor :file_path
@@ -34,26 +33,22 @@ class TradesFileManager
   end
 
   def open_trade
-    return @open_trade unless @open_trade.nil?
-
     open_trades = trades.select { |trade| trade.status == IronCondorTrade::OPEN_STATUS }
     if open_trades.count > 1
       raise "Multiple open trades found! Need to fix."
     elsif open_trades.empty?
       nil
     else
-      @open_trade = open_trades.first
+      open_trades.first
     end
   end
 
   def reload
-    @open_trade = nil
     @trades = nil
     trades
   end
 
   def open_trade?
-    binding.pry
     trades.any? { |trade| trade.status == 'OPEN' }
   end
 
