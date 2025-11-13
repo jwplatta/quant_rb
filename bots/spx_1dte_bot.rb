@@ -39,7 +39,6 @@ end
 UNDERLYING_SYMBOL = '$SPX'
 OPTION_ROOT = 'SPXW'
 
-
 # TRADING PARAMETERS
 SPREAD_WIDTH = 20
 
@@ -73,7 +72,7 @@ MAX_ADJUSTMENTS = 2
 
 # NOTE: exit conditions
 EXIT_LOSS_THRESH = 3.0 # times the original credit received
-EXIT_PROF_THRESH = 0.35 # times the original credit received
+EXIT_PROF_THRESH = 0.5 # times the original credit received
 EXIT_HOUR_THRESH = 12 # PM
 
 EST_FEES_PER_CONTRACT = 2.1
@@ -92,6 +91,7 @@ TradesFileManager.setup(TRADES_FILE)
 @trade_finder = IronCondorFinder.new(
   UNDERLYING_SYMBOL,
   @schwab_markets,
+  option_root: OPTION_ROOT,
   spread_width: SPREAD_WIDTH,
   max_search_attempts: MAX_SEARCH_ATTEMPTS,
   max_tweak_attempts: MAX_TWEAK_ATTEMPTS,
@@ -165,7 +165,9 @@ def write_option_chain_to_file(opt_chain, expiration_date = nil)
 end
 
 class SPX1DTEBot
-  MARKET_OPEN = "08:25 AM" # technically not the market open, but want to start monitoring before then
+  # NOTE: technically not the market open and close, but want to start monitoring before
+  # the market open and during the extended hours
+  MARKET_OPEN = "08:25 AM"
   MARKET_CLOSE = "03:15 PM"
   TRADE_WINDOW_START = "02:59 PM"
   TRADE_WINDOW_END = "03:15 PM"
@@ -188,7 +190,9 @@ class SPX1DTEBot
         sleep_interval = seconds_until_market_open
         @logger.info "Outside market hours. Sleeping for #{sleep_interval / 60} minutes."
         sleep(sleep_interval)
+        nil
       elsif !open_trade.nil?
+        @logger.info "Continuing to manage existing open trade #{open_trade.id}."
         open_trade
       elsif inside_trade_window?
         new_trade = trade_finder.search
@@ -197,9 +201,10 @@ class SPX1DTEBot
         sleep_interval = seconds_until_trade_window_start
         @logger.info "No trade to manage and outside trade window. Sleep #{sleep_interval / 60} minute."
         sleep(sleep_interval)
+        nil
       end
 
-      next unless @trade
+      next if @trade.nil?
 
       @trade_manager.watch(@trade)
       @trade_manager.reset

@@ -1,4 +1,25 @@
-# OptionChain = Struct.new
+class OptionsChain
+  def initialize(underlying_price:, call_opts: [], put_opts: [])
+    @underlying_price = underlying_price
+    @call_opts = call_opts
+    @put_opts = put_opts
+  end
+
+  attr_reader :call_opts, :put_opts, :underlying_price
+
+  def get_option(symbol, contract_type)
+    if contract_type == 'CALL'
+      call_opts.find { |opt| opt.symbol == symbol }
+    elsif contract_type == 'PUT'
+      put_opts.find { |opt| opt.symbol == symbol }
+    else
+      nil
+    end
+  end
+end
+
+class Option
+end
 
 OptionLeg = Struct.new :symbol, :strike, :mark, :delta, :contract_type, :expiration_date do
   def to_h
@@ -24,6 +45,10 @@ VerticalSpread = Struct.new(:short_leg, :long_leg, :contract_type, :contracts) d
 
   def symbols
     [short_leg.symbol, long_leg.symbol]
+  end
+
+  def price
+    (short_leg.mark - long_leg.mark).round(2)
   end
 
   def credit
