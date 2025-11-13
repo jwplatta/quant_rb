@@ -6,6 +6,7 @@ class IronCondorFinder
   def initialize(
     underlying_symbol,
     markets,
+    option_root: nil,
     spread_width: 10,
     max_search_attempts: 3,
     max_credit: 1.5,
@@ -25,6 +26,7 @@ class IronCondorFinder
     logger: nil
   )
     @underlying_symbol = underlying_symbol
+    @option_root = option_root
     @markets = markets
     @options_chain = nil
     @spread_width = spread_width
@@ -48,7 +50,7 @@ class IronCondorFinder
     @logger = logger
   end
 
-  attr_reader :underlying_symbol, :markets,
+  attr_reader :underlying_symbol, :option_root, :markets,
     :options_chain, :spread_width,
     :min_credit_balance_ratio, :delta_ratio, :max_search_attempts,
     :max_credit, :min_credit,
@@ -63,21 +65,14 @@ class IronCondorFinder
   def search
     @expiration_date = next_expiration_date
     logger.info "Find new trade #{underlying_symbol} for expiration date #{expiration_date}"
-
-    @options_chain = markets.get_option_chain(
-      underlying_symbol,
-      contract_type: 'ALL',
-      strike_range: 'OTM',
-      to_date: expiration_date,
-      from_date: expiration_date
-    )
+    @options_chain = nil
 
     valid_strategy_found = false
     call_spread, put_spread = find_init_strategy
     tweak_attempts = 0
 
     # NOTE: tweak strategy until it meets criteria
-    while !valid_strategy_found do
+    while !valid_strategy_found
       # What to check:
       # does the strategy meet min credit?
       # does the strategy have enough credit to reduce the risk?
@@ -161,7 +156,36 @@ class IronCondorFinder
       sleep(5)
       search
     else
+      # REVIEW: need to handle this gracefully. Right now forcing the bot to crash.
       raise "Could not find valid strategy after #{@search_attempts} attempts"
+    end
+  end
+
+  def options_chain
+    return @options_chain if @options_chain
+
+    opt_chain = markets.get_option_chain(
+      underlying_symbol,
+      contract_type: 'ALL',
+      strike_range: 'OTM',
+      to_date: expiration_date,
+      from_date: expiration_date
+    )
+
+    if option_root.present?
+      call_opts = opt_chain.call_opts.select { |opt| opt.option_root == option_root }
+      put_opts = opt_chain.put_opts.select { |opt| opt.option_root == option_root }
+      @options_chain = OptionsChain.new(
+        underlying_price: opt_chain.underlying_price,
+        call_opts: call_opts,
+        put_opts: put_opts
+      )
+    else
+      @options_chain = OptionsChain.new(
+        underlying_price: opt_chain.underlying_price,
+        call_opts: opt_chain.call_opts,
+        put_opts: opt_chain.put_opts
+      )
     end
   end
 
