@@ -1,14 +1,30 @@
 require_relative 'util'
+require_relative 'iron_condor_roller'
 
 class TradeManager
   DEFAULT_SLEEP_INTERVAL = 30
+  ACTIONS = [
+    'opening_trade',
+    'closing_trade',
+    'rollaway_spread',
+    'rollup_spread',
+    'add_contract',
+    'close_spread',
+    'open_spread'
+  ].freeze
 
   def initialize(
     markets,
     order_manager,
     exit_prof_thresh: 0.35, exit_loss_thresh: 3.0, exit_hour_thresh: 12,
     est_fees_per_contract: 0.0, est_commission_per_contract: 0.0,
-    price_increment: 0.05, max_prof_checks: 30, logger: nil
+    yellow_zone_delta: 0.15,
+    red_zone_delta: 0.30,
+    adjustment_wait_time: 900,
+    trade_roller: nil,
+    price_increment: 0.05,
+    max_prof_checks: 30,
+    logger: nil
   )
     @markets = markets
     @order_manager = order_manager
@@ -17,19 +33,25 @@ class TradeManager
     @exit_hour_thresh = exit_hour_thresh
     @est_fees_per_contract = est_fees_per_contract
     @est_commission_per_contract = est_commission_per_contract
+    @yellow_zone_delta = yellow_zone_delta
+    @red_zone_delta = red_zone_delta
     @price_increment = price_increment
     @max_prof_checks = max_prof_checks
     @prof_checks = 0
     @logger = logger
+    @trade_roller = trade_roller
 
     @trade = nil
-    @adjusting_trade = false
-    @closing_trade = false
+    @tested_window_start = nil
+    @adjustment_wait_time = adjustment_wait_time # seconds
+    @action = nil
     @sleep_interval = DEFAULT_SLEEP_INTERVAL
   end
 
   attr_reader :markets, :order_manager, :exit_prof_thresh, :exit_loss_thresh, :exit_hour_thresh, :trade,
-                :est_fees_per_contract, :est_commission_per_contract, :price_increment, :logger
+              :yellow_zone_delta, :red_zone_delta, :adjustment_wait_time,
+              :est_fees_per_contract, :est_commission_per_contract,
+              :price_increment, :trade_roller, :logger
 
   def watch(trade)
     @trade = trade
@@ -50,39 +72,43 @@ class TradeManager
       )
       logger.info trade_risk_msg(call_spread_delta, put_spread_delta)
 
-      if order_manager.order_sent
+      if order_manager.working?
         status, order_dtls = order_manager.check_order_status(trade.id)
         logger.info "Order status: #{status}"
 
         if status == 'FILLED'
-          if @closing_trade
+          # NOTE: update trade after order is filled
+          if @action == 'closing_trade'
             trade.close(**order_dtls)
             logger.info "Trade closed at price: #{order_dtls[:price]}"
-          # elsif @adjusting_trade
-          #   trade.adjust(**order_dtls)
+          elsif @action == 'rollaway_spread'
+            puts "rolling away"
+            # TODO: now need to roll up
+            trade.adjust_trade
+          elsif @action == 'rollup_spread'
+            puts "rolling up"
+            trade.adjust_trade
           else
             raise "Unknown order type filled."
           end
 
           @sleep_interval = 0
-          @closing_trade = false
-          @adjusting_trade = false
+          @action = nil
         elsif status == 'WORKING' && order_manager.check_fill_count < 3
           logger.info "Order working. Checking in #{@sleep_interval} seconds"
           @sleep_interval = 5
         elsif status == 'WORKING'
           logger.info "Order working too long. Canceling order and re-evaluating trade."
           order_manager.cancel_order(trade.id)
-          @closing_trade = false
-          @adjusting_trade = false
+          @action = nil
           @sleep_interval = 0
         end
       elsif exit_profit?(curr_contract_price, trade)
         logger.info "Profit target reached. Closing trade at price: #{curr_contract_price}."
 
-        order_status = order_manager.send_order(:close, trade.close_order_args(curr_contract_price))
+        order_status = order_manager.send_order(:close, trade, price: curr_contract_price)
         if order_status == 'WORKING'
-          @closing_trade = true
+          @action = 'closing_trade'
           @sleep_interval = 5
         elsif order_status == 'REJECTED'
           @sleep_interval = 0
@@ -92,19 +118,66 @@ class TradeManager
       elsif exit_loss?(curr_contract_price, trade)
         logger.info "Loss target reached. Closing trade. Current price: #{curr_contract_price}, Max loss price: #{trade.max_loss_price}."
 
-        order_status = order_manager.send_order(:close, trade.close_order_args(curr_contract_price))
+        order_status = order_manager.send_order(:close, trade, price: curr_contract_price)
         if order_status == 'WORKING'
-          @closing_trade = true
+          @action = 'closing_trade'
           @sleep_interval = 5
         elsif order_status == 'REJECTED'
           @sleep_interval = 0
         else
           raise "Unexpected order status when closing trade: #{order_status}"
         end
+      elsif call_spread_delta >= yellow_zone_delta
+        logger.info "Call side tested."
+
+        if @tested_window_start.nil?
+          @tested_window_start = Time.now
+          @sleep_interval = 5
+        elsif Time.now - @tested_window_start > @adjustment_wait_time
+          logger.info "Adjusting trade due to sustained high delta."
+          new_call_spread, new_put_spread = trade_roller.search(
+            tested_spread: trade.call_spread,
+            untested_spread: trade.put_spread,
+            move_size: 5
+          )
+          if new_call_spread && new_put_spread
+            @action = 'rollaway_spread'
+          end
+        else
+          @sleep_interval = 5
+        end
+      elsif put_spread_delta >= yellow_zone_delta
+        logger.info "Put side tested."
+
+        if @tested_window_start.nil?
+          @tested_window_start = Time.now
+          @sleep_interval = 5
+        elsif Time.now - @tested_window_start > @adjustment_wait_time
+          logger.info "Adjusting trade due to sustained high delta."
+          new_put_spread, new_call_spread = trade_roller.search(
+            tested_spread: trade.put_spread,
+            untested_spread: trade.call_spread,
+            move_size: 5
+          )
+
+        else
+          @sleep_interval = 5
+        end
+      # TODO:
+      # elsif call_spread_delta >= red_zone_delta || put_spread_delta >= red_zone_delta
+      #   # NOTE: take more aggressive action
+      #   logger.info "Critical spread delta detected."
+      #   if @tested_window_start.nil?
+      #     @tested_window_start = Time.now
+      #   elsif Time.now - @tested_window_start > @adjustment_wait_time
+      #     logger.info "Adjusting trade due to sustained critical delta."
+      #   end
       else
         # NOTE: maybe you want to include some other conditions here. Is the market moving a lot today? Is the VIX or the VIX1D up?
         # Are you approaching the exit time threshold?
-        @sleep_interval = 30
+        @tested_window_start = nil # reset the tested window
+        @action = nil
+        @sleep_interval = DEFAULT_SLEEP_INTERVAL
         logger.info "Continuing to watch trade. Checking again in #{@sleep_interval} seconds."
       end
 
@@ -113,11 +186,10 @@ class TradeManager
   end
 
   def reset
-    # REVIEW: might be an unnecessary helper, but ensures the status is cleared
-    # between trades
+    # REVIEW: might be an unnecessary helper,
+    # but ensures the status is cleared between trades
     @trade = nil
-    @adjusting_trade = false
-    @closing_trade = false
+    @action = nil
     @prof_checks = 0
   end
 
@@ -215,6 +287,25 @@ class TradeManager
   def market_open_time_today
     now = Time.now
     Time.new(now.year, now.month, now.day, 8, 30, 0)
+  end
+
+  def iron_condor_roller
+    IronCondorRoller.new(
+      underlying_symbol: UNDERLYING_SYMBOL,
+      option_root: OPTION_ROOT,
+      spread_width: SPREAD_WIDTH,
+      expiration_date: expiration_date,
+      contracts: CONTRACTS,
+      max_delta: 0.15,
+      est_fees: EST_FEES_PER_CONTRACT,
+      est_commissions: EST_COMMISSION_PER_CONTRACT,
+      price_increment: PRICE_INCREMENT,
+      cost_coverage_perc: 1.0,
+      max_search_attempts: MAX_SEARCH_ATTEMPTS,
+      markets: schwab_markets
+    )
+
+
   end
 
   def time_adjusted_profit_target(target_profit_price, expiration_date)
