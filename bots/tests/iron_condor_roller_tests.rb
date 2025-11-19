@@ -96,11 +96,11 @@ put_spread_long_leg = options_chain.put_opts.find { |opt| opt.strike == put_spre
 end
 put_spread = VerticalSpread.new(put_spread_short_leg, put_spread_long_leg, 'PUT')
 
+
 roller = IronCondorRoller.new(
   underlying_symbol: UNDERLYING_SYMBOL,
   option_root: OPTION_ROOT,
   spread_width: SPREAD_WIDTH,
-  expiration_date: expiration_date,
   contracts: CONTRACTS,
   max_delta: 0.15,
   est_fees: EST_FEES_PER_CONTRACT,
@@ -111,6 +111,10 @@ roller = IronCondorRoller.new(
   markets: schwab_markets
 )
 
-new_call_spread, new_put_spread = roller.search(tested_spread: call_spread, untested_spread: put_spread, move_size: 15)
+new_call_spread, new_put_spread = roller.search(
+  tested_spread: call_spread,
+  untested_spread: put_spread,
+  move_size: 5
+)
 
 binding.pry
