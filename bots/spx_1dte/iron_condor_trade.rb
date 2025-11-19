@@ -77,14 +77,15 @@ class IronCondorTrade
     total_credit_debit - total_fees - total_commissions
   end
 
-  def open(**order_details)
-    fees = order_details.delete(:fees)
-    commissions = order_details.delete(:commissions)
-    price = order_details.delete(:price)
-    quantity = order_details.delete(:quantity)
-    credit_debit = calc_credit_debit(price, quantity, @cached_order_args[:credit_debit])
+  # NOTE: this is WorkingOrder object
+  def open(order)
+    fees = order.details[:fees]
+    commissions = order.details[:commissions]
+    price = order.details[:price]
+    quantity = order.details[:quantity]
+    credit_debit = calc_credit_debit(price, quantity, :credit)
 
-    update_history(OPEN_ACTION,price, fees, commissions, quantity)
+    update_history(OPEN_ACTION, order)
 
     @status = OPEN_STATUS
     @open_price = price
@@ -97,15 +98,15 @@ class IronCondorTrade
     trades_file_manager.create(self)
   end
 
-  def adjust(**order_details)
+  def adjust(order)
     # TODO: need to update the spreads if the contracts changed.
-    fees = order_details.delete(:fees)
-    commissions = order_details.delete(:commissions)
-    price = order_details.delete(:price)
-    quantity = order_details.delete(:quantity)
-    credit_debit = calc_credit_debit(price, quantity, @cached_order_args[:credit_debit])
+    fees = order.details[:fees]
+    commissions = order.details[:commissions]
+    price = order.details[:price]
+    quantity = order.details[:quantity]
+    credit_debit = calc_credit_debit(price, quantity, :credit)
 
-    update_history(ADJUST_ACTION, price, fees, commissions, quantity)
+    update_history(ADJUST_ACTION, order)
 
     @adjustment_count += 1
     @total_credit_debit += credit_debit
@@ -115,14 +116,14 @@ class IronCondorTrade
     trades_file_manager.update(self)
   end
 
-  def close(**order_details)
-    fees = order_details.delete(:fees)
-    commissions = order_details.delete(:commissions)
-    price = order_details.delete(:price)
-    quantity = order_details.delete(:quantity)
-    credit_debit = calc_credit_debit(price, quantity, @cached_order_args[:credit_debit])
+  def close(order)
+    fees = order.details[:fees]
+    commissions = order.details[:commissions]
+    price = order.details[:price]
+    quantity = order.details[:quantity]
+    credit_debit = calc_credit_debit(price, quantity, :debit)
 
-    update_history(CLOSE_ACTION, price, fees, commissions, quantity)
+    update_history(CLOSE_ACTION, order)
 
     @status = CLOSED_STATUS
     @close_price = price
@@ -143,17 +144,11 @@ class IronCondorTrade
     end
   end
 
-  def update_history(action, price, fees, commissions, quantity)
-    trade_event = @cached_order_args.dup
-    trade_event[:action] = action
-    trade_event[:fees] = fees
-    trade_event[:commissions] = commissions
-    trade_event[:price] = price
-    trade_event[:quantity] = quantity
+  def update_history(action, order)
+    trade_event = order.details.dup
     trade_event[:timestamp] = Time.now.utc.iso8601
 
     @trade_history << trade_event
-    @cached_order_args = nil
   end
 
   def open?
@@ -180,98 +175,6 @@ class IronCondorTrade
   def target_profit_price
     # this is per contract
     round_down_to_nearest((open_price * 100 - open_fees - open_commissions) * exit_prof_thresh / 100.0)
-  end
-
-  def open_order_args
-    @cached_order_args = {
-      put_short_symbol: put_spread.short_leg.symbol,
-      put_long_symbol: put_spread.long_leg.symbol,
-      call_short_symbol: call_spread.short_leg.symbol,
-      call_long_symbol: call_spread.long_leg.symbol,
-      price: open_price,
-      duration: SchwabRb::Orders::Duration::DAY,
-      credit_debit: :credit,
-      order_instruction: :open,
-      quantity: contracts,
-      strategy_type: SchwabRb::Order::ComplexOrderStrategyTypes::IRON_CONDOR
-    }
-  end
-
-  def open_call_spread_args(price, calls_contracts = nil)
-    @cached_order_args = {
-      short_leg_symbol: call_spread.short_leg.symbol,
-      long_leg_symbol: call_spread.long_leg.symbol,
-      price: price,
-      duration: SchwabRb::Orders::Duration::DAY,
-      credit_debit: :credit,
-      order_instruction: :open,
-      quantity: calls_contracts || contracts,
-      strategy_type: SchwabRb::Order::ComplexOrderStrategyTypes::VERTICAL
-    }
-  end
-
-  def roll_call_spread_args(price, vertical_spread)
-  end
-
-  def open_put_spread_args(price, puts_contracts = nil)
-    @cached_order_args = {
-      short_leg_symbol: put_spread.short_leg.symbol,
-      long_leg_symbol: put_spread.long_leg.symbol,
-      price: price,
-      duration: SchwabRb::Orders::Duration::DAY,
-      credit_debit: :credit,
-      order_instruction: :open,
-      quantity: puts_contracts || contracts,
-      strategy_type: SchwabRb::Order::ComplexOrderStrategyTypes::VERTICAL
-    }
-  end
-
-  def roll_put_spread_args
-  end
-
-  def close_order_args(price)
-    # TODO: either create custom error for this and rescue it in the bot and then handles the spreads separately.
-    # Or you need to come up with the logic to ensure this doesn't happen in the bot.
-    raise "Must close spreads separately! Unequal contracts." if call_spread.contracts != put_spread.contracts
-
-    @cached_order_args = {
-      put_short_symbol: put_spread.short_leg.symbol,
-      put_long_symbol: put_spread.long_leg.symbol,
-      call_short_symbol: call_spread.short_leg.symbol,
-      call_long_symbol: call_spread.long_leg.symbol,
-      price: price,
-      duration: SchwabRb::Orders::Duration::DAY,
-      credit_debit: :debit,
-      order_instruction: :close,
-      quantity: contracts,
-      strategy_type: SchwabRb::Order::ComplexOrderStrategyTypes::IRON_CONDOR
-    }
-  end
-
-  def close_call_spread_args(price)
-    @cached_order_args = {
-      short_leg_symbol: call_spread.short_leg.symbol,
-      long_leg_symbol: call_spread.long_leg.symbol,
-      price: price,
-      duration: SchwabRb::Orders::Duration::DAY,
-      credit_debit: :debit,
-      order_instruction: :close,
-      quantity: call_spread.contracts,
-      strategy_type: SchwabRb::Order::ComplexOrderStrategyTypes::VERTICAL
-    }
-  end
-
-  def close_put_spread_args(price)
-    @cached_order_args = {
-      short_leg_symbol: put_spread.short_leg.symbol,
-      long_leg_symbol: put_spread.long_leg.symbol,
-      price: price,
-      duration: SchwabRb::Orders::Duration::DAY,
-      credit_debit: :debit,
-      order_instruction: :close,
-      quantity: put_spread.contracts,
-      strategy_type: SchwabRb::Order::ComplexOrderStrategyTypes::VERTICAL
-    }
   end
 
   def round_up_to_nearest(value)
