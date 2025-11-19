@@ -1,3 +1,5 @@
+require 'securerandom'
+require 'schwab_rb'
 # ORDER_STATUSES = [
 #   "ACCEPTED",
 #   "PENDING_ACTIVATION",
@@ -21,6 +23,7 @@
 #   from_date: Date.today - 7,
 #   to_date: DateTime.new(Date.today.year, Date.today.month, Date.today.day, 23, 59, 59, 0)
 # )
+WorkingOrder = Struct.new(:id, :schwab_id, :status, :order_result, :details, :check_fill_count, :wait_time)
 
 class PaperOrderManager
   def initialize(schwab_orders, est_fees: nil, est_commissions: nil, logger: nil)
@@ -28,80 +31,182 @@ class PaperOrderManager
     @est_fees = est_fees
     @est_commissions = est_commissions
     @logger = logger
-
-    @order_sent = false
-    @order_status = 'NO_ORDER'
-    @check_fill_count = 0
-    @order_result = nil
-    @order_details = nil
-
-    @simulated_wait_time = nil
+    @working_orders = []
   end
 
-  attr_reader :schwab_orders, :order_sent, :check_fill_count, :order_result, :logger
+  attr_reader :schwab_orders, :check_fill_count, :order_result, :logger
 
   # NOTE: you're assuming an accepted preview will get filled. But this will not always be the case.
   # After you place the order, you will have to monitor it to see when it gets filled.
   # After it gets filled, then you retrieve the filled order to get these details and then update the trade state.
-  def send_order(order_instruction, order_args)
-    reset # NOTE: clear any previous order state
-    @order_result = schwab_orders.preview_order(order_instruction: order_instruction, **order_args)
+  def send_order(order_instruction, trade, **kwargs)
+    order_args = build_order_args(order_instruction, trade, **kwargs)
+    order_result = schwab_orders.preview_order(order_instruction: order_instruction, **order_args)
+    order_status = order_result.status
 
-    if @order_result.status == 'ACCEPTED' || (@order_result.status == 'REJECTED' && order_instruction == :close)
+    if order_status == 'ACCEPTED' || (order_status == 'REJECTED' && order_instruction == :close)
       @logger.info "Order preview ACCEPTED for #{order_instruction} order."
       # NOTE: schwab will reject these close orders because you don't have an existing trade in the account.
       #So just assume they get accepted.
-      @order_sent = true
-      @order_status = 'WORKING'
-      set_wait_time
-    elsif @order_result.status == 'REJECTED' && order_instruction == :open
+      order = WorkingOrder.new(
+        SecureRandom.uuid().delete('-'),
+        order_result.order_id,
+        'WORKING',
+        order_result,
+        order_args,
+        0,
+        wait_time
+      )
+      @working_orders << order
+      order
+    elsif order_status == 'REJECTED' && order_instruction == :open
       @logger.info "Order preview REJECTED for #{order_instruction} order."
-      @order_status = 'REJECTED'
+      WorkingOrder.new(nil, order_result.order_id, 'REJECTED', order_result, order_args, 0, nil)
     else
-      @logger.error "Unexpected order preview status: #{@order_result.status}"
-      @order_status = 'NONE'
+      raise "Unexpected order preview status: #{order_status}"
     end
+  end
 
-    @order_status
+  def build_order_args(order_instruction, trade, **kwargs)
+    if order_instruction == :open
+      {
+        put_short_symbol: trade.put_spread.short_leg.symbol,
+        put_long_symbol: trade.put_spread.long_leg.symbol,
+        call_short_symbol: trade.call_spread.short_leg.symbol,
+        call_long_symbol: trade.call_spread.long_leg.symbol,
+        price: trade.open_price,
+        duration: SchwabRb::Orders::Duration::DAY,
+        credit_debit: :credit,
+        order_instruction: :open,
+        quantity: trade.contracts,
+        strategy_type: SchwabRb::Order::ComplexOrderStrategyTypes::IRON_CONDOR
+      }
+    elsif order_instruction == :close
+      raise "Must close spreads separately! Unequal contracts." if trade.call_spread.contracts != trade.put_spread.contracts
+
+      {
+        put_short_symbol: trade.put_spread.short_leg.symbol,
+        put_long_symbol: trade.put_spread.long_leg.symbol,
+        call_short_symbol: trade.call_spread.short_leg.symbol,
+        call_long_symbol: trade.call_spread.long_leg.symbol,
+        price: kwargs[:price],
+        duration: SchwabRb::Orders::Duration::DAY,
+        credit_debit: :debit,
+        order_instruction: :close,
+        quantity: trade.contracts,
+        strategy_type: SchwabRb::Order::ComplexOrderStrategyTypes::IRON_CONDOR
+      }
+    else
+      raise "Unknown order instruction: #{order_instruction}"
+    end
   end
 
   def cancel_order(order_id)
     # NOTE: just assume the cancel succeeds right now
-    reset
+    logger.info "Canceling order #{order_id}."
+    @working_orders = @working_orders.reject { |o| o.id == order_id }
   end
 
   def check_order_status(order_id)
-    if @order_status == 'WORKING' && Time.now >= @simulated_wait_time
-      @order_status = 'FILLED'
-      @order_details = order_result_details
+    idx = @working_orders.index { |o| o.id == order_id }
+    return nil if idx.nil?
 
-      [@order_status, @order_details]
+    order = @working_orders[idx]
+
+    if order.status == 'WORKING' && Time.now >= order.wait_time
+      # remove the entry from the array, update and return the same object
+      @working_orders.delete_at(idx)
+      order.status = 'FILLED'
+      order.details = order.details.merge(order_result_details(order))
+      order
     else
-      @check_fill_count += 1
-
-      [@order_status, {}]
+      @working_orders[idx].check_fill_count = @working_orders[idx].check_fill_count.to_i + 1
+      order
     end
   end
 
-  def reset
-    @order_sent = false
-    @order_status = 'NO_ORDER'
-    @check_fill_count = 0
-    @order_result = nil
-    @order_details = nil
-    @simulated_wait_time = nil
+  def working?
+    @working_orders.any?
   end
 
-  def set_wait_time
-    @simulated_wait_time = Time.now + rand(0.0..30.0)
+  def wait_time
+    Time.now + rand(0.0..30.0)
   end
 
-  def order_result_details
+  def order_result_details(order)
     {
-      price: @order_result.price,
-      fees: @est_fees * @order_result.quantity, # NOTE: I think the schwab order will do this calculation for you.
-      commissions: @est_commissions * @order_result.quantity,
-      quantity: @order_result.quantity
+      price: order.order_result.price,
+      fees: @est_fees * order.order_result.quantity, # NOTE: I think the schwab order will do this calculation for you.
+      commissions: @est_commissions * order.order_result.quantity,
+      quantity: order.order_result.quantity
     }
   end
+
+  # def open_order_args
+  #   @cached_order_args = {
+  #     put_short_symbol: put_spread.short_leg.symbol,
+  #     put_long_symbol: put_spread.long_leg.symbol,
+  #     call_short_symbol: call_spread.short_leg.symbol,
+  #     call_long_symbol: call_spread.long_leg.symbol,
+  #     price: open_price,
+  #     duration: SchwabRb::Orders::Duration::DAY,
+  #     credit_debit: :credit,
+  #     order_instruction: :open,
+  #     quantity: contracts,
+  #     strategy_type: SchwabRb::Order::ComplexOrderStrategyTypes::IRON_CONDOR
+  #   }
+  # end
+
+  # def open_call_spread_args(price, calls_contracts = nil)
+  #   @cached_order_args = {
+  #     short_leg_symbol: call_spread.short_leg.symbol,
+  #     long_leg_symbol: call_spread.long_leg.symbol,
+  #     price: price,
+  #     duration: SchwabRb::Orders::Duration::DAY,
+  #     credit_debit: :credit,
+  #     order_instruction: :open,
+  #     quantity: calls_contracts || contracts,
+  #     strategy_type: SchwabRb::Order::ComplexOrderStrategyTypes::VERTICAL
+  #   }
+  # end
+
+  # def vertical_roll_args(new_spread, debit_credit)
+  #   {
+  #     close_short_leg_symbol: old_short_leg_symbol,
+  #     close_long_leg_symbol: old_long_leg_symbol,
+  #     open_short_leg_symbol: new_short_leg_symbol,
+  #     open_long_leg_symbol: new_long_leg_symbol,
+  #     price: 0.1,
+  #     strategy_type: SchwabRb::Order::ComplexOrderStrategyTypes::VERTICAL_ROLL,
+  #     credit_debit: debit_credit,
+  #     quantity: contracts
+  #   }
+  # end
+
+  # def close_call_spread_args(price)
+  #   @cached_order_args = {
+  #     short_leg_symbol: call_spread.short_leg.symbol,
+  #     long_leg_symbol: call_spread.long_leg.symbol,
+  #     price: price,
+  #     duration: SchwabRb::Orders::Duration::DAY,
+  #     credit_debit: :debit,
+  #     order_instruction: :close,
+  #     quantity: call_spread.contracts,
+  #     strategy_type: SchwabRb::Order::ComplexOrderStrategyTypes::VERTICAL
+  #   }
+  # end
+
+  # def close_put_spread_args(price)
+  #   @cached_order_args = {
+  #     short_leg_symbol: put_spread.short_leg.symbol,
+  #     long_leg_symbol: put_spread.long_leg.symbol,
+  #     price: price,
+  #     duration: SchwabRb::Orders::Duration::DAY,
+  #     credit_debit: :debit,
+  #     order_instruction: :close,
+  #     quantity: put_spread.contracts,
+  #     strategy_type: SchwabRb::Order::ComplexOrderStrategyTypes::VERTICAL
+  #   }
+  # end
+
 end
