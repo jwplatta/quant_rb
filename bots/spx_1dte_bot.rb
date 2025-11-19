@@ -14,6 +14,7 @@ require_relative './spx_1dte/iron_condor_trade'
 require_relative './spx_1dte/trades_file_manager'
 require_relative './spx_1dte/paper_order_manager'
 require_relative './spx_1dte/iron_condor_finder'
+require_relative './spx_1dte/iron_condor_roller'
 require_relative './spx_1dte/trade_manager'
 
 #####################
@@ -80,17 +81,17 @@ EST_COMMISSION_PER_CONTRACT = 2.6
 
 
 TradesFileManager.setup(TRADES_FILE)
-@schwab_markets = OptionsTrader::DataProviders::Schwab::Markets.new
-@schwab_orders = OptionsTrader::DataProviders::Schwab::Orders.new(account_name: ACCOUNT_NAME)
-@order_manager = PaperOrderManager.new(
-  @schwab_orders,
+schwab_markets = OptionsTrader::DataProviders::Schwab::Markets.new
+schwab_orders = OptionsTrader::DataProviders::Schwab::Orders.new(account_name: ACCOUNT_NAME)
+order_manager = PaperOrderManager.new(
+  schwab_orders,
   est_fees: EST_FEES_PER_CONTRACT,
   est_commissions: EST_COMMISSION_PER_CONTRACT,
   logger: bot_logger
 )
-@trade_finder = IronCondorFinder.new(
+trade_finder = IronCondorFinder.new(
   UNDERLYING_SYMBOL,
-  @schwab_markets,
+  schwab_markets,
   option_root: OPTION_ROOT,
   spread_width: SPREAD_WIDTH,
   max_search_attempts: MAX_SEARCH_ATTEMPTS,
@@ -111,9 +112,24 @@ TradesFileManager.setup(TRADES_FILE)
   logger: bot_logger
 )
 
-@trade_manager = TradeManager.new(
-  @schwab_markets,
-  @order_manager,
+trade_roller = IronCondorRoller.new(
+  underlying_symbol: UNDERLYING_SYMBOL,
+  option_root: OPTION_ROOT,
+  spread_width: SPREAD_WIDTH,
+  contracts: CONTRACTS,
+  max_delta: 0.15,
+  est_fees: EST_FEES_PER_CONTRACT,
+  est_commissions: EST_COMMISSION_PER_CONTRACT,
+  price_increment: PRICE_INCREMENT,
+  cost_coverage_perc: 1.0,
+  max_search_attempts: MAX_SEARCH_ATTEMPTS,
+  markets: schwab_markets,
+  logger: bot_logger
+)
+
+trade_manager = TradeManager.new(
+  schwab_markets,
+  order_manager,
   exit_prof_thresh: EXIT_PROF_THRESH,
   exit_loss_thresh: EXIT_LOSS_THRESH,
   exit_hour_thresh: EXIT_HOUR_THRESH,
@@ -256,82 +272,35 @@ class SPX1DTEBot
   def send_order(trade)
     logger.info "Sending open order for trade #{trade.id}"
 
-    order_status = order_manager.send_order(:open, trade.open_order_args)
+    order = order_manager.send_order(:open, trade)
 
-    if order_status == 'REJECTED'
+    if order.status == 'REJECTED'
       # TODO: if the error can be handled, then try to handle it in the code and send the order again.
       # Otherwise pause and try to find a new trade.
       raise "Open order was rejected!"
-    elsif order_status == 'WORKING'
-      while order_status == 'WORKING'
-        order_status, dtls = order_manager.check_order_status(trade.id)
-        if order_status == 'FILLED'
-
-          trade.open(**dtls)
-          order_manager.reset
-
-          logger.info "Order filled for trade: #{trade.id}"
-
+    elsif order.status == 'WORKING'
+      while order.status == 'WORKING'
+        order = order_manager.check_order_status(order.id)
+        if order.status == 'FILLED'
+          trade.open(order)
+          logger.info "Order filled for trade #{trade.id}"
           return trade
         end
 
-        logger.info "Order status: #{order_status}. Checking again in 5 seconds."
+        logger.info "Order status: #{order.status}. Checking again in 5 seconds."
         sleep(5)
       end
     else
-      raise "Unexpected order status: #{order_status}"
+      raise "Unexpected order status: #{order.status}"
     end
   end
 end
 
 bot = SPX1DTEBot.new(
-  trade_finder: @trade_finder,
-  trade_manager: @trade_manager,
-  order_manager: @order_manager,
+  trade_finder: trade_finder,
+  trade_manager: trade_manager,
+  order_manager: order_manager,
   logger: bot_logger
 )
 
 bot.run
-
-#########################################
-# STEP 1: Find the trade
-# NOTE: finding the trade
-# find the straddle price first
-# search three times and compare the strategies that have been found to make sure that we're getting a consistent result and handling
-# any market fluctuations. Or maybe just check the price a few times before placing the order it is valid.
-
-# So try to find spreads at that are 2-sig away using the straddle price as a reference.
-# Is it in the correct credit range?
-# If it's too much, then try to move the short legs further out.
-# If it's too little, then check delta on the each of the short legs. If one is particularly low, then try moving that delta up until you get enough credit.
-
-# Other things to consider:
-# - Is one of the legs providing all the credit? If so, then try to balance it out with affecting the risk profile too much.
-
-# See the IronCondorFinder class.
-##########################################
-
-##########################################
-# STEP 2: Send the trade
-# If the trade does not get filled in a short amount of time, then try reducing the price by 0.05.
-# If it still does not get filled, then cancel it and find a new trade.
-##########################################
-# As you're trying to get the order filled you should check spread_valid?
-# You might have to decrease the price a few times until it gets filled. But it must always remain above your min credit.
-# If you can't get it filled at your min credit, then cancel the order and find a new trade.
-# One way to avoid the risk of trying to get the trade filled is to just find a new trade if you can't get it filled.
-
-# NOTE: right now you're just assuming a successful preview will get filled. But this will not always be the case.
-    # Are you place the order. You will have to monitor it to see when it gets filled.
-    # After it gets filled, then you retrieve the filled order to get these details and then update the trade state.
-
-# NOTE: opening trade loop
-
-
-##########################################
-# STEP 3: Monitor the trade
-# If the trade reaches profit target, then close it.
-# If the price of one of the sides reaches 3 times the original credit received, then close it.
-# If it's pass 11AM and the it still has not reached its profit target,
-# then close the trade for any profit or a small loss.
-##########################################

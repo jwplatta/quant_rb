@@ -7,7 +7,6 @@ class IronCondorRoller
     underlying_symbol:,
     option_root:,
     spread_width:,
-    expiration_date:,
     contracts: 1,
     max_delta: nil,
     cost_coverage_perc: 1.0,
@@ -21,7 +20,7 @@ class IronCondorRoller
     # option chain parameters
     @underlying_symbol = underlying_symbol
     @option_root = option_root
-    @expiration_date = expiration_date
+    @expiration_date = nil
 
     # spread
     @spread_width = spread_width
@@ -51,7 +50,7 @@ class IronCondorRoller
 
   def search(tested_spread:, untested_spread:, move_size: 5)
     @options_chain = nil
-    valid_strategy_found = false
+    @expiration_date = tested_spread.short_leg.expiration_date
 
     new_tested_spread = move_spread_away(tested_spread, tested_spread.contract_type, move_size)
     new_untested_spread = move_spread_up(untested_spread, untested_spread.contract_type, move_size)
@@ -148,21 +147,11 @@ class IronCondorRoller
       from_date: expiration_date
     )
 
-    if option_root.present?
-      call_opts = opt_chain.call_opts.select { |opt| opt.option_root == option_root }
-      put_opts = opt_chain.put_opts.select { |opt| opt.option_root == option_root }
-      @options_chain = OptionsChain.new(
-        underlying_price: opt_chain.underlying_price,
-        call_opts: call_opts,
-        put_opts: put_opts
-      )
-    else
-      @options_chain = OptionsChain.new(
-        underlying_price: opt_chain.underlying_price,
-        call_opts: opt_chain.call_opts,
-        put_opts: opt_chain.put_opts
-      )
-    end
+    @options_chain = OptionsChain.new(
+      underlying_price: opt_chain.underlying_price,
+      call_opts: option_root.present? ? opt_chain.call_opts.select { |opt| opt.option_root == option_root } : opt_chain.call_opts,
+      put_opts: option_root.present? ? opt_chain.put_opts.select { |opt| opt.option_root == option_root } : opt_chain.put_opts
+    )
   end
 
   def build_option_leg(symbol, strike, mark, delta, contract_type, expiration_date)
