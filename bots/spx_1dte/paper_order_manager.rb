@@ -204,7 +204,7 @@ class PaperOrderManager
       close_long_leg_symbol: old_spread.long_leg.symbol,
       open_short_leg_symbol: new_spread.short_leg.symbol,
       open_long_leg_symbol: new_spread.long_leg.symbol,
-      price: kwargs.fetch(:price) { raise ArgumentError, "Missing required :price in kwargs" },
+      price: price,
       credit_debit: debit_credit,
       order_instruction: :open,
       quantity: new_spread.contracts,
