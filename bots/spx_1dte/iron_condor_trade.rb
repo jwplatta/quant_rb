@@ -1,6 +1,6 @@
-require 'schwab_rb'
 require 'securerandom'
 require_relative 'trades_file_manager'
+require_relative 'data_objects'
 
 class IronCondorTrade
   class << self
@@ -14,6 +14,7 @@ class IronCondorTrade
   CLOSED_STATUS = 'CLOSED'.freeze
   STATUSES = [NEW_STATUS, OPEN_STATUS, CLOSED_STATUS].freeze
 
+  # TODO: move these to the trade manager
   OPEN_ACTION = 'OPEN'.freeze
   ADJUST_ACTION = 'ADJUST'.freeze
   CLOSE_ACTION = 'CLOSE'.freeze
@@ -39,7 +40,8 @@ class IronCondorTrade
     status: NEW_STATUS,
     price_increment: 0.05,
     trade_history: [],
-    adjustment_count: 0
+    adjustment_count: 0,
+    markets: nil
   )
     @id = id || SecureRandom.uuid().delete('-')
     @strategy_type = 'IRON_CONDOR'
@@ -62,12 +64,13 @@ class IronCondorTrade
     @price_increment = price_increment
     @trade_history = trade_history
     @adjustment_count = adjustment_count
+    @markets = markets
   end
 
   attr_reader :id, :strategy_type, :call_spread, :put_spread, :expiration_date,
     :open_price, :close_price, :exit_prof_thresh, :exit_loss_thresh, :status,
     :contracts, :trade_history, :open_fees, :open_commissions, :close_fees, :close_commissions,
-    :total_credit_debit, :total_fees, :total_commissions, :adjustment_count, :price_increment
+    :total_credit_debit, :total_fees, :total_commissions, :adjustment_count, :price_increment, :markets
 
   def symbols
     call_spread.symbols + put_spread.symbols
@@ -75,6 +78,35 @@ class IronCondorTrade
 
   def profit_loss
     total_credit_debit - total_fees - total_commissions
+  end
+
+  def check_market
+    call_short_leg = markets.get_quote(call_spread.short_leg.symbol).then do |q|
+      build_leg(q.symbol, q.strike, q.mark, q.delta, q.contract_type, q.expiration_date)
+    end
+    call_long_leg = markets.get_quote(call_spread.long_leg.symbol).then do |q|
+      build_leg(q.symbol, q.strike, q.mark, q.delta, q.contract_type, q.expiration_date)
+    end
+    @call_spread = VerticalSpread.new(call_short_leg, call_long_leg, 'CALL')
+
+    put_short_leg = markets.get_quote(put_spread.short_leg.symbol).then do |q|
+      build_leg(q.symbol, q.strike, q.mark, q.delta, q.contract_type, q.expiration_date)
+    end
+    put_long_leg = markets.get_quote(put_spread.long_leg.symbol).then do |q|
+      build_leg(q.symbol, q.strike, q.mark, q.delta, q.contract_type, q.expiration_date)
+    end
+    @put_spread = VerticalSpread.new(put_short_leg, put_long_leg, 'PUT')
+  end
+
+  def build_leg(symbol, strike, mark, delta, contract_type, expiration_date)
+    OptionLeg.new(
+      symbol,
+      strike,
+      mark,
+      delta,
+      contract_type,
+      expiration_date
+    )
   end
 
   # NOTE: this is WorkingOrder object
@@ -106,7 +138,7 @@ class IronCondorTrade
     quantity = order.details[:quantity]
     credit_debit = calc_credit_debit(price, quantity, :credit)
 
-    update_history(ADJUST_ACTION, order)
+    update_history(order)
 
     @adjustment_count += 1
     @total_credit_debit += credit_debit
