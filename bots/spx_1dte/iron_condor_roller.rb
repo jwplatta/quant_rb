@@ -56,18 +56,19 @@ class IronCondorRoller
     new_untested_spread = move_spread_up(untested_spread, untested_spread.contract_type, move_size)
 
     while new_untested_spread.delta <= max_delta
-      cost_to_roll_tested = roll_price(tested_spread, new_tested_spread).abs
-      credit_from_untested = roll_price(untested_spread, new_untested_spread)
+      rollaway_cost = roll_price(tested_spread, new_tested_spread).abs
+      rollup_credit = roll_price(untested_spread, new_untested_spread)
 
-      if cost_to_roll_tested * cost_coverage_perc > credit_from_untested
+      if rollaway_cost * cost_coverage_perc > rollup_credit
         new_untested_spread = move_spread_up(
           new_untested_spread,
           new_untested_spread.contract_type,
           5
         )
-      elsif cost_to_roll_tested * cost_coverage_perc <= credit_from_untested
+      elsif rollaway_cost * cost_coverage_perc <= rollup_credit
         @_search_attempts = 0
         return [new_tested_spread, new_untested_spread]
+      els
       end
     end
 
@@ -83,7 +84,7 @@ class IronCondorRoller
   end
 
   def roll_price(old_spread, new_spread)
-    (new_spread.price - old_spread.price) * 100 * contracts - est_fees * contracts - est_commissions * contracts
+    round_down_to_nearest((new_spread.price - old_spread.price), price_increment) * 100 * contracts - est_fees * contracts - est_commissions * contracts
   end
 
   def move_spread_away(spread, contract_type, points)
@@ -127,10 +128,10 @@ class IronCondorRoller
     end
 
     short_leg = opts.find { |opt| opt.strike == short_strike }.then do |opt|
-      build_option_leg(opt.symbol, opt.strike, opt.mark, opt.delta, contract_type, opt.expiration_date)
+      build_leg(opt.symbol, opt.strike, opt.mark, opt.delta, contract_type, opt.expiration_date)
     end
     long_leg = opts.find { |opt| opt.strike == long_strike }.then do |opt|
-      build_option_leg(opt.symbol, opt.strike, opt.mark, opt.delta, contract_type, opt.expiration_date)
+      build_leg(opt.symbol, opt.strike, opt.mark, opt.delta, contract_type, opt.expiration_date)
     end
 
     VerticalSpread.new(short_leg, long_leg, contract_type)
@@ -154,7 +155,7 @@ class IronCondorRoller
     )
   end
 
-  def build_option_leg(symbol, strike, mark, delta, contract_type, expiration_date)
+  def build_leg(symbol, strike, mark, delta, contract_type, expiration_date)
     OptionLeg.new(
       symbol,
       strike,
