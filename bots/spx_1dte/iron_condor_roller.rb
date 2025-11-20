@@ -68,7 +68,6 @@ class IronCondorRoller
       elsif rollaway_cost * cost_coverage_perc <= rollup_credit
         @_search_attempts = 0
         return [new_tested_spread, new_untested_spread]
-      els
       end
     end
 
