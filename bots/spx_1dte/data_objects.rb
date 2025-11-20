@@ -48,7 +48,7 @@ VerticalSpread = Struct.new(:short_leg, :long_leg, :contract_type, :contracts) d
   end
 
   def price
-    (short_leg.mark - long_leg.mark).round(2)
+    (short_leg.mark - long_leg.mark)
   end
 
   def credit

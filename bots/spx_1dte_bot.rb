@@ -136,49 +136,9 @@ trade_manager = TradeManager.new(
   est_fees_per_contract: EST_FEES_PER_CONTRACT,
   est_commission_per_contract: EST_COMMISSION_PER_CONTRACT,
   price_increment: PRICE_INCREMENT,
+  trade_roller: trade_roller,
   logger: bot_logger
 )
-
-def write_option_chain_to_file(opt_chain, expiration_date = nil)
-  script_dir = File.dirname(__FILE__)
-  safe_symbol = UNDERLYING_SYMBOL.to_s.gsub(/[^A-Za-z0-9_-]/, '').downcase
-  file_name = "option_chain_#{safe_symbol}_#{expiration_date}.json"
-  path = File.join(script_dir, file_name)
-
-  call_opts_data = opt_chain.call_opts.map do |o|
-    {
-      symbol: o.symbol,
-      strike: o.strike,
-      mark: o.mark,
-      delta: o.delta,
-      gamma: o.gamma,
-      expiration_date: o.expiration_date,
-      open_interest: o.open_interest,
-      volume: o.total_volume
-    }
-  end
-
-  put_opts_data = opt_chain.put_opts.map do |o|
-    {
-      symbol: o.symbol,
-      strike: o.strike,
-      mark: o.mark,
-      delta: o.delta,
-      gamma: o.gamma,
-      expiration_date: o.expiration_date,
-      open_interest: o.open_interest,
-      volume: o.total_volume
-    }
-  end
-
-  opt_chain_data = {
-    underlying_price: opt_chain.underlying_price,
-    call_opts: call_opts_data,
-    put_opts: put_opts_data
-  }
-
-  File.write(path, JSON.pretty_generate(opt_chain_data))
-end
 
 class SPX1DTEBot
   # NOTE: technically not the market open and close, but want to start monitoring before
@@ -272,7 +232,7 @@ class SPX1DTEBot
   def send_order(trade)
     logger.info "Sending open order for trade #{trade.id}"
 
-    order = order_manager.send_order(:open, trade)
+    order = order_manager.open_iron_condor(trade)
 
     if order.status == 'REJECTED'
       # TODO: if the error can be handled, then try to handle it in the code and send the order again.
