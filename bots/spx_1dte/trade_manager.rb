@@ -116,8 +116,8 @@ class TradeManager
           order_manager.send_order(@new_call_spread_order.details)
         elsif @new_call_spread_order.status == 'FILLED' && @new_put_spread_order.status == 'FILLED'
           logger.info "Adjustment completed."
-          trade.adjust_call_spread(@new_call_spread, @new_call_spread_order.order_args)
-          trade.adjust_put_spread(@new_put_spread, @new_put_spread_order.order_args)
+          trade.adjust_call_spread(@new_call_spread, **@new_call_spread_order.details)
+          trade.adjust_put_spread(@new_put_spread, **@new_put_spread_order.details)
 
           @action = nil
           @new_call_spread = nil
