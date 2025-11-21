@@ -15,7 +15,7 @@ require_relative './spx_1dte/trades_file_manager'
 require_relative './spx_1dte/paper_order_manager'
 require_relative './spx_1dte/iron_condor_finder'
 require_relative './spx_1dte/iron_condor_roller'
-require_relative './spx_1dte/trade_manager'
+require_relative './spx_1dte/trade_state_machine'
 
 #####################
 ### CONFIGURATION ###
@@ -127,7 +127,7 @@ trade_roller = IronCondorRoller.new(
   logger: bot_logger
 )
 
-trade_manager = TradeManager.new(
+trade_state_machine = TradeStateMachine.new(
   schwab_markets,
   order_manager,
   exit_prof_thresh: EXIT_PROF_THRESH,
@@ -149,16 +149,16 @@ class SPX1DTEBot
   TRADE_WINDOW_END = "03:15 PM"
 
   def initialize(
-    trade_finder:, trade_manager:, order_manager:, logger:
+    trade_finder:, trade_state_machine:, order_manager:, logger:
   )
     @trade_finder = trade_finder
-    @trade_manager = trade_manager
+    @trade_state_machine = trade_state_machine
     @order_manager = order_manager
     @logger = logger
     @trade = nil
   end
 
-  attr_reader :trade_finder, :trade_manager, :order_manager, :trade, :logger
+  attr_reader :trade_finder, :trade_state_machine, :order_manager, :trade, :logger
 
   def run
     while true
@@ -182,8 +182,8 @@ class SPX1DTEBot
 
       next if @trade.nil?
 
-      @trade_manager.watch(@trade)
-      @trade_manager.reset
+      @trade_state_machine.watch(@trade)
+      @trade_state_machine.reset
       @logger.info "Trade #{@trade.id} closed. Resetting trade."
     end
   end
@@ -258,7 +258,7 @@ end
 
 bot = SPX1DTEBot.new(
   trade_finder: trade_finder,
-  trade_manager: trade_manager,
+  trade_state_machine: trade_state_machine,
   order_manager: order_manager,
   logger: bot_logger
 )
