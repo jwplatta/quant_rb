@@ -27,7 +27,7 @@ class PaperOrderManager
     @fill_wait_time = fill_wait_time
   end
 
-  attr_reader :schwab_orders, :fill_wait_time, :check_fill_count, :order_result, :logger
+  attr_reader :schwab_orders, :fill_wait_time, :check_fill_count, :logger
 
   def open_iron_condor(trade)
     order_args = open_iron_condor_args(trade)
@@ -96,6 +96,21 @@ class PaperOrderManager
         SecureRandom.uuid().delete('-'),
         order_result.order_id,
         'WORKING',
+        order_result, # TODO: convert to a hash or something that isn't an SchwabRb object
+        order_args,
+        0,
+        order_fill_delay,
+        Time.now
+      )
+      @working_orders << order
+      order
+    elsif order_args[:strategy_type] == SchwabRb::Order::ComplexOrderStrategyTypes::VERTICAL_ROLL
+      # NOTE: the vertical roll orders will be rejected because the initial spread doesn't exist in the account.
+      @logger.info "Order preview ACCEPTED for #{order_args[:order_instruction]} VERTICAL_ROLL order."
+      order = WorkingOrder.new(
+        SecureRandom.uuid().delete('-'),
+        order_result.order_id,
+        'WORKING',
         order_result,
         order_args,
         0,
@@ -159,11 +174,12 @@ class PaperOrderManager
   end
 
   def order_result_details(order)
+    # NOTE: fallback to the order args for the vertical roll orders
     {
-      price: order.order_result.price,
-      fees: @est_fees * order.order_result.quantity, # NOTE: I think the schwab order will do this calculation for you.
-      commissions: @est_commissions * order.order_result.quantity,
-      quantity: order.order_result.quantity
+      price: order.order_result.price || order.details[:price],
+      fees: @est_fees * (order.order_result.quantity || order.details[:quantity]), # NOTE: I think the schwab order will do this calculation for you.
+      commissions: @est_commissions * (order.order_result.quantity || order.details[:quantity]),
+      quantity: order.order_result.quantity || order.details[:quantity]
     }
   end
 
