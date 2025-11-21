@@ -1,7 +1,7 @@
 require_relative 'util'
 require_relative 'iron_condor_roller'
 
-class TradeManager
+class TradeStateMachine
   DEFAULT_SLEEP_INTERVAL = 30
   OPEN_TRADE = 'open'.freeze
   CLOSE_TRADE = 'close'.freeze
