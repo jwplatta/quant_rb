@@ -10,11 +10,6 @@ class TradeManager
     OPEN_TRADE,
     CLOSE_TRADE,
     ADJUST_TRADE,
-    'rollaway_spread',
-    'rollup_spread',
-    'add_contract',
-    'close_spread',
-    'open_spread'
   ].freeze
 
   THIRTY_SECONDS = 30
@@ -55,9 +50,13 @@ class TradeManager
 
     @trade = nil
     @close_order = nil
+    @new_call_spread = nil
+    @new_put_spread = nil
+    @new_call_spread_order = nil
+    @new_put_spread_order = nil
+    @action = nil
     @tested_window_start = 0
     @adjustment_wait_time = adjustment_wait_time # seconds
-    @action = nil
     @sleep_interval = DEFAULT_SLEEP_INTERVAL
   end
 
@@ -73,19 +72,20 @@ class TradeManager
 
     while trade.open?
       return if outside_market_hours?
-      trade.check_market
+      put_spread_price, put_spread_delta = check_spread(trade.put_spread.short_leg, trade.put_spread.long_leg)
+      call_spread_price, call_spread_delta = check_spread(trade.call_spread.short_leg, trade.call_spread.long_leg)
 
       curr_contract_price = round_up_to_nearest(
-        (trade.call_spread.price + trade.put_spread.price).round(2),
+        (call_spread_price + put_spread_price).round(2),
         price_increment
       )
 
       logger.info trade_progress_msg(
         trade, curr_contract_price,
-        trade.call_spread.price, trade.put_spread.price,
-        trade.call_spread.delta, trade.put_spread.delta
+        call_spread_price, put_spread_price,
+        call_spread_delta, put_spread_delta
       )
-      logger.info trade_risk_msg(trade.call_spread.delta, trade.put_spread.delta)
+      logger.info trade_risk_msg(call_spread_delta, put_spread_delta)
 
       if action == CLOSE_TRADE
         @close_order = order_manager.check_order_status(@close_order.id)
@@ -105,39 +105,36 @@ class TradeManager
           @close_order = nil
         end
       elsif action == ADJUST_TRADE
-        @rollaway_order = order_manager.check_order_status(@rollaway_order.id) unless @rollaway_order.status == 'FILLED'
-        @rollup_order = order_manager.check_order_status(@rollup_order.id) unless @rollup_order.status == 'FILLED'
-        logger.info "Rollaway order status: #{@rollaway_order.status}"
-        logger.info "Rollup order status: #{@rollup_order.status}"
+        @new_call_spread_order = order_manager.check_order_status(@new_call_spread_order.id) unless @new_call_spread_order.status == 'FILLED'
+        @new_put_spread_order = order_manager.check_order_status(@new_put_spread_order.id) unless @new_put_spread_order.status == 'FILLED'
+        logger.info "Adjusted call spread order status: #{@new_call_spread_order.status}"
+        logger.info "Adjusted put spread order status: #{@new_put_spread_order.status}"
 
-        if @rollaway_order.status == 'FILLED' && @rollup_order.status == 'CANCELED'
-          # REVIEW: decrease price?
-          logger.info "Resending the rollup order."
-          order_manager.send_order(@rollup_order.order_args)
-          wait_for(FIVE_SECONDS)
-        elsif @rollaway_order.status == 'CANCELED' && @rollup_order.status == 'FILLED'
-          # REVIEW: increase price?
-          logger.info "Resending the rollaway order."
-          order_manager.send_order(@rollaway_order.order_args)
-          wait_for(FIVE_SECONDS)
-        elsif @rollaway_order.status == 'FILLED' && @rollup_order.status == 'FILLED'
-          logger.info "Adjustment completed. New spreads in place."
-          # TODO: update the trade object with the new spreads
-          trade.adjust(@rollaway_order)
-          trade.adjust(@rollup_order)
+        if @new_call_spread_order.status == 'FILLED' && @new_put_spread_order.status == 'CANCELED'
+          order_manager.send_order(@new_put_spread_order.details)
+        elsif @new_call_spread_order.status == 'CANCELED' && @new_put_spread_order.status == 'FILLED'
+          order_manager.send_order(@new_call_spread_order.details)
+        elsif @new_call_spread_order.status == 'FILLED' && @new_put_spread_order.status == 'FILLED'
+          logger.info "Adjustment completed."
+          trade.adjust_call_spread(@new_call_spread, **@new_call_spread_order.details)
+          trade.adjust_put_spread(@new_put_spread, **@new_put_spread_order.details)
 
           @action = nil
-          @rollaway_order = nil
-          @rollup_order = nil
-        elsif @rollaway_order.status == 'FILLED' and @rollup_order.status == 'WORKING'
+          @new_call_spread = nil
+          @new_put_spread = nil
+          @new_call_spread_order = nil
+          @new_put_spread_order = nil
+        elsif @new_call_spread_order.status == 'FILLED' and @new_put_spread_order.status == 'WORKING'
           wait_for(FIVE_SECONDS)
-        elsif @rollaway_order.status == 'WORKING' and @rollup_order.status == 'FILLED'
+        elsif @new_call_spread_order.status == 'WORKING' and @new_put_spread_order.status == 'FILLED'
           wait_for(FIVE_SECONDS)
-        elsif @rollaway_order.status == 'CANCELED' && @rollup_order.status == 'CANCELED'
+        elsif @new_call_spread_order.status == 'CANCELED' && @new_put_spread_order.status == 'CANCELED'
           logger.info "Both adjustment orders were canceled. Resetting action."
           @action = nil
-          @rollaway_order = nil
-          @rollup_order = nil
+          @new_call_spread = nil
+          @new_put_spread = nil
+          @new_call_spread_order = nil
+          @new_put_spread_order = nil
         end
       elsif exit_profit?(curr_contract_price, trade)
         logger.info "Profit target reached. Closing trade at price: #{curr_contract_price}."
@@ -145,25 +142,44 @@ class TradeManager
       elsif exit_loss?(curr_contract_price, trade)
         logger.info "Loss target reached. Closing trade. Current price: #{curr_contract_price}, Max loss price: #{trade.max_loss_price}."
         send_close_order(trade, curr_contract_price)
-      elsif trade.call_spread.delta >= yellow_zone_delta
+      elsif call_spread_delta >= yellow_zone_delta
         logger.info "Call side tested."
 
         if @tested_window_start.nil?
           @tested_window_start = Time.now
           wait_for(FIVE_SECONDS)
         elsif Time.now - @tested_window_start > @adjustment_wait_time
-          send_adjustment_orders(trade.call_spread, trade.put_spread)
+          @new_call_spread, @new_put_spread = find_adjustment(trade.call_spread, trade.put_spread)
+          if @new_call_spread && @new_put_spread
+            @new_call_spread_order = send_rollaway_order(trade.call_spread, @new_call_spread)
+            @new_put_spread_order = send_rollup_order(trade.put_spread,  @new_put_spread)
+            if @new_call_spread_order && @new_put_spread_order
+              @action = ADJUST_TRADE
+            else
+              raise "Error sending adjustment orders!"
+            end
+          end
         else
           wait_for(FIVE_SECONDS)
         end
-      elsif trade.put_spread.delta >= yellow_zone_delta
+      elsif put_spread_delta >= yellow_zone_delta
         logger.info "Put side tested."
 
         if @tested_window_start.nil?
           @tested_window_start = Time.now
           wait_for(FIVE_SECONDS)
         elsif Time.now - @tested_window_start > @adjustment_wait_time
-          send_adjustment_orders(trade.put_spread, trade.call_spread)
+          @new_put_spread, @new_call_spread = find_adjustment(trade.put_spread, trade.call_spread)
+
+          if @new_put_spread && @new_call_spread
+            @new_put_spread_order = send_rollup_order(trade.put_spread, @new_put_spread)
+            @new_call_spread_order = send_rollaway_order(trade.call_spread, @new_call_spread)
+            if @new_put_spread_order && @new_call_spread_order
+              @action = ADJUST_TRADE
+            else
+              raise "Error sending adjustment orders!"
+            end
+          end
         else
           wait_for(FIVE_SECONDS)
         end
@@ -177,35 +193,34 @@ class TradeManager
     end
   end
 
-  def send_adjustment_orders(tested_spread, untested_spread)
-    new_tested_spread, new_untested_spread = trade_roller.search(
+  def find_adjustment(tested_spread, untested_spread)
+    trade_roller.search(
       tested_spread: tested_spread,
       untested_spread: untested_spread,
       move_size: 5
     )
+  end
 
-    if new_tested_spread && new_untested_spread
-      @action = ADJUST_TRADE
-      @rollaway_order = order_manager.rollaway_spread(
-        tested_spread,
-        new_tested_spread,
-        price: round_down_to_nearest(new_tested_spread.price - tested_spread.price, price_increment).abs
-      )
-      @rollup_order = order_manager.rollup_spread(
-        untested_spread,
-        new_untested_spread,
-        price: round_down_to_nearest(new_untested_spread.price - untested_spread.price, price_increment)
-      )
-    else
-      logger.info "No suitable adjustment found. Continuing to monitor."
-    end
+  def send_rollaway_order(tested_spread, new_tested_spread)
+    order_manager.rollaway_spread(
+      tested_spread,
+      new_tested_spread,
+      price: round_up_to_nearest(tested_spread.price - new_tested_spread.price, price_increment)
+    )
+  end
+
+  def send_rollup_order(untested_spread, new_untested_spread)
+    order_manager.rollup_spread(
+      untested_spread,
+      new_untested_spread,
+      price: round_down_to_nearest(new_untested_spread.price - untested_spread.price, price_increment)
+    )
   end
 
   def send_close_order(trade, curr_contract_price)
     @close_order = order_manager.close_iron_condor(trade, price: curr_contract_price)
     if @close_order.status == 'WORKING'
       @action = CLOSE_TRADE
-      wait_for(FIVE_SECONDS)
     else
       raise "Unexpected order status when closing trade: #{@close_order.status}"
     end
@@ -224,6 +239,7 @@ class TradeManager
   end
 
   def outside_market_hours?
+    return false
     curr_time = Time.now
     (curr_time.hour < 8 && curr_time.min < 25) || (curr_time.hour >= 15 && curr_time.min > 20)
   end
@@ -237,7 +253,7 @@ class TradeManager
     short_leg_quote = markets.get_quote(short_leg.symbol)
     long_leg_quote = markets.get_quote(long_leg.symbol)
 
-    [(short_leg_quote.mark - long_leg_quote.mark).round(2), short_leg_quote.delta.abs]
+    [(short_leg_quote.mark - long_leg_quote.mark), short_leg_quote.delta.abs]
   end
 
   def profitability(trade, current_price)
@@ -302,10 +318,6 @@ class TradeManager
     else
       false
     end
-  end
-
-  def adjust_trade?(current_price, trade)
-    # TODO: implement adjustment logic
   end
 
   def exit_time_today
