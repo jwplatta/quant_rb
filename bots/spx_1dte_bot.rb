@@ -242,7 +242,7 @@ class SPX1DTEBot
       while order.status == 'WORKING'
         order = order_manager.check_order_status(order.id)
         if order.status == 'FILLED'
-          trade.open(order)
+          trade.open(**order.details)
           logger.info "Order filled for trade #{trade.id}"
           return trade
         end
