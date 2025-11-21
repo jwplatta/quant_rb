@@ -8,63 +8,62 @@ require 'pry'
 require 'optparse'
 require 'csv'
 
-def write_option_chain_to_file(opt_chain, expiration_date = nil)
-  script_dir = File.dirname(__FILE__)
-  safe_symbol = UNDERLYING_SYMBOL.to_s.gsub(/[^A-Za-z0-9_-]/, '').downcase
-  file_name = "option_chain_#{safe_symbol}_#{expiration_date}.json"
-  path = File.join(script_dir, file_name)
+UNDERLYING_SYMBOL = '$SPX'
 
-  call_opts_data = opt_chain.call_opts.map do |o|
-    {
-      symbol: o.symbol,
-      strike: o.strike,
-      mark: o.mark,
-      delta: o.delta,
-      gamma: o.gamma,
-      expiration_date: o.expiration_date,
-      open_interest: o.open_interest,
-      volume: o.total_volume
-    }
+def write_option_chain_to_file(dir, underlying_price, call_opts, put_opts, expiration_date = nil)
+  file_name = "#{UNDERLYING_SYMBOL}_#{expiration_date}.csv"
+  path = File.join(dir, file_name)
+
+  puts "Writing option chain to file: #{path}"
+
+  headers = [
+    'contract_type', 'symbol', 'strike', 'expiration_date', 'bid', 'ask', 'mark',
+    'delta', 'gamma', 'open_interest', 'total_volume', 'volatility', 'underlying_price'
+  ]
+
+  CSV.open(path, 'w') do |csv|
+    csv << headers
+    [
+      ['CALL', call_opts],
+      ['PUT', put_opts]
+    ].each do |contract_type, options|
+      options.each do |o|
+        csv << [
+          contract_type,
+          o.symbol,
+          o.strike,
+          o.expiration_date,
+          o.bid,
+          o.ask,
+          o.mark,
+          o.delta,
+          o.gamma,
+          o.open_interest,
+          o.total_volume,
+          o.volatility,
+          underlying_price
+        ]
+      end
+    end
   end
-
-  put_opts_data = opt_chain.put_opts.map do |o|
-    {
-      symbol: o.symbol,
-      strike: o.strike,
-      mark: o.mark,
-      delta: o.delta,
-      gamma: o.gamma,
-      expiration_date: o.expiration_date,
-      open_interest: o.open_interest,
-      volume: o.total_volume
-    }
-  end
-
-  opt_chain_data = {
-    underlying_price: opt_chain.underlying_price,
-    call_opts: call_opts_data,
-    put_opts: put_opts_data
-  }
-
-  File.write(path, JSON.pretty_generate(opt_chain_data))
 end
 
 schwab_provider = OptionsTrader::DataProviders::Schwab::Markets.new
 markets_service = OptionsTrader::Services::Markets.new(provider: schwab_provider)
 
-expiration_date = Date.parse('2025-10-16')
-underlying_symbol = '$SPX'
+expiration_date = Date.parse('2025-11-21')
+option_root = 'SPXW'
 
 quotes = markets_service.get_quotes(['$VIX', '$VIX9D', '$VIX3M', '$VVIX', '$SKEW', '$SPX'])
 
 opt_chain = markets_service.get_option_chain(
-  underlying_symbol,
+  UNDERLYING_SYMBOL,
   contract_type: 'ALL',
   strike_range: 'ALL',
   to_date: expiration_date,
   from_date: expiration_date
 )
+call_opts = opt_chain.call_opts.select { |opt| opt.option_root == option_root }
+put_opts = opt_chain.put_opts.select { |opt| opt.option_root == option_root }
 
-binding.pry
-
-# moneyness, dte, open, close, high, low, volume, VIX
+write_option_chain_to_file('notebooks', opt_chain.underlying_price, call_opts, put_opts, expiration_date)
