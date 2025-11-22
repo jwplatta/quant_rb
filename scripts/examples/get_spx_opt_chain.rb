@@ -11,7 +11,9 @@ require 'csv'
 UNDERLYING_SYMBOL = '$SPX'
 
 def write_option_chain_to_file(dir, underlying_price, call_opts, put_opts, expiration_date = nil)
-  file_name = "#{UNDERLYING_SYMBOL}_#{expiration_date}.csv"
+  sanitized_symbol = UNDERLYING_SYMBOL.to_s.gsub(/[^0-9A-Za-z_\-\.]/, '')
+  sanitized_date = expiration_date.to_s.gsub(/[^0-9A-Za-z_\-\.]/, '')
+  file_name = "#{sanitized_symbol}_#{sanitized_date}.csv"
   path = File.join(dir, file_name)
 
   puts "Writing option chain to file: #{path}"
@@ -51,7 +53,7 @@ end
 schwab_provider = OptionsTrader::DataProviders::Schwab::Markets.new
 markets_service = OptionsTrader::Services::Markets.new(provider: schwab_provider)
 
-expiration_date = Date.parse('2025-11-21')
+expiration_date = Date.parse('2025-11-24')
 option_root = 'SPXW'
 
 quotes = markets_service.get_quotes(['$VIX', '$VIX9D', '$VIX3M', '$VVIX', '$SKEW', '$SPX'])
