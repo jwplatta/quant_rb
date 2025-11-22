@@ -37,7 +37,7 @@ class IronCondorTrade
     adjustment_count: 0
   )
     @id = id || SecureRandom.uuid().delete('-')
-    @strategy_type = 'IRON_CONDOR'
+    @strategy_type = 'IRON_CONDOR'.freeze
     @call_spread = call_spread
     @put_spread = put_spread
     @expiration_date = expiration_date
@@ -83,7 +83,7 @@ class IronCondorTrade
     )
   end
 
-  # NOTE: this is WorkingOrder object
+  # NOTE: this is a hash object from the working order
   def open(**order_dtls)
     fees = order_dtls[:fees]
     commissions = order_dtls[:commissions]

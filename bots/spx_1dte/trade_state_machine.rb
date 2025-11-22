@@ -18,7 +18,6 @@ class TradeStateMachine
   FIVE_SECONDS = 5
   NO_SLEEP = 0
 
-
   def initialize(
     markets,
     order_manager,
@@ -72,13 +71,13 @@ class TradeStateMachine
 
     while trade.open?
       return if outside_market_hours?
-      put_spread_price, put_spread_delta = check_spread(trade.put_spread.short_leg, trade.put_spread.long_leg)
-      call_spread_price, call_spread_delta = check_spread(trade.call_spread.short_leg, trade.call_spread.long_leg)
 
-      curr_contract_price = round_up_to_nearest(
-        (call_spread_price + put_spread_price).round(2),
-        price_increment
-      )
+      prices = get_current_spread_prices
+      put_spread_price = prices[:put_spread_price]
+      put_spread_delta = prices[:put_spread_delta]
+      call_spread_price = prices[:call_spread_price]
+      call_spread_delta = prices[:call_spread_delta]
+      curr_contract_price = prices[:curr_contract_price]
 
       logger.info trade_progress_msg(
         trade, curr_contract_price,
@@ -88,54 +87,11 @@ class TradeStateMachine
       logger.info trade_risk_msg(call_spread_delta, put_spread_delta)
 
       if action == CLOSE_TRADE
-        @close_order = order_manager.check_order_status(@close_order.id)
-        logger.info "Order status: #{@close_order.status}"
-
-        if @close_order.status == 'FILLED'
-          logger.info "Trade closed at price: #{@close_order.details[:price]}"
-          trade.close(**@close_order.details)
-          @action = nil
-          @close_order = nil
-        elsif @close_order.status == 'WORKING'
-          logger.info "Order working. Checking in #{FIVE_SECONDS} seconds"
-          wait_for(FIVE_SECONDS)
-        elsif @close_order.status == 'CANCELED'
-          logger.info "Close order was canceled. Resetting action."
-          @action = nil
-          @close_order = nil
-        end
+        sleep_time = handle_close_order_status
+        wait_for(sleep_time)
       elsif action == ADJUST_TRADE
-        @new_call_spread_order = order_manager.check_order_status(@new_call_spread_order.id) unless @new_call_spread_order.status == 'FILLED'
-        @new_put_spread_order = order_manager.check_order_status(@new_put_spread_order.id) unless @new_put_spread_order.status == 'FILLED'
-        logger.info "Adjusted call spread order status: #{@new_call_spread_order.status}"
-        logger.info "Adjusted put spread order status: #{@new_put_spread_order.status}"
-
-        if @new_call_spread_order.status == 'FILLED' && @new_put_spread_order.status == 'CANCELED'
-          order_manager.send_order(@new_put_spread_order.details)
-        elsif @new_call_spread_order.status == 'CANCELED' && @new_put_spread_order.status == 'FILLED'
-          order_manager.send_order(@new_call_spread_order.details)
-        elsif @new_call_spread_order.status == 'FILLED' && @new_put_spread_order.status == 'FILLED'
-          logger.info "Adjustment completed."
-          trade.adjust_call_spread(@new_call_spread, **@new_call_spread_order.details)
-          trade.adjust_put_spread(@new_put_spread, **@new_put_spread_order.details)
-
-          @action = nil
-          @new_call_spread = nil
-          @new_put_spread = nil
-          @new_call_spread_order = nil
-          @new_put_spread_order = nil
-        elsif @new_call_spread_order.status == 'FILLED' and @new_put_spread_order.status == 'WORKING'
-          wait_for(FIVE_SECONDS)
-        elsif @new_call_spread_order.status == 'WORKING' and @new_put_spread_order.status == 'FILLED'
-          wait_for(FIVE_SECONDS)
-        elsif @new_call_spread_order.status == 'CANCELED' && @new_put_spread_order.status == 'CANCELED'
-          logger.info "Both adjustment orders were canceled. Resetting action."
-          @action = nil
-          @new_call_spread = nil
-          @new_put_spread = nil
-          @new_call_spread_order = nil
-          @new_put_spread_order = nil
-        end
+        sleep_time = handle_adjustment_order_status
+        wait_for(sleep_time)
       elsif exit_profit?(curr_contract_price, trade)
         logger.info "Profit target reached. Closing trade at price: #{curr_contract_price}."
         send_close_order(trade, curr_contract_price)
@@ -217,6 +173,71 @@ class TradeStateMachine
     )
   end
 
+  def handle_adjustment_order_status
+    @new_call_spread_order = order_manager.check_order_status(@new_call_spread_order.id) unless @new_call_spread_order.status == 'FILLED'
+    @new_put_spread_order = order_manager.check_order_status(@new_put_spread_order.id) unless @new_put_spread_order.status == 'FILLED'
+    logger.info "Adjusted call spread order status: #{@new_call_spread_order.status}"
+    logger.info "Adjusted put spread order status: #{@new_put_spread_order.status}"
+
+    call_status = @new_call_spread_order.status
+    put_status = @new_put_spread_order.status
+
+    if call_status == 'FILLED' && put_status == 'CANCELED'
+      order_manager.send_order(@new_put_spread_order.details)
+      NO_SLEEP
+    elsif call_status == 'CANCELED' && put_status == 'FILLED'
+      order_manager.send_order(@new_call_spread_order.details)
+      NO_SLEEP
+    elsif call_status == 'FILLED' && put_status == 'FILLED'
+      logger.info "Adjustment completed."
+      trade.adjust_call_spread(@new_call_spread, **@new_call_spread_order.details)
+      trade.adjust_put_spread(@new_put_spread, **@new_put_spread_order.details)
+
+      @action = nil
+      @new_call_spread = nil
+      @new_put_spread = nil
+      @new_call_spread_order = nil
+      @new_put_spread_order = nil
+      NO_SLEEP
+    elsif (call_status == 'FILLED' && put_status == 'WORKING') || (call_status == 'WORKING' && put_status == 'FILLED')
+      FIVE_SECONDS
+    elsif call_status == 'CANCELED' && put_status == 'CANCELED'
+      logger.info "Both adjustment orders were canceled. Resetting action."
+      @action = nil
+      @new_call_spread = nil
+      @new_put_spread = nil
+      @new_call_spread_order = nil
+      @new_put_spread_order = nil
+      NO_SLEEP
+    else
+      NO_SLEEP
+    end
+  end
+
+  def handle_close_order_status
+    @close_order = order_manager.check_order_status(@close_order.id)
+    logger.info "Order status: #{@close_order.status}"
+
+    case @close_order.status
+    when 'FILLED'
+      logger.info "Trade closed at price: #{@close_order.details[:price]}"
+      trade.close(**@close_order.details)
+      @action = nil
+      @close_order = nil
+      NO_SLEEP
+    when 'WORKING'
+      logger.info "Order working. Checking in #{FIVE_SECONDS} seconds"
+      FIVE_SECONDS
+    when 'CANCELED'
+      logger.info "Close order was canceled. Resetting action."
+      @action = nil
+      @close_order = nil
+      NO_SLEEP
+    else
+      raise "Unexpected close order status: #{@close_order.status}"
+    end
+  end
+
   def send_close_order(trade, curr_contract_price)
     @close_order = order_manager.close_iron_condor(trade, price: curr_contract_price)
     if @close_order.status == 'WORKING'
@@ -239,7 +260,6 @@ class TradeStateMachine
   end
 
   def outside_market_hours?
-    return false
     curr_time = Time.now
     (curr_time.hour < 8 && curr_time.min < 25) || (curr_time.hour >= 15 && curr_time.min > 20)
   end
@@ -247,6 +267,24 @@ class TradeStateMachine
   def trade_close_price(contract_price)
     contract_price * trade.contracts * 100 - \
       @est_fees_per_contract * trade.contracts - @est_commission_per_contract * trade.contracts
+  end
+
+  def get_current_spread_prices
+    put_spread_price, put_spread_delta = check_spread(trade.put_spread.short_leg, trade.put_spread.long_leg)
+    call_spread_price, call_spread_delta = check_spread(trade.call_spread.short_leg, trade.call_spread.long_leg)
+
+    curr_contract_price = round_up_to_nearest(
+      (call_spread_price + put_spread_price).round(2),
+      price_increment
+    )
+
+    {
+      put_spread_price: put_spread_price,
+      put_spread_delta: put_spread_delta,
+      call_spread_price: call_spread_price,
+      call_spread_delta: call_spread_delta,
+      curr_contract_price: curr_contract_price
+    }
   end
 
   def check_spread(short_leg, long_leg)
