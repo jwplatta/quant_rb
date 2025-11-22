@@ -1,5 +1,6 @@
 require 'securerandom'
 require 'schwab_rb'
+require_relative './data_objects'
 
 # NOTE: SchwabRb Order Statuses
 # ORDER_STATUSES = [
@@ -14,8 +15,6 @@ require 'schwab_rb'
 #   "REPLACED",
 #   "FILLED"
 # ]
-
-WorkingOrder = Struct.new(:id, :schwab_id, :status, :order_result, :details, :check_fill_count, :fill_time, :sent_time)
 
 class PaperOrderManager
   def initialize(schwab_orders, fill_wait_time: 20, est_fees: nil, est_commissions: nil, logger: nil)
