@@ -10,4 +10,4 @@ COPY . /app
 
 RUN mkdir -p /app/logs /app/trades /app/.schwab_rb
 
-CMD ["bundle", "exec", "ruby", "bots/spx_1dte_bot.rb"]
+CMD ["bundle", "exec", "ruby", "bots/spx_1dte.rb"]
