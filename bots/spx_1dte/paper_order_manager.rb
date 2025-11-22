@@ -227,29 +227,29 @@ class PaperOrderManager
     }
   end
 
-  # def open_call_spread_args(price, calls_contracts = nil)
-  #  {
-  #     short_leg_symbol: call_spread.short_leg.symbol,
-  #     long_leg_symbol: call_spread.long_leg.symbol,
-  #     price: price,
-  #     duration: SchwabRb::Orders::Duration::DAY,
-  #     credit_debit: :credit,
-  #     order_instruction: :open,
-  #     quantity: calls_contracts || contracts,
-  #     strategy_type: SchwabRb::Order::ComplexOrderStrategyTypes::VERTICAL
-  #   }
-  # end
+  def open_spread_args(spread, price)
+    {
+      short_leg_symbol: spread.short_leg.symbol,
+      long_leg_symbol: spread.long_leg.symbol,
+      price: price,
+      duration: SchwabRb::Orders::Duration::DAY,
+      credit_debit: :credit,
+      order_instruction: :open,
+      quantity: spread.contracts,
+      strategy_type: SchwabRb::Order::ComplexOrderStrategyTypes::VERTICAL
+    }
+  end
 
-  # def close_call_spread_args(price)
-  #   {
-  #     short_leg_symbol: call_spread.short_leg.symbol,
-  #     long_leg_symbol: call_spread.long_leg.symbol,
-  #     price: price,
-  #     duration: SchwabRb::Orders::Duration::DAY,
-  #     credit_debit: :debit,
-  #     order_instruction: :close,
-  #     quantity: call_spread.contracts,
-  #     strategy_type: SchwabRb::Order::ComplexOrderStrategyTypes::VERTICAL
-  #   }
-  # end
+  def close_spread_args(spread, price)
+    {
+      short_leg_symbol: spread.short_leg.symbol,
+      long_leg_symbol: spread.long_leg.symbol,
+      price: price,
+      duration: SchwabRb::Orders::Duration::DAY,
+      credit_debit: :debit,
+      order_instruction: :close,
+      quantity: spread.contracts,
+      strategy_type: SchwabRb::Order::ComplexOrderStrategyTypes::VERTICAL
+    }
+  end
 end
