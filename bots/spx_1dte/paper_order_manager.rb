@@ -229,7 +229,7 @@ class PaperOrderManager
   end
 
   # def open_call_spread_args(price, calls_contracts = nil)
-  #   @cached_order_args = {
+  #  {
   #     short_leg_symbol: call_spread.short_leg.symbol,
   #     long_leg_symbol: call_spread.long_leg.symbol,
   #     price: price,
@@ -242,7 +242,7 @@ class PaperOrderManager
   # end
 
   # def close_call_spread_args(price)
-  #   @cached_order_args = {
+  #   {
   #     short_leg_symbol: call_spread.short_leg.symbol,
   #     long_leg_symbol: call_spread.long_leg.symbol,
   #     price: price,
