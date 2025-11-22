@@ -72,3 +72,5 @@ VerticalSpread = Struct.new(:short_leg, :long_leg, :contract_type, :contracts) d
     }
   end
 end
+
+WorkingOrder = Struct.new(:id, :schwab_id, :status, :order_result, :details, :check_fill_count, :fill_time, :sent_time)
