@@ -12,8 +12,13 @@ class SPX1DTEBot
   TRADE_WINDOW_END = "03:15 PM"
 
   def initialize(
-    trade_finder:, trade_state_machine:, order_manager:, logger:
+    config:,
+    trade_finder:,
+    trade_state_machine:,
+    order_manager:,
+    logger:
   )
+    @config = config
     @trade_finder = trade_finder
     @trade_state_machine = trade_state_machine
     @order_manager = order_manager
@@ -21,7 +26,7 @@ class SPX1DTEBot
     @trade = nil
   end
 
-  attr_reader :trade_finder, :trade_state_machine, :order_manager, :trade, :logger
+  attr_reader :config, :trade_finder, :trade_state_machine, :order_manager, :trade, :logger
 
   def run
     while true
