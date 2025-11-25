@@ -60,11 +60,11 @@ class IronCondorFinder
     :max_tweak_attempts,
     :contracts, :price_increment,
     :exit_prof_thresh, :exit_loss_thresh,
-    :expiration_date, :logger
+    :logger
 
-  def search
-    @expiration_date = next_expiration_date
-    logger.info "Find new trade #{underlying_symbol} for expiration date #{expiration_date}"
+  def search(expiration_date: nil)
+    @expiration_date = expiration_date
+    logger.info "Find new trade #{underlying_symbol} for expiration date #{@expiration_date}"
     @options_chain = nil
 
     valid_strategy_found = false
@@ -168,8 +168,8 @@ class IronCondorFinder
       underlying_symbol,
       contract_type: 'ALL',
       strike_range: 'OTM',
-      to_date: expiration_date,
-      from_date: expiration_date
+      to_date: @expiration_date,
+      from_date: @expiration_date
     )
 
     if option_root.present?
@@ -289,18 +289,6 @@ class IronCondorFinder
     raise "No ATM call options found" if call_atm.nil? || put_atm.nil?
 
     @straddle_price = (call_atm.mark + put_atm.mark).round
-  end
-
-  def next_expiration_date
-    tomorrow = Date.today + 1
-    case tomorrow.wday
-    when 0 # Sunday
-      tomorrow + 1
-    when 6 # Saturday
-      tomorrow + 2
-    else
-      tomorrow
-    end
   end
 
   def new_option_leg(symbol, strike, mark, delta, contract_type, expiration_date)
