@@ -1,0 +1,25 @@
+# SPX 1DTE Bot Configuration
+# Trading High Risk Dates Configuration
+# Bot will not open new positions with an expiration on these dates
+# Format: YYYY-MM-DD
+
+high_risk_dates:
+  - date: "2025-12-05"
+    event_type: "Unemployment"
+    description: "Unemployment Report (First Friday)"
+
+  - date: "2025-12-10"
+    event_type: "CPI"
+    description: "CPI Report"
+
+  - date: "2025-12-10"
+    event_type: "FOMC"
+    description: "FOMC Meeting / Fed Decision"
+
+# Optional: Define event types to auto-skip
+# (Future enhancement - could pull from external calendar API)
+event_types:
+  - "FOMC"
+  - "CPI"
+  - "Unemployment"
+  - "NFP"

@@ -17,6 +17,7 @@ require_relative './spx_1dte/iron_condor_finder'
 require_relative './spx_1dte/iron_condor_roller'
 require_relative './spx_1dte/trade_state_machine'
 require_relative './spx_1dte/bot'
+require_relative './spx_1dte/bot_config'
 
 #####################
 ### CONFIGURATION ###
@@ -140,9 +141,9 @@ trade_state_machine = TradeStateMachine.new(
   logger: bot_logger
 )
 
-
-
+bot_config = BotConfig.new('bots/config/spx_1dte.yml')
 bot = SPX1DTEBot.new(
+  config: bot_config,
   trade_finder: trade_finder,
   trade_state_machine: trade_state_machine,
   order_manager: order_manager,
