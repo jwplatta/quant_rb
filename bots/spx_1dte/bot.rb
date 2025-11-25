@@ -2,6 +2,7 @@
 
 require 'date'
 require_relative './iron_condor_trade'
+require_relative 'util'
 
 class SPX1DTEBot
   # NOTE: technically not the market open and close, but want to start monitoring before
@@ -38,8 +39,8 @@ class SPX1DTEBot
         trade = open_trade
         @logger.info "Watching open trade #{trade.id}."
         watch_trade(trade)
-      elsif inside_trade_window?
-        new_trade = trade_finder.search
+      elsif inside_trade_window? && safe_expiration_date?(next_business_day)
+        new_trade = trade_finder.search(expiration_date: next_business_day)
         send_order(new_trade) if new_trade.status == 'NEW'
       else
         sleep_interval = seconds_until_trade_window_start
@@ -84,6 +85,10 @@ class SPX1DTEBot
 
       (market_open_time - now).to_i
     end
+  end
+
+  def safe_expiration_date?(date)
+    config.safe_expiration_date?(date)
   end
 
   def outside_market_hours?
