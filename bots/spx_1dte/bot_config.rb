@@ -14,6 +14,10 @@ class BotConfig
     high_risk_dates.include?(date)
   end
 
+  def safe_expiration_date?(date)
+    !high_risk_date?(date)
+  end
+
   def high_risk_dates
     @high_risk_dates ||= @config['high_risk_dates']
       .map { |entry| Date.parse(entry['date']) }
