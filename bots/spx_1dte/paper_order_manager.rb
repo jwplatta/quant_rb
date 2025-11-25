@@ -204,6 +204,7 @@ class PaperOrderManager
       put_short_symbol: trade.put_spread.short_leg.symbol,
       put_long_symbol: trade.put_spread.long_leg.symbol,
       call_short_symbol: trade.call_spread.short_leg.symbol,
+      call_long_symbol: trade.call_spread.long_leg.symbol,
       price: price,
       duration: SchwabRb::Orders::Duration::DAY,
       credit_debit: :debit,

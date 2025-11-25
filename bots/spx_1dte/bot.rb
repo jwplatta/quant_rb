@@ -30,34 +30,33 @@ class SPX1DTEBot
 
   def run
     while true
-      @trade = if outside_market_hours?
+      if outside_market_hours?
         sleep_interval = seconds_until_market_open
-        @logger.info "Outside market hours. Sleeping for #{sleep_interval / 60} minutes."
+        @logger.info "Outside market hours. Sleep #{sleep_interval / 60} minutes."
         sleep(sleep_interval)
-        nil
-      elsif !open_trade.nil?
-        @logger.info "Continuing to manage existing open trade #{open_trade.id}."
-        open_trade
+      elsif open_trade
+        trade = open_trade
+        @logger.info "Watching open trade #{trade.id}."
+        watch_trade(trade)
       elsif inside_trade_window?
         new_trade = trade_finder.search
         send_order(new_trade) if new_trade.status == 'NEW'
       else
         sleep_interval = seconds_until_trade_window_start
-        @logger.info "No trade to manage and outside trade window. Sleep #{sleep_interval / 60} minute."
+        @logger.info "No trade to manage and outside trade window. Sleep #{sleep_interval / 60} minutes."
         sleep(sleep_interval)
-        nil
       end
-
-      next if @trade.nil?
-
-      @trade_state_machine.watch(@trade)
-      @trade_state_machine.reset
-      @logger.info "Trade #{@trade.id} closed. Resetting trade."
     end
   end
 
   def open_trade
     IronCondorTrade.open_trade
+  end
+
+  def watch_trade(trade)
+    @trade_state_machine.watch(trade)
+    @logger.info "Trade #{trade.id} closed. Resetting trade."
+    @trade_state_machine.reset
   end
 
   def seconds_until_trade_window_start
@@ -112,7 +111,6 @@ class SPX1DTEBot
         if order.status == 'FILLED'
           trade.open(**order.details)
           logger.info "Order filled for trade #{trade.id}"
-          return trade
         end
 
         logger.info "Order status: #{order.status}. Checking again in 5 seconds."
