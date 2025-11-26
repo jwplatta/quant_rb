@@ -33,25 +33,53 @@ class SPX1DTEBot
     while true
       if outside_market_hours?
         sleep_interval = seconds_until_market_open
-        @logger.info "Outside market hours. Sleep #{sleep_interval / 60} minutes."
+        log "Outside market hours. Sleep #{sleep_interval / 60} minutes."
         sleep(sleep_interval)
       elsif open_trade
         trade = open_trade
-        @logger.info "Watching open trade #{trade.id}."
+        log "Watching open trade #{trade.id}."
         watch_trade(trade)
-      elsif inside_trade_window? && safe_expiration_date?(next_business_day)
-        new_trade = trade_finder.search(expiration_date: next_business_day)
-        send_order(new_trade) if new_trade.status == 'NEW'
+      elsif inside_trade_window?
+        next_exp_date = next_vaild_expiration_date
+
+        if safe_expiration_date?(next_exp_date)
+          new_trade = trade_finder.search(expiration_date: next_exp_date)
+          send_order(new_trade) if new_trade.status == 'NEW'
+        else
+          log "Next expiration date #{next_exp_date} is not safe. Skipping trade."
+        end
       else
         sleep_interval = seconds_until_trade_window_start
-        @logger.info "No trade to manage and outside trade window. Sleep #{sleep_interval / 60} minutes."
+        log "No trade to manage and outside trade window. Sleep #{sleep_interval / 60} minutes."
         sleep(sleep_interval)
       end
     end
   end
 
+  def log(msg)
+    @logger.info msg
+  end
+
   def open_trade
     IronCondorTrade.open_trade
+  end
+
+  def next_vaild_expiration_date
+    # TODO: get rid of the while loop
+    exp_date = Date.today + 1
+    while true
+      if exp_date.saturday?
+        exp_date += 2
+      elsif exp_date.sunday?
+        exp_date += 1
+      elsif holiday?(exp_date)
+        exp_date += 1
+      else
+        break
+      end
+    end
+
+    exp_date
   end
 
   def watch_trade(trade)
@@ -85,6 +113,10 @@ class SPX1DTEBot
 
       (market_open_time - now).to_i
     end
+  end
+
+  def holiday?(date)
+    config.holiday?(date)
   end
 
   def safe_expiration_date?(date)
