@@ -53,19 +53,28 @@ end
 schwab_provider = OptionsTrader::DataProviders::Schwab::Markets.new
 markets_service = OptionsTrader::Services::Markets.new(provider: schwab_provider)
 
-expiration_date = Date.parse('2025-11-24')
+expiration_dates = [
+  Date.parse('2025-11-26'),
+  Date.parse('2025-11-28'),
+  Date.parse('2025-12-01'),
+  Date.parse('2025-12-02'),
+  Date.parse('2025-12-03'),
+  Date.parse('2025-12-04'),
+  Date.parse('2025-12-05')
+]
 option_root = 'SPXW'
 
-quotes = markets_service.get_quotes(['$VIX', '$VIX9D', '$VIX3M', '$VVIX', '$SKEW', '$SPX'])
+expiration_dates.each do |expiration_date|
+  # quotes = markets_service.get_quotes(['$VIX', '$VIX9D', '$VIX3M', '$VVIX', '$SKEW', '$SPX'])
+  opt_chain = markets_service.get_option_chain(
+    UNDERLYING_SYMBOL,
+    contract_type: 'ALL',
+    strike_range: 'ALL',
+    to_date: expiration_date,
+    from_date: expiration_date
+  )
+  call_opts = opt_chain.call_opts.select { |opt| opt.option_root == option_root }
+  put_opts = opt_chain.put_opts.select { |opt| opt.option_root == option_root }
 
-opt_chain = markets_service.get_option_chain(
-  UNDERLYING_SYMBOL,
-  contract_type: 'ALL',
-  strike_range: 'ALL',
-  to_date: expiration_date,
-  from_date: expiration_date
-)
-call_opts = opt_chain.call_opts.select { |opt| opt.option_root == option_root }
-put_opts = opt_chain.put_opts.select { |opt| opt.option_root == option_root }
-
-write_option_chain_to_file('notebooks', opt_chain.underlying_price, call_opts, put_opts, expiration_date)
+  write_option_chain_to_file('notebooks', opt_chain.underlying_price, call_opts, put_opts, expiration_date)
+end

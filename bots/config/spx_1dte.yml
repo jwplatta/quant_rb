@@ -16,9 +16,20 @@ high_risk_dates:
     event_type: "FOMC"
     description: "FOMC Meeting / Fed Decision"
 
+holiday_dates:
+  - date: "2025-11-27"
+    event_type: "Holiday"
+
+  - date: "2025-12-25"
+    event_type: "Holiday"
+
+  - date: "2026-01-01"
+    event_type: "Holiday"
+
 # Optional: Define event types to auto-skip
 # (Future enhancement - could pull from external calendar API)
 event_types:
+  - "Holiday"
   - "FOMC"
   - "CPI"
   - "Unemployment"
