@@ -85,7 +85,6 @@ class SPX1DTEBot
   def watch_trade(trade)
     @trade_state_machine.watch(trade)
     @logger.info "Trade #{trade.id} closed. Resetting trade."
-    @trade_state_machine.reset
   end
 
   def seconds_until_trade_window_start

@@ -14,9 +14,14 @@ class IronCondorRoller
     est_commissions: 0.0,
     price_increment: 0.05,
     max_search_attempts: 3,
+    step_size: 5,
     markets: nil,
     logger: nil
   )
+   # dependencies
+    @markets = markets
+    @logger = logger
+
     # option chain parameters
     @underlying_symbol = underlying_symbol
     @option_root = option_root
@@ -36,16 +41,13 @@ class IronCondorRoller
     # search
     @_search_attempts = 0
     @max_search_attempts = max_search_attempts
-
-    # dependencies
-    @markets = markets
-    @logger = logger
+    @step_size = step_size
   end
 
   attr_reader :underlying_symbol, :option_root, :expiration_date,
     :spread_width, :contracts, :max_delta,
     :est_fees, :est_commissions, :price_increment, :cost_coverage_perc,
-    :max_search_attempts, :max_tweak_attempts,
+    :max_search_attempts, :max_tweak_attempts, :step_size,
     :markets, :logger
 
   def search(tested_spread:, untested_spread:, move_size: 5)
@@ -63,7 +65,7 @@ class IronCondorRoller
         new_untested_spread = move_spread_up(
           new_untested_spread,
           new_untested_spread.contract_type,
-          5
+          step_size
         )
       elsif rollaway_cost * cost_coverage_perc <= rollup_credit
         @_search_attempts = 0
@@ -73,10 +75,9 @@ class IronCondorRoller
 
     if @_search_attempts < max_search_attempts
       @_search_attempts += 1
-      sleep(5)
+      sleep(5) # NOTE: wait a bit and see if market conditions improve
       search(tested_spread: tested_spread, untested_spread: untested_spread, move_size: move_size)
     else
-      # REVIEW: need to handle this gracefully. Right now forcing the bot to crash.
       @_search_attempts = 0
       [nil, nil]
     end
