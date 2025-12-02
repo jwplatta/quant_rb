@@ -123,6 +123,9 @@ class IronCondorTrade
     trades_file_manager.update(self)
   end
 
+  # TODO:
+  # def save_event(**order_dtls)
+
   def adjust_put_spread(new_spread, **order_dtls)
     fees = order_dtls[:fees]
     commissions = order_dtls[:commissions]
