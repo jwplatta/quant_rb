@@ -39,91 +39,51 @@ bot_logger.formatter = proc do |severity, datetime, progname, msg|
   "[#{datetime.strftime('%Y-%m-%d %H:%M:%S')}] #{severity}: #{msg}\n"
 end
 
-UNDERLYING_SYMBOL = '$SPX'
-OPTION_ROOT = 'SPXW'
-
-# TRADING PARAMETERS
-SPREAD_WIDTH = 20
-
-# NOTE: should set the credit range based on the VIX and other volatility measures.
-MIN_CREDIT = 1.2
-MAX_CREDIT = 1.4
-DESIRED_DELTA = 0.7
-MIN_CREDIT_BALANCE_RATIO = 0.5
-DELTA_RATIO = 0.8
-
-# NOTE: Develop the ability to have a bias towards call or put side. Use another ratio.
-# The max deltas already start to do this.
-MAX_TOTAL_DELTA = 0.14
-
-MAX_CALL_DELTA = 0.07
-MIN_CALL_DELTA = 0.03
-
-MAX_PUT_DELTA = 0.1
-MIN_PUT_DELTA = 0.04
-
-CONTRACTS = 1
-PRICE_INCREMENT = 0.05
-MAX_SEARCH_ATTEMPTS = 5
-MAX_TWEAK_ATTEMPTS = 100
-
-# NOTE: risk levels
-GREEN_DELTA = 0.15
-YELLOW_DELTA = 0.25
-
-MAX_ADJUSTMENTS = 2
-
-# NOTE: exit conditions
-EXIT_LOSS_THRESH = 3.0 # times the original credit received
-EXIT_PROF_THRESH = 0.5 # times the original credit received
-EXIT_HOUR_THRESH = 12 # PM
-
-EST_FEES_PER_CONTRACT = 2.1
-EST_COMMISSION_PER_CONTRACT = 2.6
+bot_config = BotConfig.new('bots/config/spx_1dte.yml')
 
 TradesFileManager.setup(TRADES_FILE)
 schwab_markets = OptionsTrader::DataProviders::Schwab::Markets.new
 schwab_orders = OptionsTrader::DataProviders::Schwab::Orders.new(account_name: ACCOUNT_NAME)
 order_manager = PaperOrderManager.new(
   schwab_orders,
-  est_fees: EST_FEES_PER_CONTRACT,
-  est_commissions: EST_COMMISSION_PER_CONTRACT,
+  est_fees: bot_config.est_fees_per_contract,
+  est_commissions: bot_config.est_commission_per_contract,
   logger: bot_logger
 )
 trade_finder = IronCondorFinder.new(
-  UNDERLYING_SYMBOL,
+  bot_config.underlying_symbol,
   schwab_markets,
-  option_root: OPTION_ROOT,
-  spread_width: SPREAD_WIDTH,
-  max_search_attempts: MAX_SEARCH_ATTEMPTS,
-  max_tweak_attempts: MAX_TWEAK_ATTEMPTS,
-  max_credit: MAX_CREDIT,
-  max_put_delta: MAX_PUT_DELTA,
-  min_put_delta: MIN_PUT_DELTA,
-  max_call_delta: MAX_CALL_DELTA,
-  min_call_delta: MIN_CALL_DELTA,
-  max_total_delta: MAX_TOTAL_DELTA,
-  min_credit: MIN_CREDIT,
-  min_credit_balance_ratio: MIN_CREDIT_BALANCE_RATIO,
-  delta_ratio: DELTA_RATIO,
-  contracts: CONTRACTS,
-  price_increment: PRICE_INCREMENT,
-  exit_prof_thresh: EXIT_PROF_THRESH,
-  exit_loss_thresh: EXIT_LOSS_THRESH,
+  option_root: bot_config.option_root,
+  spread_width: bot_config.spread_width,
+  max_search_attempts: bot_config.max_search_attempts,
+  max_tweak_attempts: bot_config.max_tweak_attempts,
+  max_credit: bot_config.max_credit,
+  max_put_delta: bot_config.max_put_delta,
+  min_put_delta: bot_config.min_put_delta,
+  max_call_delta: bot_config.max_call_delta,
+  min_call_delta: bot_config.min_call_delta,
+  max_total_delta: bot_config.max_total_delta,
+  min_credit: bot_config.min_credit,
+  min_credit_balance_ratio: bot_config.min_credit_balance_ratio,
+  delta_ratio: bot_config.delta_ratio,
+  contracts: bot_config.contracts,
+  price_increment: bot_config.price_increment,
+  exit_prof_thresh: bot_config.exit_prof_thresh,
+  exit_loss_thresh: bot_config.exit_loss_thresh,
   logger: bot_logger
 )
 
 trade_roller = IronCondorRoller.new(
-  underlying_symbol: UNDERLYING_SYMBOL,
-  option_root: OPTION_ROOT,
-  spread_width: SPREAD_WIDTH,
-  contracts: CONTRACTS,
-  max_delta: 0.15,
-  est_fees: EST_FEES_PER_CONTRACT,
-  est_commissions: EST_COMMISSION_PER_CONTRACT,
-  price_increment: PRICE_INCREMENT,
+  underlying_symbol: bot_config.underlying_symbol,
+  option_root: bot_config.option_root,
+  spread_width: bot_config.spread_width,
+  contracts: bot_config.contracts,
+  max_delta: bot_config.green_delta,
+  est_fees: bot_config.est_fees_per_contract,
+  est_commissions: bot_config.est_commission_per_contract,
+  price_increment: bot_config.price_increment,
   cost_coverage_perc: 1.0,
-  max_search_attempts: MAX_SEARCH_ATTEMPTS,
+  max_search_attempts: bot_config.max_search_attempts,
   markets: schwab_markets,
   logger: bot_logger
 )
@@ -131,17 +91,17 @@ trade_roller = IronCondorRoller.new(
 trade_state_machine = TradeStateMachine.new(
   schwab_markets,
   order_manager,
-  exit_prof_thresh: EXIT_PROF_THRESH,
-  exit_loss_thresh: EXIT_LOSS_THRESH,
-  exit_hour_thresh: EXIT_HOUR_THRESH,
-  est_fees_per_contract: EST_FEES_PER_CONTRACT,
-  est_commission_per_contract: EST_COMMISSION_PER_CONTRACT,
-  price_increment: PRICE_INCREMENT,
   trade_roller: trade_roller,
-  logger: bot_logger
+  logger: bot_logger,
+  exit_prof_thresh: bot_config.exit_prof_thresh,
+  exit_loss_thresh: bot_config.exit_loss_thresh,
+  est_fees_per_contract: bot_config.est_fees_per_contract,
+  est_commission_per_contract: bot_config.est_commission_per_contract,
+  price_increment: bot_config.price_increment,
+  yellow_zone_delta: bot_config.yellow_delta,
+  red_zone_delta: bot_config.red_delta
 )
 
-bot_config = BotConfig.new('bots/config/spx_1dte.yml')
 bot = SPX1DTEBot.new(
   config: bot_config,
   trade_finder: trade_finder,
