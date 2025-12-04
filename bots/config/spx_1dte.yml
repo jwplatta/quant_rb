@@ -26,11 +26,11 @@ trade:
   red_delta: 0.3
   exit_loss_thresh: 3.0
   exit_prof_thresh: 0.5
-  exit_hour_thresh: 12
+  exit_by_hour: 12
   est_fees_per_contract: 1.92
   est_commission_per_contract: 2.6
 
-trade_window:
+enter_trade_window:
   default:
     start_time: "02:55 PM"
     end_time: "03:15 PM"
@@ -44,10 +44,12 @@ monitoring_window:
   default:
     start_time: "08:25 AM"
     end_time: "03:15 PM"
+    exit_by_time: "12:00 PM"
     timezone: "America/Chicago"
   early_close:
     start_time: "08:25 AM"
     end_time: "12:15 PM"
+    exit_by_time: "11:00 AM"
     timezone: "America/Chicago"
 
 high_risk_dates:
