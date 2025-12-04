@@ -17,7 +17,6 @@ RSpec.describe TradeStateMachine do
       mock_order_manager,
       exit_prof_thresh: 0.35,
       exit_loss_thresh: 3.0,
-      exit_hour_thresh: 12,
       est_fees_per_contract: 0.0,
       est_commission_per_contract: 0.0,
       yellow_zone_delta: 0.15,
