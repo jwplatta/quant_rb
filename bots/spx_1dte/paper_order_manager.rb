@@ -95,8 +95,8 @@ class PaperOrderManager
         SecureRandom.uuid().delete('-'),
         order_result.order_id,
         'WORKING',
-        order_result, # TODO: convert to a hash or something that isn't an SchwabRb object
-        order_args,
+        order_result, # REVIEW: convert to a hash or something that isn't an SchwabRb object
+        order_args.merge({ schwab_order_id: order_result.order_id }),
         0,
         order_fill_delay,
         Time.now
@@ -111,7 +111,7 @@ class PaperOrderManager
         order_result.order_id,
         'WORKING',
         order_result,
-        order_args,
+        order_args.merge({ schwab_order_id: order_result.order_id }),
         0,
         order_fill_delay,
         Time.now

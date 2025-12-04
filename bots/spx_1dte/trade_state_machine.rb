@@ -27,6 +27,9 @@ class TradeStateMachine
   DEFAULT_SLEEP_INTERVAL = 30
 
   CLOSE_TRADE = 'close'.freeze
+  CLOSE_IRON_CONDOR = 'close_iron_condor'.freeze
+  CLOSE_PUT_SPREAD = 'close_put_spread'.freeze
+  CLOSE_CALL_SPREAD = 'close_call_spread'.freeze
   CLOSE_FOR_PROFIT = 'close_for_profit'.freeze
   CLOSE_FOR_LOSS = 'close_for_loss'.freeze
   PROCESS_CLOSE = 'process_close'.freeze
@@ -101,8 +104,10 @@ class TradeStateMachine
   def initialize(
     markets,
     order_manager,
-    exit_prof_thresh: 0.35, exit_loss_thresh: 3.0, exit_hour_thresh: 12,
-    est_fees_per_contract: 0.0, est_commission_per_contract: 0.0,
+    exit_prof_thresh: 0.35,
+    exit_loss_thresh: 3.0,
+    est_fees_per_contract: 0.0,
+    est_commission_per_contract: 0.0,
     yellow_zone_delta: 0.15,
     red_zone_delta: 0.30,
     adjustment_wait_time: 900,
@@ -118,7 +123,6 @@ class TradeStateMachine
     # CONFIGURATION
     @exit_prof_thresh = exit_prof_thresh
     @exit_loss_thresh = exit_loss_thresh
-    @exit_hour_thresh = exit_hour_thresh
     @est_fees_per_contract = est_fees_per_contract
     @est_commission_per_contract = est_commission_per_contract
     @yellow_zone_delta = yellow_zone_delta
@@ -128,6 +132,9 @@ class TradeStateMachine
     @sleep_interval = DEFAULT_SLEEP_INTERVAL
     @logger = logger
     @trade_roller = trade_roller
+    @monitoring_window_start = nil
+    @monitoring_window_end = nil
+    @exit_by_time = nil
 
     # TRADE STATE
     @profit_checks = 0
@@ -143,24 +150,32 @@ class TradeStateMachine
   end
 
   attr_reader :markets, :order_manager,
-              :exit_prof_thresh, :exit_loss_thresh, :exit_hour_thresh,
+              :exit_prof_thresh, :exit_loss_thresh,
               :yellow_zone_delta, :red_zone_delta, :adjustment_wait_time,
               :est_fees_per_contract, :est_commission_per_contract,
               :price_increment, :trade_roller, :action, :logger
 
-  def watch(trade)
+  def manage(trade)
+    raise "Monitoring window not set" unless @monitoring_window_start && @monitoring_window_end && @exit_by_time
+
     @trade = trade
     while trade.open?
       return if outside_market_hours?
 
       prices = get_current_spread_prices(@trade)
 
-      next_action = decide(TREE, @trade, prices)
-      log_action(next_action, @trade, prices)
-      sleep_seconds = execute_action(next_action, @trade, prices)
-
-      wait_for(sleep_seconds)
+      decide(TREE, @trade, prices).then do |action|
+        log_action(action, @trade, prices)
+        sleep_seconds = execute_action(action, @trade, prices)
+        wait_for(sleep_seconds)
+      end
     end
+  end
+
+  def set_monitoring_window(start_time, end_time, exit_by_time)
+    @monitoring_window_start = start_time
+    @monitoring_window_end = end_time
+    @exit_by_time = exit_by_time
   end
 
   def decide(node, trade, prices)
@@ -180,6 +195,8 @@ class TradeStateMachine
       handle_close_order(trade)
     when PROCESS_ADJUSTMENT
       handle_adjustment_order(trade)
+    when CLOSE_IRON_CONDOR
+      send_close_order(trade, prices)
     when CLOSE_FOR_PROFIT
       send_close_order(trade, prices)
     when CLOSE_FOR_LOSS
@@ -210,6 +227,21 @@ class TradeStateMachine
     !@new_call_spread_order.nil? || !@new_put_spread_order.nil?
   end
 
+  def exit?(trade, prices)
+    now = Time.now
+    today = now.to_date
+    current_price = prices[:curr_contract_price]
+    # does it meet the profit threshold?
+    # does it meet the exit loss threshold?
+    # are we approaching
+  end
+
+  def exit_put_spread?(trade, prices)
+  end
+
+  def exit_call_spread?(trade, prices)
+  end
+
   def exit_profit?(trade, prices)
     now = Time.now
     today = now.to_date
@@ -218,9 +250,9 @@ class TradeStateMachine
     if today < trade.expiration_date
       # NOTE: if day before expiration, then trade was just opened
       false
-    elsif now >= market_open_time_today && now < exit_time_today
+    elsif now >= market_open_time_today && now < @exit_by_time
       current_price <= exit_prof_thresh
-    elsif now >= exit_time_today
+    elsif now >= @exit_by_time
       # NOTE: after exit hour threshold, be more aggressive about exiting
       profitability(trade, current_price) >= 0.0
     else
@@ -236,10 +268,10 @@ class TradeStateMachine
     if today < trade.expiration_date
       # NOTE: if day before expiration, then trade was just opened
       false
-    elsif now >= market_open_time_today && now < exit_time_today
+    elsif now >= market_open_time_today && now < @exit_by_time
       current_price >= exit_loss_thresh
-    # NOTE: think this condition just get handled with the exit_profit
-    elsif now >= exit_time_today
+    # NOTE: think this condition just gets handled with the exit_profit
+    elsif now >= @exit_by_time
       # NOTE: if the price isn't improving after an extended period of time, then just exit.
       if profitability(trade, current_price) <= 0.0
         @profit_checks += 1
@@ -489,11 +521,6 @@ class TradeStateMachine
   #   profit_target_price = trade.open_price * exit_prof_thresh
   #   current_price <= profit_target_price + 0.1
   # end
-
-  def exit_time_today
-    now = Time.now
-    Time.new(now.year, now.month, now.day, exit_hour_thresh, 0, 0)
-  end
 
   def market_open_time_today
     now = Time.now

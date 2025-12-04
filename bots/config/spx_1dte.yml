@@ -3,6 +3,55 @@
 # Bot will not open new positions with an expiration on these dates
 # Format: YYYY-MM-DD
 
+trade:
+  underlying_symbol: "$SPX"
+  option_root: "SPXW"
+  spread_width: 20
+  min_credit: 1.2
+  max_credit: 1.4
+  target_delta: 0.7
+  credit_balance_ratio: 0.5
+  delta_ratio: 0.8
+  max_total_delta: 0.14
+  max_call_delta: 0.07
+  min_call_delta: 0.03
+  max_put_delta: 0.1
+  min_put_delta: 0.04
+  contracts: 1
+  price_increment: 0.05
+  max_search_attempts: 5
+  max_tweak_attempts: 100
+  green_delta: 0.15
+  yellow_delta: 0.25
+  red_delta: 0.3
+  exit_loss_thresh: 3.0
+  exit_prof_thresh: 0.5
+  exit_by_hour: 12
+  est_fees_per_contract: 1.92
+  est_commission_per_contract: 2.6
+
+enter_trade_window:
+  default:
+    start_time: "02:55 PM"
+    end_time: "03:15 PM"
+    timezone: "America/Chicago"
+  early_close:
+    start_time: "11:55 AM"
+    end_time: "12:15 PM"
+    timezone: "America/Chicago"
+
+monitoring_window:
+  default:
+    start_time: "08:25 AM"
+    end_time: "03:15 PM"
+    exit_by_time: "12:00 PM"
+    timezone: "America/Chicago"
+  early_close:
+    start_time: "08:25 AM"
+    end_time: "12:15 PM"
+    exit_by_time: "11:00 AM"
+    timezone: "America/Chicago"
+
 high_risk_dates:
   - date: "2025-12-05"
     event_type: "Unemployment"
@@ -16,21 +65,45 @@ high_risk_dates:
     event_type: "FOMC"
     description: "FOMC Meeting / Fed Decision"
 
+early_close_dates:
+  - date: "2025-11-28"
+    description: "Day after Thanksgiving - Market closes early at 1:00 PM ET"
+  - date: "2025-12-24"
+    description: "Christmas Eve - Market closes early at 1:00 PM ET"
+
 holiday_dates:
   - date: "2025-11-27"
-    event_type: "Holiday"
+    description: "Thanksgiving Day"
 
   - date: "2025-12-25"
-    event_type: "Holiday"
+    description: "Christmas Day"
 
   - date: "2026-01-01"
-    event_type: "Holiday"
+    description: "New Year's Day"
 
-# Optional: Define event types to auto-skip
-# (Future enhancement - could pull from external calendar API)
-event_types:
-  - "Holiday"
-  - "FOMC"
-  - "CPI"
-  - "Unemployment"
-  - "NFP"
+  - date: "2026-01-19"
+    description: "Martin Luther King Jr. Day"
+
+  - date: "2026-02-16"
+    description: "Presidents' Day"
+
+  - date: "2026-04-03"
+    description: "Good Friday"
+
+  - date: "2026-05-25"
+    description: "Memorial Day"
+
+  - date: "2026-06-19"
+    description: "Juneteenth National Independence Day"
+
+  - date: "2026-07-03"
+    description: "Independence Day (Observed)"
+
+  - date: "2026-09-07"
+    description: "Labor Day"
+
+  - date: "2026-11-26"
+    description: "Thanksgiving Day"
+
+  - date: "2026-12-25"
+    description: "Christmas Day"
