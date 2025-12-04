@@ -31,28 +31,31 @@ class BotConfig
 
   def monitoring_start_time(date = Date.today)
     window = monitoring_window(date)
-    timezone = window[:timezone]
-    to_local_time(window[:start_time], timezone)
+    to_local_time(window[:start_time], window[:timezone])
   end
 
   def monitoring_end_time(date = Date.today)
     window = monitoring_window(date)
-    timezone = window[:timezone]
-    to_local_time(window[:end_time], timezone)
+    to_local_time(window[:end_time], window[:timezone])
   end
 
-  def trade_window(date = Date.today)
-    window_entry(@config['trade_window'], date)
+  def exit_by_time(date = Date.today)
+    window = monitoring_window(date)
+    to_local_time(window[:exit_by_time], window[:timezone])
   end
 
-  def trade_window_start_time(date = Date.today)
-    window = trade_window(date)
+  def enter_trade_window(date = Date.today)
+    window_entry(@config['enter_trade_window'], date)
+  end
+
+  def enter_trade_window_start_time(date = Date.today)
+    window = enter_trade_window(date)
     timezone = window[:timezone]
     to_local_time(window[:start_time], timezone)
   end
 
-  def trade_window_end_time(date = Date.today)
-    window = trade_window(date)
+  def enter_trade_window_end_time(date = Date.today)
+    window = enter_trade_window(date)
     timezone = window[:timezone]
     to_local_time(window[:end_time], timezone)
   end
@@ -94,11 +97,14 @@ class BotConfig
       window_config['default']
     end
 
-    {
+    result = {
       start_time: entry['start_time'],
       end_time: entry['end_time'],
       timezone: entry['timezone']
     }
+
+    result[:exit_by_time] = entry['exit_by_time'] if entry.key?('exit_by_time')
+    result
   end
 
   def to_local_time(time, timezone_name = nil)
