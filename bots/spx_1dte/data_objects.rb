@@ -33,18 +33,18 @@ end
 #############################
 
 class StrategyBase
-  def initialize(contracts: nil, expiration_date: nil, price: nil, price_increment: 0.05)
-    @contracts = contracts
+  def initialize(quantity: nil, expiration_date: nil, price: nil, price_increment: 0.05)
+    @quantity = quantity
     @expiration_date = expiration_date
     @price = price
     @price_increment = price_increment
   end
 
-  attr_reader :contracts, :expiration_date, :price, :price_increment
+  attr_reader :quantity, :expiration_date, :price, :price_increment
 
   def to_h(**kwargs)
     {
-      contracts: contracts,
+      quantity: quantity,
       expiration_date: expiration_date,
       price: price,
       price_increment: price_increment
