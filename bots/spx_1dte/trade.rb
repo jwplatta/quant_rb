@@ -130,7 +130,7 @@ class Trade
     put_spread = open_put_spread
 
     if call_spread.nil? || put_spread.nil?
-      null_strategy
+      nil
     else
       IronCondor.new(
         put_spread: put_spread,
@@ -150,6 +150,8 @@ class Trade
 
   def open_spread(positions, contract_type)
     short_leg = positions.find { |_, qty| qty < 0 }
+    return nil if short_leg.nil?
+
     long_leg = positions.find { |symbol, qty| symbol != short_leg[0] && qty > 0 }
 
     raise "Spread quantity not equal" if !long_leg.nil? && !short_leg.nil? && (short_leg[1].abs != long_leg[1].abs)
@@ -157,7 +159,7 @@ class Trade
     if !long_leg.nil? && !short_leg.nil?
       new_vertical_spread(short_leg[1].abs, short_leg[0], long_leg[0], contract_type)
     else
-      null_strategy
+      nil
     end
   end
 

@@ -225,6 +225,39 @@ RSpec.describe Trade do
       expect(trade_with_open.strategy).to be_a(IronCondor)
     end
 
+    it 'detects open call spread strategy' do
+      # Create trade with opening IC event and then close the put spread
+      open_event = closed_trade_data[:trade_history].first.merge({
+        timestamp: Time.parse(closed_trade_data[:trade_history].first[:timestamp])
+      })
+
+      # Create a close put spread event
+      close_put_event = {
+        event_type: 'CLOSE_PUT_SPREAD',
+        put_short_symbol: closed_trade_data[:put_spread][:short_leg][:symbol],
+        put_long_symbol: closed_trade_data[:put_spread][:long_leg][:symbol],
+        price: 0.05,
+        quantity: 1.0,
+        credit_debit_type: :debit,
+        credit_debit_amount: -5.0,
+        fees: 1.05,
+        commissions: 1.3,
+        timestamp: Time.parse(closed_trade_data[:trade_history].first[:timestamp]) + 3600 # 1 hour later
+      }
+
+      trade_with_call_spread = Trade.new(
+        id: closed_trade_data[:id],
+        init_strategy: trade.init_strategy,
+        trade_history: [open_event, close_put_event]
+      )
+
+      expect(trade_with_call_spread.open_call_spread?).to be true
+      expect(trade_with_call_spread.open_put_spread?).to be false
+      expect(trade_with_call_spread.open_iron_condor?).to be false
+      expect(trade_with_call_spread.strategy).to be_a(VerticalSpread)
+      expect(trade_with_call_spread.strategy.contract_type).to eq('CALL')
+    end
+
     it 'detects when position is closed' do
       expect(trade.position_closed?).to be true
     end
