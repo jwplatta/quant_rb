@@ -28,17 +28,16 @@ class PaperOrderManager
 
   attr_reader :schwab_orders, :fill_wait_time, :check_fill_count, :logger
 
-  def open_iron_condor(trade)
-    order_args = open_iron_condor_args(trade)
+  def open_iron_condor(strategy, **kwargs)
+    order_args = open_iron_condor_args(strategy)
     send_order(order_args)
   rescue => e
     logger.error "Error sending open iron condor order: #{e.message}"
     raise e
   end
 
-  def close_iron_condor(trade, **kwargs)
-    price = kwargs.fetch(:price) { raise ArgumentError, "Missing required :price in kwargs" }
-    order_args = close_iron_condor_args(trade, price)
+  def close_iron_condor(strategy, **kwargs)
+    order_args = close_iron_condor_args(strategy)
     send_order(order_args)
   rescue => e
     logger.error "Error sending close iron condor order: #{e.message}"
@@ -63,17 +62,16 @@ class PaperOrderManager
     raise e
   end
 
-  def close_spread(trade, **kwargs)
-    price = kwargs.fetch(:price) { raise ArgumentError, "Missing required :price in kwargs" }
-    order_args = close_spread_args(trade, price)
+  def close_spread(strategy, **kwargs)
+    order_args = close_spread_args(strategy)
     send_order(order_args)
   rescue => e
     logger.error "Error sending close spread order: #{e.message}"
     raise e
   end
 
-  def open_spread(trade)
-    order_args = open_spread_args(trade)
+  def open_spread(strategy, **kwargs)
+    order_args = open_spread_args(strategy)
     send_order(order_args)
   rescue => e
     logger.error "Error sending open spread order: #{e.message}"
@@ -182,34 +180,33 @@ class PaperOrderManager
     }
   end
 
-  def open_iron_condor_args(trade)
-    {
-      put_short_symbol: trade.put_spread.short_leg.symbol,
-      put_long_symbol: trade.put_spread.long_leg.symbol,
-      call_short_symbol: trade.call_spread.short_leg.symbol,
-      call_long_symbol: trade.call_spread.long_leg.symbol,
-      price: trade.open_price,
-      duration: SchwabRb::Orders::Duration::DAY,
+  def open_iron_condor_args(strategy)
+    raise "Spreads must have equal number of contracts." if strategy.call_spread.quantity != strategy.put_spread.quantity
+
+    base_iron_condor_args(strategy).merge({
       credit_debit: :credit,
-      order_instruction: :open,
-      quantity: trade.contracts,
-      strategy_type: SchwabRb::Order::ComplexOrderStrategyTypes::IRON_CONDOR
-    }
+      order_instruction: :open
+    })
   end
 
-  def close_iron_condor_args(trade, price)
-    raise "Must close spreads separately! Unequal contracts." if trade.call_spread.contracts != trade.put_spread.contracts
+  def close_iron_condor_args(strategy)
+    raise "Spreads must have equal number of contracts." if strategy.call_spread.quantity != strategy.put_spread.quantity
 
-    {
-      put_short_symbol: trade.put_spread.short_leg.symbol,
-      put_long_symbol: trade.put_spread.long_leg.symbol,
-      call_short_symbol: trade.call_spread.short_leg.symbol,
-      call_long_symbol: trade.call_spread.long_leg.symbol,
-      price: price,
-      duration: SchwabRb::Orders::Duration::DAY,
+    base_iron_condor_args(strategy).merge({
       credit_debit: :debit,
-      order_instruction: :close,
-      quantity: trade.contracts,
+      order_instruction: :close
+    })
+  end
+
+  def base_iron_condor_args(strategy)
+     {
+      put_short_symbol: strategy.put_spread.short_leg.symbol,
+      put_long_symbol: strategy.put_spread.long_leg.symbol,
+      call_short_symbol: strategy.call_spread.short_leg.symbol,
+      call_long_symbol: strategy.call_spread.long_leg.symbol,
+      price: strategy.price,
+      duration: SchwabRb::Orders::Duration::DAY,
+      quantity: strategy.quantity,
       strategy_type: SchwabRb::Order::ComplexOrderStrategyTypes::IRON_CONDOR
     }
   end
@@ -223,33 +220,32 @@ class PaperOrderManager
       price: price,
       credit_debit: debit_credit,
       order_instruction: :open,
-      quantity: new_spread.contracts,
+      quantity: new_spread.quantity,
       strategy_type: SchwabRb::Order::ComplexOrderStrategyTypes::VERTICAL_ROLL
     }
   end
 
-  def open_spread_args(spread, price)
-    {
-      short_leg_symbol: spread.short_leg.symbol,
-      long_leg_symbol: spread.long_leg.symbol,
-      price: price,
-      duration: SchwabRb::Orders::Duration::DAY,
+  def open_spread_args(strategy)
+    base_spread_args(strategy).merge({
       credit_debit: :credit,
-      order_instruction: :open,
-      quantity: spread.contracts,
-      strategy_type: SchwabRb::Order::ComplexOrderStrategyTypes::VERTICAL
-    }
+      order_instruction: :open
+    })
   end
 
-  def close_spread_args(spread, price)
+  def close_spread_args(spread)
+    base_spread_args(spread).merge({
+      credit_debit: :debit,
+      order_instruction: :close
+    })
+  end
+
+  def base_spread_args(strategy)
     {
       short_leg_symbol: spread.short_leg.symbol,
       long_leg_symbol: spread.long_leg.symbol,
-      price: price,
+      price: strategy.price,
       duration: SchwabRb::Orders::Duration::DAY,
-      credit_debit: :debit,
-      order_instruction: :close,
-      quantity: spread.contracts,
+      quantity: strategy.quantity,
       strategy_type: SchwabRb::Order::ComplexOrderStrategyTypes::VERTICAL
     }
   end
