@@ -232,8 +232,8 @@ class PaperOrderManager
     })
   end
 
-  def close_spread_args(spread)
-    base_spread_args(spread).merge({
+  def close_spread_args(strategy)
+    base_spread_args(strategy).merge({
       credit_debit: :debit,
       order_instruction: :close
     })
@@ -241,8 +241,8 @@ class PaperOrderManager
 
   def base_spread_args(strategy)
     {
-      short_leg_symbol: spread.short_leg.symbol,
-      long_leg_symbol: spread.long_leg.symbol,
+      short_leg_symbol: strategy.short_leg.symbol,
+      long_leg_symbol: strategy.long_leg.symbol,
       price: strategy.price,
       duration: SchwabRb::Orders::Duration::DAY,
       quantity: strategy.quantity,
