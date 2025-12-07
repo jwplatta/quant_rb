@@ -115,7 +115,7 @@ class VerticalSpread < StrategyBase
   end
 
   def to_h(with_contract_dtls: true)
-    if with_details
+    if with_contract_dtls
       super.merge(
         {
           type: 'VERTICAL_SPREAD',
