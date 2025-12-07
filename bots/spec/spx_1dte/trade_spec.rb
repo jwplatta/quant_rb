@@ -305,6 +305,50 @@ RSpec.describe Trade do
                              positions[:put_positions].all? { |_, qty| qty == 0 }
       expect(all_positions_closed).to be true
     end
+
+    it 'tracks only call spread positions when put spread is closed' do
+      # Create trade with opening IC event and then close the put spread
+      open_event = trade_data[:trade_history].first.merge({
+        timestamp: Time.parse(trade_data[:trade_history].first[:timestamp])
+      })
+
+      # Create a close put spread event
+      close_put_event = {
+        event_type: 'CLOSE_PUT_SPREAD',
+        put_short_symbol: trade_data[:put_spread][:short_leg][:symbol],
+        put_long_symbol: trade_data[:put_spread][:long_leg][:symbol],
+        price: 0.05,
+        quantity: 1.0,
+        credit_debit_type: :debit,
+        credit_debit_amount: -5.0,
+        fees: 1.05,
+        commissions: 1.3,
+        timestamp: Time.parse(trade_data[:trade_history].first[:timestamp]) + 3600 # 1 hour later
+      }
+
+      trade = Trade.new(
+        id: trade_data[:id],
+        init_strategy: TradesFileManager.instance.to_trade_object(trade_data).init_strategy,
+        trade_history: [open_event, close_put_event]
+      )
+
+      positions = trade.current_positions
+
+      # Put positions should be empty (closed)
+      expect(positions[:put_positions]).to be_empty
+
+      # Call positions should have the 2 call spread legs
+      expect(positions[:call_positions]).not_to be_empty
+      expect(positions[:call_positions].length).to eq(2)
+
+      # Should have the call short and long symbols
+      expect(positions[:call_positions]).to have_key(trade_data[:call_spread][:short_leg][:symbol])
+      expect(positions[:call_positions]).to have_key(trade_data[:call_spread][:long_leg][:symbol])
+
+      # Short leg should have negative quantity, long leg positive
+      expect(positions[:call_positions][trade_data[:call_spread][:short_leg][:symbol]]).to be < 0
+      expect(positions[:call_positions][trade_data[:call_spread][:long_leg][:symbol]]).to be > 0
+    end
   end
 
   describe 'trade value calculations' do
