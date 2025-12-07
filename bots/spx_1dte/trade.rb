@@ -18,19 +18,13 @@ class Trade
     id: nil,
     init_strategy: nil,
     status: NEW_STATUS,
-    expiration_date:,
-    contracts: 1,
     exit_prof_thresh: 0.5,
     exit_loss_thresh: 3.0,
     price_increment: 0.05,
-    call_positions: {},
-    put_positions: {},
     trade_history: []
   )
     @id = id || SecureRandom.uuid().delete('-')
     @init_strategy = init_strategy
-    @contracts = contracts
-    @expiration_date = expiration_date
     @price_increment = price_increment
 
     @exit_prof_thresh = exit_prof_thresh
@@ -43,13 +37,16 @@ class Trade
     @trade_history = trade_history
   end
 
-  attr_reader :id, :init_strategy, :expiration_date,
-    :open_price, :close_price, :exit_prof_thresh, :exit_loss_thresh, :status,
-    :contracts, :trade_history, :call_positions, :put_positions, :price_increment
+  attr_reader :id, :init_strategy,
+    :open_price, :close_price,
+    :exit_prof_thresh, :exit_loss_thresh, :status,
+    :trade_history, :call_positions, :put_positions, :price_increment
 
   def symbols
-    @call_positions.select { |_, qty| qty != 0 }.keys +
-      @put_positions.select { |_, qty| qty != 0 }.keys
+    positions = current_positions
+
+    positions[:call_positions].select { |_, qty| qty != 0 }.keys +
+      positions[:put_positions].select { |_, qty| qty != 0 }.keys
   end
 
   def profit_loss
@@ -65,12 +62,13 @@ class Trade
       e[:quantity] = order_dtls[:quantity]
       e[:credit_debit_type] = order_dtls[:credit_debit]
       e[:credit_debit_amount] = calc_credit_debit(e[:price], e[:quantity], order_dtls[:credit_debit])
-      e[:put_short_leg_symbol] = order_dtls[:put_short_symbol] if order_dtls.key?(:put_short_symbol)
-      e[:put_long_leg_symbol] = order_dtls[:put_long_symbol] if order_dtls.key?(:put_long_symbol)
-      e[:call_short_leg_symbol] = order_dtls[:call_short_symbol] if order_dtls.key?(:call_short_symbol)
-      e[:call_long_leg_symbol] = order_dtls[:call_long_symbol] if order_dtls.key?(:call_long_symbol)
-      e[:timestamp] = Time.now.utc.iso8601
+      e[:put_short_symbol] = order_dtls[:put_short_symbol] if order_dtls.key?(:put_short_symbol)
+      e[:put_long_symbol] = order_dtls[:put_long_symbol] if order_dtls.key?(:put_long_symbol)
+      e[:call_short_symbol] = order_dtls[:call_short_symbol] if order_dtls.key?(:call_short_symbol)
+      e[:call_long_symbol] = order_dtls[:call_long_symbol] if order_dtls.key?(:call_long_symbol)
+      e[:timestamp] = Time.now
     end
+    @current_positions = nil # NOTE: reset cached positions
 
     if @status == NEW_STATUS
       set_status
@@ -82,106 +80,209 @@ class Trade
   end
 
   def set_status
-    if open_position?
+    if position_open?
       @status = OPEN_STATUS
-    elsif all_positions_closed?
+    elsif position_closed?
       @status = CLOSED_STATUS
     else
       @status = NEW_STATUS
     end
   end
 
-  def position_open?
-    open_call_spread? || open_put_spread?
+  def open?
+    status == OPEN_STATUS
+  end
+
+  def closed?
+    status == CLOSED_STATUS
+  end
+
+  ##################################
+  ### STRATEGY DETECTION METHODS ###
+  ##################################
+
+  def strategy
+    [open_iron_condor, open_call_spread, open_put_spread, null_strategy].find { |s| s }
   end
 
   def position_closed?
     !position_open?
   end
 
-  def open_put_spread?
-    @put_positions.any? { |_, qty| qty != 0 }
+  def position_open?
+    !open_call_spread.nil? || !open_put_spread.nil?
   end
 
   def open_call_spread?
-    @call_positions.any? { |_, qty| qty != 0 }
+    !open_call_spread.nil?
   end
 
-  def update_open_positions
-    trade_history.sort_by(&:timestamp).each do |event|
+  def open_put_spread?
+    !open_put_spread.nil?
+  end
+
+  def open_iron_condor?
+    !open_call_spread.nil? && !open_put_spread.nil?
+  end
+
+  def open_iron_condor
+    call_spread = open_call_spread
+    put_spread = open_put_spread
+
+    if call_spread.nil? || put_spread.nil?
+      null_strategy
+    else
+      IronCondor.new(
+        put_spread: put_spread,
+        call_spread: call_spread,
+        quantity: [call_spread.quantity, put_spread.quantity].min
+      )
+    end
+  end
+
+  def open_call_spread
+    open_spread(current_positions[:call_positions], 'CALL')
+  end
+
+  def open_put_spread
+    open_spread(current_positions[:put_positions], 'PUT')
+  end
+
+  def open_spread(positions, contract_type)
+    short_leg = positions.find { |_, qty| qty < 0 }
+    long_leg = positions.find { |symbol, qty| symbol != short_leg[0] && qty > 0 }
+
+    raise "Spread quantity not equal" if !long_leg.nil? && !short_leg.nil? && (short_leg[1].abs != long_leg[1].abs)
+
+    if !long_leg.nil? && !short_leg.nil?
+      new_vertical_spread(short_leg[1].abs, short_leg[0], long_leg[0], contract_type)
+    else
+      null_strategy
+    end
+  end
+
+  ###########################
+  ### POSITION MANAGEMENT ###
+  ###########################
+
+  def current_positions
+    # NOTE: we can always find the current positions by replaying the trade history
+    return @current_positions if @current_positions
+
+    all_positions = trade_history.sort_by { |event| event[:timestamp] }.reduce(
+      { call_positions: {}, put_positions: {} }
+    ) do |positions, event|
       case event[:event_type]
       when "OPEN_IRON_CONDOR"
-        decrease_call_position(event[:call_short_leg_symbol], event[:quantity])
-        increase_call_position(event[:call_long_leg_symbol], event[:quantity])
-        decrease_put_position(event[:put_short_leg_symbol], event[:quantity])
-        increase_put_position(event[:put_long_leg_symbol], event[:quantity])
+        open_iron_condor_position(positions, event)
       when "CLOSE_IRON_CONDOR"
-        increase_call_position(event[:call_short_leg_symbol], event[:quantity])
-        decrease_call_position(event[:call_long_leg_symbol], event[:quantity])
-        increase_put_position(event[:put_short_leg_symbol], event[:quantity])
-        decrease_put_position(event[:put_long_leg_symbol], event[:quantity])
+        close_iron_condor_position(positions, event)
       when "OPEN_PUT_SPREAD"
-        decrease_put_position(event[:put_short_leg_symbol], event[:quantity])
-        increase_put_position(event[:put_long_leg_symbol], event[:quantity])
+        open_put_spread_position(positions, event)
       when "CLOSE_PUT_SPREAD"
-        increase_put_position(event[:put_short_leg_symbol], event[:quantity])
-        decrease_put_position(event[:put_long_leg_symbol], event[:quantity])
+        close_put_spread_position(positions, event)
       when "OPEN_CALL_SPREAD"
-        decrease_call_position(event[:call_short_leg_symbol], event[:quantity])
-        increase_call_position(event[:call_long_leg_symbol], event[:quantity])
+        open_call_spread_position(positions, event)
       when "CLOSE_CALL_SPREAD"
-        increase_call_position(event[:call_short_leg_symbol], event[:quantity])
-        decrease_call_position(event[:call_long_leg_symbol], event[:quantity])
-      when "ADJUST_CALL_SPREAD"
-        increase_call_spread(event[:close_short_leg_symbol], event[:quantity])
-        decrease_call_spread(event[:close_long_leg_symbol], event[:quantity])
-        decrease_call_spread(event[:open_short_leg_symbol], event[:quantity])
-        increase_call_spread(event[:open_long_leg_symbol], event[:quantity])
-      when "ADJUST_PUT_SPREAD"
-        increase_put_spread(event[:close_short_leg_symbol], event[:quantity])
-        decrease_put_spread(event[:close_long_leg_symbol], event[:quantity])
-        decrease_put_spread(event[:open_short_leg_symbol], event[:quantity])
-        increase_put_spread(event[:open_long_leg_symbol], event[:quantity])
+        close_call_spread_position(positions, event)
       else
         raise "Unknown event type: #{event[:event_type]}"
       end
     end
+
+    # Filter out positions with zero quantity
+    @current_positions = {
+      call_positions: all_positions[:call_positions].select { |_, qty| qty != 0 },
+      put_positions: all_positions[:put_positions].select { |_, qty| qty != 0 }
+    }
   end
 
-  def decrease_call_position(symbol, quantity_change)
-    if @call_positions.has_key?(symbol)
-      @call_positions[symbol] -= quantity_change
-    else
-      @call_positions[symbol] = -quantity_change
+  def open_iron_condor_position(positions, event)
+    call_positions = positions[:call_positions].clone
+    put_positions = positions[:put_positions].clone
+
+    positions[:call_positions] = decrease_position(call_positions, event[:call_short_symbol], event[:quantity]).then do |cp|
+      increase_position(cp, event[:call_long_symbol], event[:quantity])
     end
-  end
-
-  def increase_call_position(symbol, quantity_change)
-    if @call_positions.has_key?(symbol)
-      @call_positions[symbol] += quantity_change
-    else
-      @call_positions[symbol] = quantity_change
+    positions[:put_positions] = decrease_position(put_positions, event[:put_short_symbol], event[:quantity]).then do |pp|
+      increase_position(pp, event[:put_long_symbol], event[:quantity])
     end
+
+    positions
   end
 
-  def decrease_put_position(symbol, quantity_change)
-    if @put_positions.has_key?(symbol)
-      @put_positions[symbol] -= quantity_change
-    else
-      @put_positions[symbol] = -quantity_change
+  def close_iron_condor_position(positions, event)
+    call_positions = positions[:call_positions].clone
+    put_positions = positions[:put_positions].clone
+
+    positions[:call_positions] = increase_position(call_positions, event[:call_short_symbol], event[:quantity]).then do |cp|
+      decrease_position(cp, event[:call_long_symbol], event[:quantity])
     end
-  end
-
-  def increase_put_position(symbol, quantity_change)
-    if @put_positions.has_key?(symbol)
-      @put_positions[symbol] += quantity_change
-    else
-      @put_positions[symbol] = quantity_change
+    positions[:put_positions] = increase_position(put_positions, event[:put_short_symbol], event[:quantity]).then do |pp|
+      decrease_position(pp, event[:put_long_symbol], event[:quantity])
     end
+
+    positions
   end
 
-  def total_credit_debit
-    @trade_history.reduce(0) { |sum, event| sum + (event[:credit_debit_amount] || 0) }
+  def open_put_spread_position(positions, event)
+    put_positions = positions[:put_positions].clone
+    positions[:put_positions] = decrease_position(put_positions, event[:put_short_symbol], event[:quantity]).then do |pp|
+      increase_position(pp, event[:put_long_symbol], event[:quantity])
+    end
+    positions
+  end
+
+  def close_put_spread_position(positions, event)
+    put_positions = positions[:put_positions].clone
+    positions[:put_positions] = increase_position(put_positions, event[:put_short_symbol], event[:quantity]).then do |pp|
+      decrease_position(pp, event[:put_long_symbol], event[:quantity])
+    end
+    positions
+  end
+
+  def open_call_spread_position(positions, event)
+    call_positions = positions[:call_positions].clone
+    positions[:call_positions] = decrease_position(call_positions, event[:call_short_symbol], event[:quantity]).then do |cp|
+      increase_position(cp, event[:call_long_symbol], event[:quantity])
+    end
+    positions
+  end
+
+  def close_call_spread_position(positions, event)
+    call_positions = positions[:call_positions].clone
+    positions[:call_positions] = increase_position(call_positions, event[:call_short_symbol], event[:quantity]).then do |cp|
+      decrease_position(cp, event[:call_long_symbol], event[:quantity])
+    end
+    positions
+  end
+
+  def decrease_position(positions, symbol, quantity_change)
+    if positions.has_key?(symbol)
+      positions[symbol] -= quantity_change
+    else
+      positions[symbol] = -quantity_change
+    end
+    positions
+  end
+
+  def increase_position(positions, symbol, quantity_change)
+    if positions.has_key?(symbol)
+      positions[symbol] += quantity_change
+    else
+      positions[symbol] = quantity_change
+    end
+    positions
+  end
+
+  ###########################
+  ### TRADE VALUE METHODS ###
+  ###########################
+
+  def open_credit
+    # NOTE: you cannot use the init_strategy.price because we
+    # need the actualy fill price from the trade history
+    open_price * init_strategy.quantity * 100 - open_fees - open_commissions
   end
 
   def open_price
@@ -194,6 +295,10 @@ class Trade
 
   def open_commissions
     @trade_history.min_by { |event| event[:timestamp] }[:commissions]
+  end
+
+  def total_credit_debit
+    @trade_history.reduce(0) { |sum, event| sum + (event[:credit_debit_amount] || 0) }
   end
 
   def total_fees
@@ -212,20 +317,6 @@ class Trade
     end
   end
 
-  def update_history(kwargs)
-    trade_event = kwargs.dup
-    trade_event[:timestamp] = Time.now.utc.iso8601
-    @trade_history << trade_event
-  end
-
-  def open?
-    status == OPEN_STATUS
-  end
-
-  def closed?
-    status == CLOSED_STATUS
-  end
-
   def close_loss_price
     open_price * exit_loss_thresh
   end
@@ -235,12 +326,12 @@ class Trade
   end
 
   def break_even_price
-    # this is per contract
+    # this is per iron condor
     round_up_to_nearest((open_price * 100 + 2 * open_fees + 2 * open_commissions) / 100.0)
   end
 
   def target_profit_price
-    # this is per contract
+    # this is per iron condor
     round_down_to_nearest((open_price * 100 - open_fees - open_commissions) * exit_prof_thresh / 100.0)
   end
 
@@ -255,22 +346,29 @@ class Trade
   def to_h
     {
       id: id,
-      init_strategy: init_strategy,
-      expiration_date: expiration_date,
+      status: status,
       exit_prof_thresh: exit_prof_thresh,
       exit_loss_thresh: exit_loss_thresh,
-      contracts: contracts,
-      status: status,
-      call_spread: call_spread.to_h,
-      put_spread: put_spread.to_h,
       price_increment: price_increment,
-      trade_history: trade_history.map(&:to_h),
-      call_positions: @call_positions,
-      put_positions: @put_positions
+      init_strategy: init_strategy.to_h,
+      trade_history: trade_history.map(&:to_h)
     }
   end
 
   private
+
+  def null_strategy
+    NullStrategy.new
+  end
+
+  def new_vertical_spread(quantity, short_leg_symbol, long_leg_symbol, contract_type)
+    VerticalSpread.new(
+      quantity: quantity,
+      short_leg: OptionLeg.new(symbol: short_leg_symbol, contract_type: contract_type),
+      long_leg: OptionLeg.new(symbol: long_leg_symbol, contract_type: contract_type),
+      contract_type: contract_type,
+    )
+  end
 
   def trades_file_manager
     TradesFileManager.instance
