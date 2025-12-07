@@ -1,6 +1,5 @@
 require_relative 'data_objects'
 require_relative 'util'
-require_relative 'iron_condor_trade'
 
 class IronCondorRoller
   def initialize(
@@ -128,13 +127,13 @@ class IronCondorRoller
     end
 
     short_leg = opts.find { |opt| opt.strike == short_strike }.then do |opt|
-      build_leg(opt.symbol, opt.strike, opt.mark, opt.delta, contract_type, opt.expiration_date)
+      new_leg(opt.symbol, opt.strike, opt.mark, opt.delta, contract_type)
     end
     long_leg = opts.find { |opt| opt.strike == long_strike }.then do |opt|
-      build_leg(opt.symbol, opt.strike, opt.mark, opt.delta, contract_type, opt.expiration_date)
+      new_leg(opt.symbol, opt.strike, opt.mark, opt.delta, contract_type)
     end
 
-    VerticalSpread.new(short_leg, long_leg, contract_type)
+    new_spread(short_leg, long_leg, contract_type, expiration_date)
   end
 
   def options_chain
@@ -155,14 +154,22 @@ class IronCondorRoller
     )
   end
 
-  def build_leg(symbol, strike, mark, delta, contract_type, expiration_date)
+  def new_spread(short_leg, long_leg, contract_type, expiration_date)
+    VerticalSpread.new(
+      short_leg: short_leg,
+      long_leg: long_leg,
+      contract_type: contract_type,
+      expiration_date: expiration_date
+    )
+  end
+
+  def new_leg(symbol, strike, mark, delta, contract_type)
     OptionLeg.new(
-      symbol,
-      strike,
-      mark,
-      delta,
-      contract_type,
-      expiration_date
+      symbol: symbol,
+      contract_type: contract_type,
+      strike: strike,
+      mark: mark,
+      delta: delta
     )
   end
 end
