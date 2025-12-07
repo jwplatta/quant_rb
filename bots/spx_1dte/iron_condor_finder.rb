@@ -1,6 +1,6 @@
 require_relative 'data_objects'
 require_relative 'util'
-require_relative 'iron_condor_trade'
+require_relative 'trade'
 
 class IronCondorFinder
   def initialize(
@@ -8,7 +8,6 @@ class IronCondorFinder
     markets,
     option_root: nil,
     spread_width: 10,
-    max_search_attempts: 3,
     max_credit: 1.5,
     max_put_delta: 0.1,
     min_put_delta: 0.03,
@@ -20,8 +19,7 @@ class IronCondorFinder
     delta_ratio: 0.7,
     contracts: 1,
     price_increment: 0.05,
-    exit_prof_thresh: 0.5,
-    exit_loss_thresh: 0.8,
+    max_search_attempts: 3,
     max_tweak_attempts: 100,
     logger: nil
   )
@@ -44,8 +42,6 @@ class IronCondorFinder
     @search_attempts = 0
     @contracts = contracts
     @price_increment = price_increment
-    @exit_prof_thresh = exit_prof_thresh
-    @exit_loss_thresh = exit_loss_thresh
     @expiration_date = nil
     @logger = logger
   end
@@ -59,7 +55,6 @@ class IronCondorFinder
     :max_total_delta,
     :max_tweak_attempts,
     :contracts, :price_increment,
-    :exit_prof_thresh, :exit_loss_thresh,
     :logger
 
   def search(expiration_date: nil)
@@ -140,15 +135,14 @@ class IronCondorFinder
       total_credit = (call_spread.credit + put_spread.credit).round(2)
       logger.info "FinalStrategy(tweaks=#{tweak_attempts}) Underlying=#{options_chain.underlying_price} Straddle=#{straddle_price} CALL=#{call_spread.short_leg.strike}/#{call_spread.long_leg.strike} credit=#{call_spread.credit} delta=#{call_spread.delta} | PUT=#{put_spread.short_leg.strike}/#{put_spread.long_leg.strike} credit=#{put_spread.credit} delta=#{put_spread.delta} | TOTAL=#{total_credit} TRADE_PRICE=#{round_down_to_nearest(total_credit, @price_increment)}"
 
-      IronCondorTrade.new(
+
+      IronCondor.new(
         put_spread: put_spread,
         call_spread: call_spread,
         expiration_date: @expiration_date,
-        open_price: round_down_to_nearest(total_credit, @price_increment),
+        price: round_down_to_nearest(total_credit, @price_increment),
         contracts: @contracts,
         price_increment: @price_increment,
-        exit_prof_thresh: @exit_prof_thresh,
-        exit_loss_thresh: @exit_loss_thresh
       )
     elsif @search_attempts <= @max_search_attempts
       logger.info "Could not find valid strategy. Try again in 5 seconds."
