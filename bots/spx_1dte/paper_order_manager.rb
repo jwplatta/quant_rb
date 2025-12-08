@@ -28,6 +28,17 @@ class PaperOrderManager
 
   attr_reader :schwab_orders, :fill_wait_time, :check_fill_count, :logger
 
+  def send_close_order(strategy, **kwargs)
+    case strategy.class.name
+    when 'IronCondor'
+      close_iron_condor(strategy, **kwargs)
+    when 'VerticalSpread'
+      close_spread(strategy, **kwargs)
+    else
+      raise "Unsupported strategy type for close_order: #{strategy.class.name}"
+    end
+  end
+
   def open_iron_condor(strategy, **kwargs)
     order_args = open_iron_condor_args(strategy)
     send_order(order_args)
