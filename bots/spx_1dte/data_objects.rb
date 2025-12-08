@@ -32,11 +32,36 @@ end
 ### STRATEGY DATA OBJECTS ###
 #############################
 
+class NullStrategy
+  def quantity
+    0
+  end
+
+  def expiration_date
+    nil
+  end
+
+  def price
+    0.0
+  end
+
+  def price_increment
+    0.0
+  end
+
+  def nil?
+    true
+  end
+
+  def to_h
+    { type: 'NULL_STRATEGY' }
+  end
+end
+
 class StrategyBase
-  def initialize(quantity: nil, expiration_date: nil, price: nil, price_increment: 0.05)
+  def initialize(quantity: nil, expiration_date: nil, price_increment: 0.05)
     @quantity = quantity
     @expiration_date = expiration_date
-    @price = price
     @price_increment = price_increment
   end
 
@@ -46,7 +71,6 @@ class StrategyBase
     {
       quantity: quantity,
       expiration_date: expiration_date,
-      price: price,
       price_increment: price_increment
     }
   end
@@ -62,7 +86,7 @@ class IronCondor < StrategyBase
   attr_reader :put_spread, :call_spread
 
   def price
-    put_spread.credit + call_spread.credit
+    put_spread.price + call_spread.price
   end
 
   def price_rounded_down_by_increment
@@ -139,9 +163,9 @@ class OptionLeg < StrategyBase
   def initialize(
     symbol:,
     contract_type:,
-    strike:,
-    mark:,
-    delta:,
+    strike: nil,
+    mark: nil,
+    delta: nil,
     gamma: nil,
     theta: nil,
     vega: nil,
