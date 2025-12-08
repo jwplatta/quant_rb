@@ -113,18 +113,6 @@ class Trade
     !open_call_spread.nil? || !open_put_spread.nil?
   end
 
-  def open_call_spread?
-    !open_call_spread.nil?
-  end
-
-  def open_put_spread?
-    !open_put_spread.nil?
-  end
-
-  def open_iron_condor?
-    !open_call_spread.nil? && !open_put_spread.nil?
-  end
-
   def open_iron_condor
     call_spread = open_call_spread
     put_spread = open_put_spread
