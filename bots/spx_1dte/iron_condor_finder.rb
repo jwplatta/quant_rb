@@ -1,6 +1,4 @@
 require_relative 'data_objects'
-require_relative 'util'
-require_relative 'iron_condor_trade'
 
 class IronCondorFinder
   def initialize(
@@ -8,7 +6,6 @@ class IronCondorFinder
     markets,
     option_root: nil,
     spread_width: 10,
-    max_search_attempts: 3,
     max_credit: 1.5,
     max_put_delta: 0.1,
     min_put_delta: 0.03,
@@ -20,8 +17,7 @@ class IronCondorFinder
     delta_ratio: 0.7,
     contracts: 1,
     price_increment: 0.05,
-    exit_prof_thresh: 0.5,
-    exit_loss_thresh: 0.8,
+    max_search_attempts: 3,
     max_tweak_attempts: 100,
     logger: nil
   )
@@ -44,8 +40,6 @@ class IronCondorFinder
     @search_attempts = 0
     @contracts = contracts
     @price_increment = price_increment
-    @exit_prof_thresh = exit_prof_thresh
-    @exit_loss_thresh = exit_loss_thresh
     @expiration_date = nil
     @logger = logger
   end
@@ -59,7 +53,6 @@ class IronCondorFinder
     :max_total_delta,
     :max_tweak_attempts,
     :contracts, :price_increment,
-    :exit_prof_thresh, :exit_loss_thresh,
     :logger
 
   def search(expiration_date: nil)
@@ -138,18 +131,17 @@ class IronCondorFinder
 
     if valid_strategy_found
       total_credit = (call_spread.credit + put_spread.credit).round(2)
-      logger.info "FinalStrategy(tweaks=#{tweak_attempts}) Underlying=#{options_chain.underlying_price} Straddle=#{straddle_price} CALL=#{call_spread.short_leg.strike}/#{call_spread.long_leg.strike} credit=#{call_spread.credit} delta=#{call_spread.delta} | PUT=#{put_spread.short_leg.strike}/#{put_spread.long_leg.strike} credit=#{put_spread.credit} delta=#{put_spread.delta} | TOTAL=#{total_credit} TRADE_PRICE=#{round_down_to_nearest(total_credit, @price_increment)}"
-
-      IronCondorTrade.new(
+      iron_condor = IronCondor.new(
         put_spread: put_spread,
         call_spread: call_spread,
         expiration_date: @expiration_date,
-        open_price: round_down_to_nearest(total_credit, @price_increment),
         contracts: @contracts,
         price_increment: @price_increment,
-        exit_prof_thresh: @exit_prof_thresh,
-        exit_loss_thresh: @exit_loss_thresh
       )
+
+      logger.info "FinalStrategy(tweaks=#{tweak_attempts}) Underlying=#{options_chain.underlying_price} Straddle=#{straddle_price} CALL=#{iron_condor.call_spread.short_leg.strike}/#{iron_condor.call_spread.long_leg.strike} credit=#{iron_condor.call_spread.price} delta=#{iron_condor.call_spread.delta} | PUT=#{iron_condor.put_spread.short_leg.strike}/#{iron_condor.put_spread.long_leg.strike} credit=#{iron_condor.put_spread.price} delta=#{iron_condor.put_spread.delta} | TOTAL=#{iron_condor.price} TRADE_PRICE=#{iron_condor.price_rounded_down_by_increment}"
+
+      iron_condor
     elsif @search_attempts <= @max_search_attempts
       logger.info "Could not find valid strategy. Try again in 5 seconds."
       @search_attempts += 1
@@ -194,22 +186,22 @@ class IronCondorFinder
     safe_put_strike = two_sig_strike('PUT')
 
     call_short_leg = options_chain.call_opts.find { |opt| opt.strike == safe_call_strike }.then do |opt|
-      new_option_leg(opt.symbol, opt.strike, opt.mark, opt.delta, 'CALL', opt.expiration_date)
+      new_option_leg(opt.symbol, opt.strike, opt.mark, opt.delta, 'CALL')
     end
     call_long_leg = options_chain.call_opts.find { |opt| opt.strike == safe_call_strike + @spread_width }.then do |opt|
-      new_option_leg(opt.symbol, opt.strike, opt.mark, opt.delta, 'CALL', opt.expiration_date)
+      new_option_leg(opt.symbol, opt.strike, opt.mark, opt.delta, 'CALL')
     end
 
-    call_spread = VerticalSpread.new(call_short_leg, call_long_leg, 'CALL')
+    call_spread = new_spread(call_short_leg, call_long_leg, 'CALL')
 
     put_short_leg = options_chain.put_opts.find { |opt| opt.strike == safe_put_strike }.then do |opt|
-      new_option_leg(opt.symbol, opt.strike, opt.mark, opt.delta, 'PUT', opt.expiration_date)
+      new_option_leg(opt.symbol, opt.strike, opt.mark, opt.delta, 'PUT')
     end
     put_long_leg = options_chain.put_opts.find { |opt| opt.strike == safe_put_strike - @spread_width }.then do |opt|
-      new_option_leg(opt.symbol, opt.strike, opt.mark, opt.delta, 'PUT', opt.expiration_date)
+      new_option_leg(opt.symbol, opt.strike, opt.mark, opt.delta, 'PUT')
     end
 
-    put_spread = VerticalSpread.new(put_short_leg, put_long_leg, 'PUT')
+    put_spread = new_spread(put_short_leg, put_long_leg, 'PUT')
 
     [call_spread, put_spread]
   end
@@ -261,13 +253,13 @@ class IronCondorFinder
             end
 
     short_leg = opts.find { |opt| opt.strike == short_strike }.then do |opt|
-      new_option_leg(opt.symbol, opt.strike, opt.mark, opt.delta, contract_type, opt.expiration_date)
+      new_option_leg(opt.symbol, opt.strike, opt.mark, opt.delta, contract_type)
     end
     long_leg = opts.find { |opt| opt.strike == long_strike }.then do |opt|
-      new_option_leg(opt.symbol, opt.strike, opt.mark, opt.delta, contract_type, opt.expiration_date)
+      new_option_leg(opt.symbol, opt.strike, opt.mark, opt.delta, contract_type)
     end
 
-    VerticalSpread.new(short_leg, long_leg, contract_type)
+    new_spread(short_leg, long_leg, contract_type)
   end
 
   def two_sig_strike(contract_type)
@@ -291,14 +283,21 @@ class IronCondorFinder
     @straddle_price = (call_atm.mark + put_atm.mark).round
   end
 
-  def new_option_leg(symbol, strike, mark, delta, contract_type, expiration_date)
+  def new_spread(short_leg, long_leg, contract_type)
+    VerticalSpread.new(
+      short_leg: short_leg,
+      long_leg: long_leg,
+      contract_type: contract_type
+    )
+  end
+
+  def new_option_leg(symbol, strike, mark, delta, contract_type)
     OptionLeg.new(
-      symbol,
-      strike,
-      mark,
-      delta,
-      contract_type,
-      expiration_date
+      symbol: symbol,
+      contract_type: contract_type,
+      strike: strike,
+      mark: mark,
+      delta: delta
     )
   end
 end

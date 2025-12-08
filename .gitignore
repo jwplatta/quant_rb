@@ -20,3 +20,4 @@ pkg
 *.log
 /logs
 /trades
+!/bots/spec/fixtures/trades.json
