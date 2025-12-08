@@ -2,7 +2,7 @@
 
 require 'spec_helper'
 require_relative '../../spx_1dte/trade_state_machine'
-require_relative '../../spx_1dte/iron_condor_trade'
+require_relative '../../spx_1dte/trade'
 require_relative '../../spx_1dte/data_objects'
 
 RSpec.describe TradeStateMachine do
@@ -75,21 +75,21 @@ RSpec.describe TradeStateMachine do
     expiration_date: Date.today + 1,
     open_price: 2.0,
     contracts: 1,
-    status: IronCondorTrade::OPEN_STATUS
+    status: Trade::OPEN_STATUS
   )
     put_spread = mock_vertical_spread(short_strike: 5900, long_strike: 5895)
     call_spread = mock_vertical_spread(short_strike: 6000, long_strike: 6005, contract_type: 'CALL')
 
     instance_double(
-      'IronCondorTrade',
+      'Trade',
       put_spread: put_spread,
       call_spread: call_spread,
       expiration_date: expiration_date,
       open_price: open_price,
       contracts: contracts,
       status: status,
-      open?: status == IronCondorTrade::OPEN_STATUS,
-      closed?: status == IronCondorTrade::CLOSED_STATUS,
+      open?: status == Trade::OPEN_STATUS,
+      closed?: status == Trade::CLOSED_STATUS,
       max_loss_price: open_price * 3.0,
       close: nil
     )
