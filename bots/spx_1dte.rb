@@ -66,10 +66,8 @@ trade_finder = IronCondorFinder.new(
   min_credit: bot_config.min_credit,
   min_credit_balance_ratio: bot_config.min_credit_balance_ratio,
   delta_ratio: bot_config.delta_ratio,
-  contracts: bot_config.contracts,
+  quantity: bot_config.quantity,
   price_increment: bot_config.price_increment,
-  exit_prof_thresh: bot_config.exit_prof_thresh,
-  exit_loss_thresh: bot_config.exit_loss_thresh,
   logger: bot_logger
 )
 
@@ -77,7 +75,7 @@ trade_roller = IronCondorRoller.new(
   underlying_symbol: bot_config.underlying_symbol,
   option_root: bot_config.option_root,
   spread_width: bot_config.spread_width,
-  contracts: bot_config.contracts,
+  quantity: bot_config.quantity,
   max_delta: bot_config.green_delta,
   est_fees: bot_config.est_fees_per_contract,
   est_commissions: bot_config.est_commission_per_contract,
@@ -88,13 +86,15 @@ trade_roller = IronCondorRoller.new(
   logger: bot_logger
 )
 
+strategy_pricer = StrategyPricer.new(schwab_markets, logger)
+
 trade_state_machine = TradeStateMachine.new(
-  schwab_markets,
+  strategy_pricer,
   order_manager,
   trade_roller: trade_roller,
   logger: bot_logger,
-  exit_prof_thresh: bot_config.exit_prof_thresh,
-  exit_loss_thresh: bot_config.exit_loss_thresh,
+  exit_prof_price: bot_config.exit_prof_price,
+  exit_loss_mult: bot_config.exit_loss_mult,
   est_fees_per_contract: bot_config.est_fees_per_contract,
   est_commission_per_contract: bot_config.est_commission_per_contract,
   price_increment: bot_config.price_increment,

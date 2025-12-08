@@ -2,7 +2,7 @@
 
 require 'date'
 require 'time'
-require_relative './iron_condor_trade'
+require_relative './trade'
 require_relative 'util'
 
 class SPX1DTEBot
@@ -39,8 +39,9 @@ class SPX1DTEBot
         # NOTE: we want to check the expiration date after finding the next next trading day
         # because we do not want to trade over high risk dates by skipping to the next expiration date.
         if low_risk_date?(next_exp_date)
-          new_trade = trade_finder.search(expiration_date: next_exp_date)
-          send_order(new_trade) if new_trade.status == 'NEW'
+          trade_finder.search(expiration_date: next_exp_date).then do |strategy|
+            send_order(strategy)
+          end
         else
           sleep_interval = seconds_until_trade_window_start(Date.today + 1)
           log "Skip trade. Next expiration date #{next_exp_date} is not safe. Sleep #{sleep_interval / 60} minutes."
@@ -59,7 +60,7 @@ class SPX1DTEBot
   end
 
   def open_trade
-    IronCondorTrade.open_trade
+    Trade.open_trade
   end
 
   def manage_trade(trade)
@@ -79,7 +80,6 @@ class SPX1DTEBot
     if start_time >= now
       0
     else
-      start_time += 86_400
       (start_time - now).to_i
     end
   end
@@ -148,20 +148,19 @@ class SPX1DTEBot
     curr_time >= trade_window_start && curr_time <= trade_window_end
   end
 
-  def send_order(trade)
-    logger.info "Sending open order for trade #{trade.id}"
-
-    order = order_manager.open_iron_condor(trade)
+  def send_order(strategy)
+    order = order_manager.open_iron_condor(strategy)
 
     if order.status == 'REJECTED'
-      # TODO: if the error can be handled, then try to handle it in the code and send the order again.
+      # REVIEW: if the error can be handled, then try to handle it in the code and send the order again.
       # Otherwise pause and try to find a new trade.
-      raise "Open order was rejected!"
+      raise "Open order was rejected."
     elsif order.status == 'WORKING'
       while order.status == 'WORKING'
         order = order_manager.check_order_status(order.id)
         if order.status == 'FILLED'
-          trade.open(**order.details)
+          @trade = new_trade(strategy, config.exit_loss_threshold, config.exit_profit_threshold)
+          trade.save_event("OPEN_IRON_CONDOR", **order.details)
           logger.info "Order filled for trade #{trade.id}"
         end
 
@@ -171,5 +170,18 @@ class SPX1DTEBot
     else
       raise "Unexpected order status: #{order.status}"
     end
+  end
+
+  def new_trade(strategy, exit_loss_thresh, exit_prof_thresh)
+    Trade.new(
+      init_strategy: strategy,
+      expiration_date: strategy.expiration_date,
+      quantity: strategy.quantity,
+      price_increment: strategy.price_increment,
+      exit_loss_thresh: exit_loss_thresh,
+      exit_prof_thresh: exit_prof_thresh,
+      status: Trade::NEW_STATUS,
+      trade_history: []
+    )
   end
 end

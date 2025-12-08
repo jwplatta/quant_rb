@@ -3,9 +3,8 @@ require_relative 'iron_condor_roller'
 
 # REVIEW: create a TradeState class to encapsulate the state of a trade?
 # class TradeState
-#   def initialize(trade, markets, logger)
+#   def initialize(trade, logger)
 #     @trade = trade
-#     @markets = markets
 #     @logger = logger
 
 #     @new_call_spread = nil
@@ -14,7 +13,7 @@ require_relative 'iron_condor_roller'
 #     @new_put_spread_order = nil
 #     @close_order = nil
 
-#     @action = nil
+#     @last_action = nil
 
 #     @tested_window_start = 0
 #   end
@@ -24,23 +23,21 @@ require_relative 'iron_condor_roller'
 # end
 
 class TradeStateMachine
-  DEFAULT_SLEEP_INTERVAL = 30
-
-  CLOSE_TRADE = 'close'.freeze
+  OPEN_TRADE = 'open'.freeze
+  OPEN_IRON_CONDOR = 'open_iron_condor'.freeze
+  OPEN_PUT_SPREAD = 'open_put_spread'.freeze
+  OPEN_CALL_SPREAD = 'open_call_spread'.freeze
   CLOSE_IRON_CONDOR = 'close_iron_condor'.freeze
   CLOSE_PUT_SPREAD = 'close_put_spread'.freeze
   CLOSE_CALL_SPREAD = 'close_call_spread'.freeze
   CLOSE_FOR_PROFIT = 'close_for_profit'.freeze
   CLOSE_FOR_LOSS = 'close_for_loss'.freeze
-  PROCESS_CLOSE = 'process_close'.freeze
-  PROCESS_ADJUSTMENT = 'process_adjustment'.freeze
-  ADJUST_TRADE = 'adjust'.freeze
-  ADJUST_CALL_SIDE = 'adjust_call_side'.freeze
-  ADJUST_PUT_SIDE = 'adjust_put_side'.freeze
-  START_CALL_SIDE_TIMER = 'start_call_side_timer'.freeze
-  START_PUT_SIDE_TIMER = 'start_put_side_timer'.freeze
+  WAIT_FOR_CLOSE_IRON_CONDOR = 'wait_for_close_iron_condor'.freeze
+  WAIT_FOR_CLOSE_CALL_SPREAD = 'wait_for_close_call_spread'.freeze
+  WAIT_FOR_CLOSE_PUT_SPREAD = 'wait_for_close_put_spread'.freeze
   DO_NOTHING = 'do_nothing'.freeze
 
+  DEFAULT_WAIT = 30
   THIRTY_SECONDS = 30
   FIFTEEN_SECONDS = 15
   TEN_SECONDS = 10
@@ -75,6 +72,32 @@ class TradeStateMachine
     }
   }
 
+  EXIT_TREE = {
+    condition: :exit_profit?,
+    true: {
+      action: CLOSE_IRON_CONDOR
+    },
+    false: {
+      condition: :exit_loss?,
+      true: {
+        action: CLOSE_IRON_CONDOR
+      },
+      false: {
+        condition: :exit_call_spread?,
+        true: {
+          action: CLOSE_CALL_SPREAD
+        },
+        false: {
+          condition: :exit_put_spread?,
+          true: {
+            action: CLOSE_PUT_SPREAD
+          },
+          false: ADJUSTMENT_TREE
+        }
+      }
+    }
+  }
+
   TREE = {
     condition: :working_close_order?,
     true: {
@@ -85,27 +108,15 @@ class TradeStateMachine
       true: {
         action: PROCESS_ADJUSTMENT
       },
-      false: {
-        condition: :exit_profit?,
-        true: {
-          action: CLOSE_FOR_PROFIT
-        },
-        false: {
-          condition: :exit_loss?,
-          true: {
-            action: CLOSE_FOR_LOSS
-          },
-          false: ADJUSTMENT_TREE
-        }
-      }
+      false: EXIT_TREE
     }
   }
 
   def initialize(
-    markets,
+    strategy_pricer,
     order_manager,
-    exit_prof_thresh: 0.35,
-    exit_loss_thresh: 3.0,
+    exit_prof_price: 0.35,
+    exit_loss_mult: 3.0,
     est_fees_per_contract: 0.0,
     est_commission_per_contract: 0.0,
     yellow_zone_delta: 0.15,
@@ -117,19 +128,19 @@ class TradeStateMachine
     logger: nil
   )
     # DEPENDENCIES
-    @markets = markets
+    @strategy_pricer = strategy_pricer
     @order_manager = order_manager
 
     # CONFIGURATION
-    @exit_prof_thresh = exit_prof_thresh
-    @exit_loss_thresh = exit_loss_thresh
+    @exit_prof_price = exit_prof_price
+    @exit_loss_mult = exit_loss_mult
     @est_fees_per_contract = est_fees_per_contract
     @est_commission_per_contract = est_commission_per_contract
     @yellow_zone_delta = yellow_zone_delta
     @red_zone_delta = red_zone_delta
     @price_increment = price_increment
     @max_prof_checks = max_prof_checks
-    @sleep_interval = DEFAULT_SLEEP_INTERVAL
+    @sleep_interval = DEFAULT_WAIT
     @logger = logger
     @trade_roller = trade_roller
     @monitoring_window_start = nil
@@ -137,40 +148,25 @@ class TradeStateMachine
     @exit_by_time = nil
 
     # TRADE STATE
+    @last_action = nil
     @profit_checks = 0
     @trade = nil
     @close_order = nil
+    @working_order = nil
     @new_call_spread = nil
     @new_put_spread = nil
     @new_call_spread_order = nil
     @new_put_spread_order = nil
-    @action = nil
+    @last_action = nil
     @start_tested = 0
     @adjustment_wait_time = adjustment_wait_time # seconds
   end
 
-  attr_reader :markets, :order_manager,
-              :exit_prof_thresh, :exit_loss_thresh,
+  attr_reader :strategy_pricer, :order_manager,
+              :exit_prof_price, :exit_loss_mult,
               :yellow_zone_delta, :red_zone_delta, :adjustment_wait_time,
               :est_fees_per_contract, :est_commission_per_contract,
               :price_increment, :trade_roller, :action, :logger
-
-  def manage(trade)
-    raise "Monitoring window not set" unless @monitoring_window_start && @monitoring_window_end && @exit_by_time
-
-    @trade = trade
-    while trade.open?
-      return if outside_market_hours?
-
-      prices = get_current_spread_prices(@trade)
-
-      decide(TREE, @trade, prices).then do |action|
-        log_action(action, @trade, prices)
-        sleep_seconds = execute_action(action, @trade, prices)
-        wait_for(sleep_seconds)
-      end
-    end
-  end
 
   def set_monitoring_window(start_time, end_time, exit_by_time)
     @monitoring_window_start = start_time
@@ -178,40 +174,58 @@ class TradeStateMachine
     @exit_by_time = exit_by_time
   end
 
-  def decide(node, trade, prices)
-    return node if node[:action]
+  def manage(trade)
+    raise "Monitoring window not set" unless @monitoring_window_start && @monitoring_window_end && @exit_by_time
 
-    if send(node[:condition], trade, prices)
-      decide(node[:true], trade, prices)
-    else
-      decide(node[:false], trade, prices)
+    @trade = trade
+    while @trade.open?
+      return if outside_monitoring_window?
+
+      strategy = refresh_strategy_price(@trade.strategy)
+
+      decide(TREE, strategy).then do |action|
+        log_action(action, @trade, strategy)
+        sleep_seconds = execute_action(action, @trade, strategy)
+        wait_for(sleep_seconds)
+      end
     end
   end
 
-  def execute_action(action, trade, prices)
+  def decide(node, strategy)
+    return node if node[:action]
+
+    if send(node[:condition], strategy)
+      decide(node[:true], strategy)
+    else
+      decide(node[:false], strategy)
+    end
+  end
+
+  def execute_action(action, trade, strategy)
     # NOTE: each action needs to return integer for the sleep time
     case action[:action]
-    when PROCESS_CLOSE
-      handle_close_order(trade)
-    when PROCESS_ADJUSTMENT
-      handle_adjustment_order(trade)
+    when WAIT_FOR_CLOSE_IRON_CONDOR
+      @last_action = CLOSE_IRON_CONDOR
+      handle_close_order(trade, @last_action)
+    when WAIT_FOR_CLOSE_CALL_SPREAD
+      @last_action = CLOSE_CALL_SPREAD
+      handle_close_order(trade, @last_action)
+    when WAIT_FOR_CLOSE_PUT_SPREAD
+      @last_action = CLOSE_PUT_SPREAD
+      handle_close_order(trade, @last_action)
     when CLOSE_IRON_CONDOR
-      send_close_order(trade, prices)
-    when CLOSE_FOR_PROFIT
-      send_close_order(trade, prices)
-    when CLOSE_FOR_LOSS
-      send_close_order(trade, prices)
-    when ADJUST_CALL_SIDE
-      adjust_call_side(trade)
-    when ADJUST_PUT_SIDE
-      adjust_put_side(trade)
-    when START_CALL_SIDE_TIMER
-      start_tested_timer('CALL')
-    when START_PUT_SIDE_TIMER
-      start_tested_timer('PUT')
+      @last_action = CLOSE_IRON_CONDOR
+      close_iron_condor(trade, market_context)
+    when CLOSE_CALL_SPREAD
+      @last_action = CLOSE_CALL_SPREAD
+      close_call_spread(trade, market_context)
+    when CLOSE_PUT_SPREAD
+      @last_action = CLOSE_PUT_SPREAD
+      close_put_spread(trade, market_context)
     when DO_NOTHING
+      @last_action = DO_NOTHING
       @tested_timer = nil
-      DEFAULT_SLEEP_INTERVAL
+      DEFAULT_WAIT
     end
   end
 
@@ -219,93 +233,112 @@ class TradeStateMachine
   ### DECISION NODE HELPERS ###
   #############################
 
-  def working_close_order?(trade = nil, prices = nil)
-    !@close_order.nil?
+  def closing_iron_condor?
+    @last_action == CLOSE_IRON_CONDOR && !@working_order.nil?
   end
 
-  def working_adjustment_order?(trade = nil, prices = nil)
-    !@new_call_spread_order.nil? || !@new_put_spread_order.nil?
+  def closing_call_spread?
+    @last_action == CLOSE_CALL_SPREAD && !@working_order.nil?
   end
 
-  def exit?(trade, prices)
-    now = Time.now
-    today = now.to_date
-    current_price = prices[:curr_contract_price]
-    # does it meet the profit threshold?
-    # does it meet the exit loss threshold?
-    # are we approaching
+  def closing_put_spread?
+    @last_action == CLOSE_PUT_SPREAD && !@working_order.nil?
   end
 
-  def exit_put_spread?(trade, prices)
-  end
-
-  def exit_call_spread?(trade, prices)
-  end
-
-  def exit_profit?(trade, prices)
-    now = Time.now
-    today = now.to_date
-    current_price = prices[:curr_contract_price]
-
-    if today < trade.expiration_date
-      # NOTE: if day before expiration, then trade was just opened
-      false
-    elsif now >= market_open_time_today && now < @exit_by_time
-      current_price <= exit_prof_thresh
-    elsif now >= @exit_by_time
-      # NOTE: after exit hour threshold, be more aggressive about exiting
-      profitability(trade, current_price) >= 0.0
+  def exit_iron_condor?(strategy)
+    if strategy.is_a? IronCondor
+      strategy.price <= exit_prof_price
     else
       false
     end
   end
 
-  def exit_loss?(trade, prices)
-    now = Time.now
-    today = now.to_date
-    current_price = prices[:curr_contract_price]
-
-    if today < trade.expiration_date
-      # NOTE: if day before expiration, then trade was just opened
-      false
-    elsif now >= market_open_time_today && now < @exit_by_time
-      current_price >= exit_loss_thresh
-    # NOTE: think this condition just gets handled with the exit_profit
-    elsif now >= @exit_by_time
-      # NOTE: if the price isn't improving after an extended period of time, then just exit.
-      if profitability(trade, current_price) <= 0.0
-        @profit_checks += 1
-      else
-        @profit_checks = 0
-      end
-
-      @profit_checks >= @max_prof_checks
+  def exit_call_spread?(strategy)
+    if strategy.is_a? IronCondor
+      strategy.call_spread.price <= exit_prof_price * 0.5
+    elsif strategy.is_a? VerticalSpread && strategy.contract_type == 'CALL'
+      strategy.price <= exit_prof_price * 0.5
     else
       false
     end
   end
 
-  def call_side_tested?(trade, prices)
-    prices[:call_spread_delta] >= @yellow_zone_delta
+  def exit_put_spread?(strategy)
+    if strategy.is_a? IronCondor
+      strategy.put_spread.price <= exit_prof_price * 0.5
+    elsif strategy.is_a? VerticalSpread && strategy.contract_type == 'PUT'
+      strategy.price <= exit_prof_price * 0.5
+    else
+      false
+    end
   end
 
-  def put_side_tested?(trade, prices)
-    prices[:put_spread_delta] >= @yellow_zone_delta
+  def exit_loss?(strategy)
+    strategy.price >= exit_loss_mult * trade.open_price
   end
 
-  def adjust_call_side?(trade, prices)
-    return false unless @tested_timer && @tested_timer[:side] == 'CALL'
-    (Time.now - @tested_timer[:start_time]) >= @adjustment_wait_time
+  def exit_late_profitable?(strategy)
+    now = Time.now
+    now >= @exit_by_time && strategy.price >= 0.0
   end
 
-  def adjust_put_side?(trade, prices)
-    return false unless @tested_timer && @tested_timer[:side] == 'PUT'
-    (Time.now - @tested_timer[:start_time]) >= @adjustment_wait_time
+  def exit_late?(strategy)
+    now >= @exit_by_time + 3600
   end
 
   ###########################
   ### ACTION NODE HELPERS ###
   ###########################
+
+  def handle_close_order(trade, event_type = nil)
+    @working_order = order_manager.check_order_status(@working_order.id)
+
+    case @working_order.status
+    when 'FILLED'
+      trade.save_event(event_type, **@working_order.details)
+      @working_order = nil
+      @last_action = nil
+      NO_WAIT
+    when 'WORKING'
+      FIVE_SECONDS
+    when 'CANCELED'
+      @working_order = nil
+      @last_action = nil
+      NO_WAIT
+    else
+      raise "Unexpected close order status: #{@working_order.status}"
+    end
+  end
+
+  def close_iron_condor(strategy)
+    @working_order = order_manager.close_iron_condor(strategy)
+    unless @working_order.status == 'WORKING'
+      raise "Unexpected order status when closing trade: #{@working_order.status}"
+    else
+      @last_action = CLOSE_IRON_CONDOR
+      NO_WAIT
+    end
+  end
+
+  def close_put_spread(strategy)
+    @working_order = order_manager.close_spread(strategy)
+    unless @working_order.status == 'WORKING'
+      raise "Unexpected order status when closing spread: #{@working_order.status}"
+    else
+      @last_action = CLOSE_PUT_SPREAD
+      NO_WAIT
+    end
+  end
+
+  def close_call_spread(strategy)
+    @working_order = order_manager.close_spread(strategy)
+    unless @working_order.status == 'WORKING'
+      raise "Unexpected order status when closing spread: #{@working_order.status}"
+    else
+      @last_action = CLOSE_CALL_SPREAD
+      NO_WAIT
+    end
+  end
 
   def start_tested_timer(side)
     unless @tested_timer && @tested_timer[:side] == side
@@ -419,8 +452,8 @@ class TradeStateMachine
       @new_call_spread_order = order_manager.send_order(@new_call_spread_order.details)
       NO_WAIT
     elsif call_status == 'FILLED' &&  put_status == 'FILLED'
-      trade.adjust_call_spread(@new_call_spread, **@new_call_spread_order.details)
-      trade.adjust_put_spread(@new_put_spread, **@new_put_spread_order.details)
+      trade.save_event("ADJUST_CALL_SPREAD", **@new_call_spread_order.details)
+      trade.save_event("ADJUST_PUT_SPREAD", **@new_put_spread_order.details)
 
       @new_call_spread = nil
       @new_put_spread = nil
@@ -440,52 +473,40 @@ class TradeStateMachine
     end
   end
 
-  def handle_close_order(trade)
-    @close_order = order_manager.check_order_status(@close_order.id)
-
-    case @close_order.status
-    when 'FILLED'
-      trade.close(**@close_order.details)
-      @close_order = nil
-      NO_WAIT
-    when 'WORKING'
-      FIVE_SECONDS
-    when 'CANCELED'
-      @close_order = nil
-      NO_WAIT
-    else
-      raise "Unexpected close order status: #{@close_order.status}"
-    end
-  end
-
-  def send_close_order(trade, prices)
-    curr_contract_price = prices[:curr_contract_price]
-    @close_order = order_manager.close_iron_condor(trade, price: curr_contract_price)
-    unless @close_order.status == 'WORKING'
-      raise "Unexpected order status when closing trade: #{@close_order.status}"
-    else
-      NO_WAIT
-    end
-  end
+  ####################
+  ### UTIL METHODS ###
+  ####################
 
   def wait_for(seconds)
     sleep(seconds)
   end
 
-  def outside_market_hours?
+  def outside_monitoring_window?
     curr_time = Time.now
-    (curr_time.hour < 8 && curr_time.min < 25) || (curr_time.hour >= 15 && curr_time.min > 20)
+    curr_time < @monitoring_window_start || curr_time > @monitoring_window_end
   end
 
-  # REVIEW: delete?
-  # def trade_close_price(contract_price)
-  #   contract_price * trade.contracts * 100 - \
-  #     @est_fees_per_contract * trade.contracts - @est_commission_per_contract * trade.contracts
-  # end
-
-  def get_current_spread_prices(trade)
-    put_spread_price, put_spread_delta = check_spread(trade.put_spread.short_leg, trade.put_spread.long_leg)
-    call_spread_price, call_spread_delta = check_spread(trade.call_spread.short_leg, trade.call_spread.long_leg)
+  def update_strategy_price(strategy)
+    # NOTE: this should be something like "get current market conditions"
+    # It should get all the relevant data points - price, delta, gamma, open interest, etc.
+    # It should calculate any indicators like GEX
+    if strategy.is_a? IronCondor
+      put_spread_price, put_spread_delta = check_spread(strategy.put_spread.short_leg, strategy.put_spread.long_leg)
+      call_spread_price, call_spread_delta = check_spread(strategy.call_spread.short_leg, strategy.call_spread.long_leg)
+    elsif strategy.is_a? VerticalSpread && strategy.contract_type == 'PUT'
+      put_spread_price, put_spread_delta = check_spread(strategy.short_leg, strategy.long_leg)
+      call_spread_price = 0.0
+      call_spread_delta = 0.0
+    elsif strategy.is_a? VerticalSpread && strategy.contract_type == 'CALL'
+      call_spread_price, call_spread_delta = check_spread(strategy.short_leg, strategy.long_leg)
+      put_spread_price = 0.0
+      put_spread_delta = 0.0
+    else
+      put_spread_price = 0.0
+      put_spread_delta = 0.0
+      call_spread_price = 0.0
+      call_spread_delta = 0.0
+    end
 
     curr_contract_price = round_up_to_nearest(
       (call_spread_price + put_spread_price).round(2),
@@ -497,43 +518,24 @@ class TradeStateMachine
       put_spread_delta: put_spread_delta,
       call_spread_price: call_spread_price,
       call_spread_delta: call_spread_delta,
-      curr_contract_price: curr_contract_price
     }
   end
 
-  def check_spread(short_leg, long_leg)
-    short_leg_quote = markets.get_quote(short_leg.symbol)
-    long_leg_quote = markets.get_quote(long_leg.symbol)
-
-    [(short_leg_quote.mark - long_leg_quote.mark), short_leg_quote.delta.abs]
+  def refresh_strategy_price(strategy)
+    strategy_pricer.refresh(strategy)
   end
 
   def profitability(trade, current_price)
     (trade.open_price - current_price) / trade.open_price
   end
 
-  # REVIEW: delete?
-  # def profitable?(trade, current_price)
-  #   profitability(trade, current_price) > 0.0
-  # end
-
-  # def near_profitable?(trade, current_price)
-  #   profit_target_price = trade.open_price * exit_prof_thresh
-  #   current_price <= profit_target_price + 0.1
-  # end
-
-  def market_open_time_today
-    now = Time.now
-    Time.new(now.year, now.month, now.day, 8, 30, 0)
-  end
-
   ### LOGGING HELPERS ###
-  def log_action(action, trade, prices)
-    curr_contract_price = prices[:curr_contract_price]
-    call_spread_price = prices[:call_spread_price]
-    put_spread_price = prices[:put_spread_price]
-    call_spread_delta = prices[:call_spread_delta]
-    put_spread_delta = prices[:put_spread_delta]
+  def log_action(action, trade, market_context)
+    curr_contract_price = market_context[:curr_contract_price]
+    call_spread_price = market_context[:call_spread_price]
+    put_spread_price = market_context[:put_spread_price]
+    call_spread_delta = market_context[:call_spread_delta]
+    put_spread_delta = market_context[:put_spread_delta]
 
     @logger.info "Trade #{trade.id} Action: #{action}/" \
                  "#{trade_progress_msg(trade, curr_contract_price, call_spread_price, put_spread_price, call_spread_delta, put_spread_delta)}/" \
