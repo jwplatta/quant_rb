@@ -16,31 +16,26 @@ class Trade
 
   def initialize(
     id: nil,
-    init_strategy: nil,
     status: NEW_STATUS,
-    exit_prof_thresh: 0.5,
-    exit_loss_thresh: 3.0,
+    exit_prof_price: 0.5,
+    exit_loss_mult: 3.0,
     price_increment: 0.05,
     trade_history: []
   )
     @id = id || SecureRandom.uuid().delete('-')
-    @init_strategy = init_strategy
     @price_increment = price_increment
 
-    @exit_prof_thresh = exit_prof_thresh
-    @exit_loss_thresh = exit_loss_thresh
+    @exit_prof_price = exit_prof_price
+    @exit_loss_mult = exit_loss_mult
 
     @status = status
 
-    @call_positions = call_positions
-    @put_positions = put_positions
+    @current_positions = nil
     @trade_history = trade_history
   end
 
-  attr_reader :id, :init_strategy,
-    :open_price, :close_price,
-    :exit_prof_thresh, :exit_loss_thresh, :status,
-    :trade_history, :call_positions, :put_positions, :price_increment
+  attr_reader :id, :exit_prof_price, :exit_loss_mult, :status,
+    :trade_history, :price_increment
 
   def symbols
     positions = current_positions
@@ -68,6 +63,8 @@ class Trade
       e[:call_long_symbol] = order_dtls[:call_long_symbol] if order_dtls.key?(:call_long_symbol)
       e[:timestamp] = Time.now
     end
+    # REVIEW: should just update the positions when we save the event?
+    # Replaying the trade history could be slow for long lived trades.
     @current_positions = nil # NOTE: reset cached positions
 
     if @status == NEW_STATUS
@@ -269,22 +266,30 @@ class Trade
   ### TRADE VALUE METHODS ###
   ###########################
 
+  def open_event
+    @trade_history.min_by { |event| event[:timestamp] }
+  end
+
+  def last_event
+    @trade_history.max_by { |event| event[:timestamp] }
+  end
+
   def open_credit
     # NOTE: you cannot use the init_strategy.price because we
     # need the actualy fill price from the trade history
-    open_price * init_strategy.quantity * 100 - open_fees - open_commissions
+    open_price * open_event[:quantity] * 100 - open_fees - open_commissions
   end
 
   def open_price
-    @trade_history.min_by { |event| event[:timestamp] }[:price]
+    open_event[:price]
   end
 
   def open_fees
-    @trade_history.min_by { |event| event[:timestamp] }[:fees]
+    open_event[:fees]
   end
 
   def open_commissions
-    @trade_history.min_by { |event| event[:timestamp] }[:commissions]
+    open_event[:commissions]
   end
 
   def total_credit_debit
@@ -308,11 +313,11 @@ class Trade
   end
 
   def close_loss_price
-    open_price * exit_loss_thresh
+    open_price * exit_loss_mult
   end
 
   def max_loss_price
-    round_down_to_nearest(open_price * exit_loss_thresh)
+    round_down_to_nearest(open_price * exit_loss_mult)
   end
 
   def break_even_price
@@ -322,7 +327,7 @@ class Trade
 
   def target_profit_price
     # this is per iron condor
-    round_down_to_nearest((open_price * 100 - open_fees - open_commissions) * exit_prof_thresh / 100.0)
+    round_down_to_nearest((open_price * 100 - open_fees - open_commissions) * exit_prof_price / 100.0)
   end
 
   def round_up_to_nearest(value)
@@ -337,10 +342,10 @@ class Trade
     {
       id: id,
       status: status,
-      exit_prof_thresh: exit_prof_thresh,
-      exit_loss_thresh: exit_loss_thresh,
+      exit_prof_price: exit_prof_price,
+      exit_loss_mult: exit_loss_mult,
       price_increment: price_increment,
-      init_strategy: init_strategy.to_h,
+      strategy: strategy.to_h,
       trade_history: trade_history.map(&:to_h)
     }
   end

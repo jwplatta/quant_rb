@@ -3,6 +3,8 @@
 # Bot will not open new positions with an expiration on these dates
 # Format: YYYY-MM-DD
 
+trade_mode: "paper"  # Options: "paper", "live"
+
 trade:
   underlying_symbol: "$SPX"
   option_root: "SPXW"

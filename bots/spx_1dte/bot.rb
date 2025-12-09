@@ -159,7 +159,11 @@ class SPX1DTEBot
       while order.status == 'WORKING'
         order = order_manager.check_order_status(order.id)
         if order.status == 'FILLED'
-          @trade = new_trade(strategy, config.exit_loss_threshold, config.exit_profit_threshold)
+          @trade = new_trade(
+            strategy,
+            config.exit_loss_mult,
+            config.exit_prof_price
+          )
           trade.save_event("OPEN_IRON_CONDOR", **order.details)
           logger.info "Order filled for trade #{trade.id}"
         end
@@ -172,14 +176,12 @@ class SPX1DTEBot
     end
   end
 
-  def new_trade(strategy, exit_loss_thresh, exit_prof_thresh)
+  def new_trade(strategy, exit_loss_mult, exit_prof_price)
     Trade.new(
       init_strategy: strategy,
-      expiration_date: strategy.expiration_date,
-      quantity: strategy.quantity,
+      exit_loss_mult: exit_loss_mult,
+      exit_prof_price: exit_prof_price,
       price_increment: strategy.price_increment,
-      exit_loss_thresh: exit_loss_thresh,
-      exit_prof_thresh: exit_prof_thresh,
       status: Trade::NEW_STATUS,
       trade_history: []
     )
