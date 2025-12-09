@@ -9,6 +9,18 @@ class BotConfig
     init_trade_attrs
   end
 
+  def trade_mode
+    @config['trade_mode']
+  end
+
+  def paper?
+    trade_mode == 'paper'
+  end
+
+  def live?
+    trade_mode == 'live'
+  end
+
   def trading_allowed?(date = Date.today)
     !high_risk_date?(date)
   end
