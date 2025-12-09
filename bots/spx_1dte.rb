@@ -92,14 +92,9 @@ trade_state_machine = TradeStateMachine.new(
   strategy_pricer,
   order_manager,
   trade_roller: trade_roller,
-  logger: bot_logger,
-  exit_prof_price: bot_config.exit_prof_price,
-  exit_loss_mult: bot_config.exit_loss_mult,
-  est_fees_per_contract: bot_config.est_fees_per_contract,
-  est_commission_per_contract: bot_config.est_commission_per_contract,
-  price_increment: bot_config.price_increment,
   yellow_zone_delta: bot_config.yellow_delta,
-  red_zone_delta: bot_config.red_delta
+  red_zone_delta: bot_config.red_delta,
+  logger: bot_logger
 )
 
 bot = SPX1DTEBot.new(
