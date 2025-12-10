@@ -2,8 +2,9 @@
 
 require 'date'
 require 'time'
-require_relative './trade'
+require_relative 'trade'
 require_relative 'util'
+require_relative 'constants'
 
 class SPX1DTEBot
   def initialize(
@@ -30,9 +31,13 @@ class SPX1DTEBot
         trade_finder.search(expiration_date: Date.today + 1).then do |strategy|
           send_order(strategy)
         end
+      elsif inside_market_hours?(Date.today) && open_trade.nil?
+        sleep_interval = seconds_until_trade_window_start(Date.today)
+        log "No open trade. Waiting until trade window. Sleep #{sleep_interval / 60} minutes."
+        sleep(sleep_interval)
       else
         sleep_interval = seconds_until_market_open(Date.today + 1)
-        log "Waiting until next market open. Sleep #{sleep_interval / 60} minutes."
+        log "No open trade. Waiting until market open. Sleep #{sleep_interval / 60} minutes."
         sleep(sleep_interval)
       end
     end
@@ -69,6 +74,12 @@ class SPX1DTEBot
     config.low_risk_date?(date)
   end
 
+  def seconds_until_trade_window_start(date)
+    now = Time.now
+    trade_window_start_time = config.enter_trade_window_start_time(date)
+    (trade_window_start_time - now).to_i
+  end
+
   def seconds_until_market_open(date)
     now = Time.now
     market_open_time = config.monitoring_start_time(date)
@@ -96,20 +107,20 @@ class SPX1DTEBot
   def send_order(strategy)
     order = order_manager.open_iron_condor(strategy)
 
-    if order.status == 'REJECTED'
+    if order.status == OrderStatuses::REJECTED
       # REVIEW: if the error can be handled, then try to handle it in the code and send the order again.
       # Otherwise pause and try to find a new trade.
       raise "Open order was rejected."
-    elsif order.status == 'WORKING'
-      while order.status == 'WORKING'
+    elsif order.status == OrderStatuses::WORKING
+      while order.status == OrderStatuses::WORKING
         order = order_manager.check_order_status(order.id)
-        if order.status == 'FILLED'
+        if order.status == OrderStatuses::FILLED
           trade = new_trade(
-            strategy,
+            strategy.price_increment,
             config.exit_loss_mult,
             config.exit_prof_price
           )
-          trade.save_event("OPEN_IRON_CONDOR", **order.details)
+          trade.save_event(EventTypes::OPEN_IRON_CONDOR, **order.details)
           log "Order filled for trade #{trade.id}"
         end
 
@@ -121,12 +132,11 @@ class SPX1DTEBot
     end
   end
 
-  def new_trade(strategy, exit_loss_mult, exit_prof_price)
+  def new_trade(price_increment, exit_loss_mult, exit_prof_price)
     Trade.new(
       exit_loss_mult: exit_loss_mult,
       exit_prof_price: exit_prof_price,
-      price_increment: strategy.price_increment,
-      status: Trade::NEW_STATUS,
+      price_increment: price_increment,
       trade_history: []
     )
   end
