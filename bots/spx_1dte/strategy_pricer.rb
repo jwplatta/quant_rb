@@ -24,16 +24,23 @@ class StrategyPricer
   private
 
   def new_iron_condor(strategy)
-    short_call = markets.get_quote(strategy.call_spread.short_leg.symbol).then do |q|
+    quotes = markets.get_quotes([
+      strategy.call_spread.short_leg.symbol,
+      strategy.call_spread.long_leg.symbol,
+      strategy.put_spread.short_leg.symbol,
+      strategy.put_spread.long_leg.symbol
+    ])
+
+    short_call = quotes.find { |q| q.symbol == strategy.call_spread.short_leg.symbol }.then do |q|
       new_option_leg(q, 'CALL')
     end
-    long_call = markets.get_quote(strategy.call_spread.long_leg.symbol).then do |q|
+    long_call = quotes.find { |q| q.symbol == strategy.call_spread.long_leg.symbol }.then do |q|
       new_option_leg(q, 'CALL')
     end
-    short_put = markets.get_quote(strategy.put_spread.short_leg.symbol).then do |q|
+    short_put = quotes.find { |q| q.symbol == strategy.put_spread.short_leg.symbol }.then do |q|
       new_option_leg(q, 'PUT')
     end
-    long_put = markets.get_quote(strategy.put_spread.long_leg.symbol).then do |q|
+    long_put = quotes.find { |q| q.symbol == strategy.put_spread.long_leg.symbol }.then do |q|
       new_option_leg(q, 'PUT')
     end
 
@@ -62,8 +69,16 @@ class StrategyPricer
   end
 
   def new_vertical_spread(strategy)
-    short_leg_quote = markets.get_quote(strategy.short_leg.symbol)
-    long_leg_quote = markets.get_quote(strategy.long_leg.symbol)
+    quotes = markets.get_quotes([
+      strategy.short_leg.symbol,
+      strategy.long_leg.symbol
+    ])
+    short_leg_quote = quotes.find { |q| q.symbol == strategy.short_leg.symbol }.then do |q|
+      q
+    end
+    long_leg_quote = quotes.find { |q| q.symbol == strategy.long_leg.symbol }.then do |q|
+      q
+    end
 
     short_leg = new_option_leg(short_leg_quote, strategy.contract_type)
     long_leg = new_option_leg(long_leg_quote, strategy.contract_type)
@@ -89,9 +104,9 @@ class StrategyPricer
       theta: quote.theta,
       vega: quote.vega,
       rho: quote.rho,
-      volume: quote.volume,
+      volume: quote.total_volume,
       open_interest: quote.open_interest,
-      expiration_date: quote.expiration_date
+      expiration_date: Date.new(quote.expiration_year, quote.expiration_month, quote.expiration_day)
     )
   end
 end

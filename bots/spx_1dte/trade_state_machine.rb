@@ -1,21 +1,13 @@
 require_relative 'util'
 require_relative 'iron_condor_roller'
+require_relative 'constants'
 
 class TradeStateMachine
-  OPEN_TRADE = 'open'.freeze
-  OPEN_IRON_CONDOR = 'open_iron_condor'.freeze
-  OPEN_PUT_SPREAD = 'open_put_spread'.freeze
-  OPEN_CALL_SPREAD = 'open_call_spread'.freeze
-  CLOSE_IRON_CONDOR = 'close_iron_condor'.freeze
-  CLOSE_PUT_SPREAD = 'close_put_spread'.freeze
-  CLOSE_CALL_SPREAD = 'close_call_spread'.freeze
-  CLOSE_FOR_PROFIT = 'close_for_profit'.freeze
-  CLOSE_FOR_LOSS = 'close_for_loss'.freeze
-  WAIT_FOR_CLOSE_IRON_CONDOR = 'wait_for_close_iron_condor'.freeze
-  WAIT_FOR_CLOSE_CALL_SPREAD = 'wait_for_close_call_spread'.freeze
-  WAIT_FOR_CLOSE_PUT_SPREAD = 'wait_for_close_put_spread'.freeze
-  WAIT_FOR_WORKING_ORDER = 'wait_for_working_order'.freeze
-  DO_NOTHING = 'do_nothing'.freeze
+  WAIT_FOR_CLOSE_IRON_CONDOR = 'WAIT_FOR_CLOSE_IRON_CONDOR'.freeze
+  WAIT_FOR_CLOSE_CALL_SPREAD = 'WAIT_FOR_CLOSE_CALL_SPREAD'.freeze
+  WAIT_FOR_CLOSE_PUT_SPREAD = 'WAIT_FOR_CLOSE_PUT_SPREAD'.freeze
+  WAIT_FOR_WORKING_ORDER = 'WAIT_FOR_WORKING_ORDER'.freeze
+  DO_NOTHING = 'DO_NOTHING'.freeze
 
   DEFAULT_WAIT = 30
   THIRTY_SECONDS = 30
@@ -26,9 +18,9 @@ class TradeStateMachine
 
   DECISION_TABLE = [
     { priority: 1, condition: :working_order?, action: WAIT_FOR_WORKING_ORDER },
-    { priority: 2, condition: :exit_iron_condor?, action: CLOSE_IRON_CONDOR },
-    { priority: 3, condition: :exit_call_spread?, action: CLOSE_CALL_SPREAD },
-    { priority: 4, condition: :exit_put_spread?, action: CLOSE_PUT_SPREAD },
+    { priority: 2, condition: :exit_iron_condor?, action: EventTypes::CLOSE_IRON_CONDOR },
+    { priority: 3, condition: :exit_call_spread?, action: EventTypes::CLOSE_CALL_SPREAD },
+    { priority: 4, condition: :exit_put_spread?, action: EventTypes::CLOSE_PUT_SPREAD },
     { priority: 99, condition: :do_nothing, action: DO_NOTHING }
   ]
 
@@ -79,7 +71,7 @@ class TradeStateMachine
 
     @trade = trade
     while @trade.open?
-      return if outside_monitoring_window?
+      return unless inside_monitoring_window?
 
       current_strategy = refresh_strategy_price(@trade.strategy)
 
@@ -93,22 +85,20 @@ class TradeStateMachine
 
   def decide(trade, strategy)
     DECISION_TABLE.sort_by { |entry| entry[:priority] }.each do |entry|
-      if send(entry[:condition], trade, strategy)
-        entry[:action]
-      end
+      return entry[:action] if send(entry[:condition], trade, strategy)
     end
   end
 
   def execute_action(action, trade, strategy)
     # NOTE: each action needs to return integer for the sleep time
-    case action[:action]
+    case action
     when WAIT_FOR_WORKING_ORDER
       handle_close_order(trade, @last_action)
-    when CLOSE_IRON_CONDOR
+    when EventTypes::CLOSE_IRON_CONDOR
       close_iron_condor(strategy)
-    when CLOSE_CALL_SPREAD
+    when EventTypes::CLOSE_CALL_SPREAD
       close_call_spread(strategy)
-    when CLOSE_PUT_SPREAD
+    when EventTypes::CLOSE_PUT_SPREAD
       close_put_spread(strategy)
     when DO_NOTHING
       @last_action = DO_NOTHING
@@ -120,42 +110,46 @@ class TradeStateMachine
   ### DECISION NODE HELPERS ###
   #############################
 
-  def working_order?
-    [CLOSE_IRON_CONDOR, CLOSE_CALL_SPREAD, CLOSE_PUT_SPREAD].include?(@last_action)
+  def working_order?(_, _)
+    [
+      EventTypes::CLOSE_IRON_CONDOR,
+      EventTypes::CLOSE_CALL_SPREAD,
+      EventTypes::CLOSE_PUT_SPREAD
+    ].include?(@last_action)
   end
 
   def exit_iron_condor?(trade, strategy)
-    strategy.is_a? IronCondor && exit?(trade, strategy)
+    strategy.is_a?(IronCondor) && exit?(trade, strategy)
   end
 
-  def exit_call_spread?(_, strategy)
-    if strategy.is_a? IronCondor
-      exit?(strategy.call_spread)
-    elsif strategy.is_a? VerticalSpread && strategy.contract_type == 'CALL'
-      exit?(strategy)
+  def exit_call_spread?(trade, strategy)
+    if strategy.is_a?(IronCondor)
+      exit?(trade, strategy.call_spread)
+    elsif strategy.is_a?(VerticalSpread) && strategy.contract_type == 'CALL'
+      exit?(trade, strategy)
     else
       false
     end
   end
 
-  def exit_put_spread?(_, strategy)
-    if strategy.is_a? IronCondor
-      exit?(strategy.put_spread)
-    elsif strategy.is_a? VerticalSpread && strategy.contract_type == 'PUT'
-      exit?(strategy)
+  def exit_put_spread?(trade, strategy)
+    if strategy.is_a?(IronCondor)
+      exit?(trade, strategy.put_spread)
+    elsif strategy.is_a?(VerticalSpread) && strategy.contract_type == 'PUT'
+      exit?(trade, strategy)
     else
       false
     end
   end
 
   def exit?(trade, strategy)
-    exit_profit?(trade, strategy) || exit_loss?(trade, strategy) || exit_late_profitable?(strategy) || exit_late?(strategy)
+    exit_profit?(trade, strategy) || exit_loss?(trade, strategy) || exit_late_profitable?(trade, strategy) || exit_late?(strategy)
   end
 
   def exit_profit?(trade, strategy)
-    if strategy.is_a? IronCondor
+    if strategy.is_a?(IronCondor)
       strategy.price <= trade.exit_prof_price
-    elsif strategy.is_a? VerticalSpread
+    elsif strategy.is_a?(VerticalSpread)
       strategy.price <= trade.exit_prof_price * 0.5
     else
       false
@@ -166,31 +160,34 @@ class TradeStateMachine
     strategy.price >= trade.max_loss_price
   end
 
-  def exit_late_profitable?(strategy)
-    now = Time.now
-    now >= @exit_by_time && strategy.price >= 0.0
+  def exit_late_profitable?(trade, strategy)
+    Time.now >= @exit_by_time && strategy.price < trade.total_credit_debit
   end
 
   def exit_late?(strategy)
-    now >= @exit_by_time + 3600
+    Time.now >= @exit_by_time + 3600
   end
 
   ###########################
   ### ACTION NODE HELPERS ###
   ###########################
 
+  def do_nothing(_, _)
+    true
+  end
+
   def handle_close_order(trade, event_type = nil)
     @working_order = order_manager.check_order_status(@working_order.id)
 
     case @working_order.status
-    when 'FILLED'
+    when OrderStatuses::FILLED
       trade.save_event(@last_action, **@working_order.details)
       @working_order = nil
       @last_action = nil
       NO_WAIT
-    when 'WORKING'
+    when OrderStatuses::WORKING
       FIVE_SECONDS
-    when 'CANCELED'
+    when OrderStatuses::CANCELED
       @working_order = nil
       @last_action = nil
       NO_WAIT
@@ -200,48 +197,48 @@ class TradeStateMachine
   end
 
   def close_iron_condor(strategy)
-    raise "Must be an IronCondor strategy to close iron condor" unless strategy.is_a? IronCondor
+    raise "Must be an IronCondor strategy to close iron condor" unless strategy.is_a?(IronCondor)
 
     @working_order = order_manager.close_iron_condor(strategy)
-    unless @working_order.status == 'WORKING'
+    unless @working_order.status == OrderStatuses::WORKING
       raise "Unexpected order status when closing trade: #{@working_order.status}"
     else
-      @last_action = CLOSE_IRON_CONDOR
+      @last_action = EventTypes::CLOSE_IRON_CONDOR
       NO_WAIT
     end
   end
 
   def close_put_spread(strategy)
-    strat = if strategy.is_a? IronCondor
+    strat = if strategy.is_a?(IronCondor)
       strategy.put_spread
-    elsif strategy.is_a? VerticalSpread && strategy.contract_type == 'PUT'
+    elsif strategy.is_a?(VerticalSpread) && strategy.contract_type == StrategyTypes::PUT
       strategy
     else
       raise "Must be a put spread to close put spread"
     end
 
     close_spread(strat)
-    @last_action = CLOSE_PUT_SPREAD
+    @last_action = EventTypes::CLOSE_PUT_SPREAD
     NO_WAIT
   end
 
   def close_call_spread(strategy)
-    strat = if strategy.is_a? IronCondor
+    strat = if strategy.is_a?(IronCondor)
       strategy.call_spread
-    elsif strategy.is_a? VerticalSpread && strategy.contract_type == 'CALL'
+    elsif strategy.is_a?(VerticalSpread) && strategy.contract_type == StrategyTypes::CALL
       strategy
     else
       raise "Must be a call spread to close call spread"
     end
 
     close_spread(strat)
-    @last_action = CLOSE_CALL_SPREAD
+    @last_action = EventTypes::CLOSE_CALL_SPREAD
     NO_WAIT
   end
 
   def close_spread(strategy)
     @working_order = order_manager.close_spread(strategy)
-    raise "Unexpected order status when closing spread: #{@working_order.status}" unless @working_order.status == 'WORKING'
+    raise "Unexpected order status when closing spread: #{@working_order.status}" unless @working_order.status == OrderStatuses::WORKING
   end
 
   # REVIEW: adjustment logic
@@ -387,9 +384,9 @@ class TradeStateMachine
     sleep(seconds)
   end
 
-  def outside_monitoring_window?
+  def inside_monitoring_window?
     curr_time = Time.now
-    curr_time < @monitoring_window_start || curr_time > @monitoring_window_end
+    curr_time >= @monitoring_window_start && curr_time <= @monitoring_window_end
   end
 
   def refresh_strategy_price(strategy)
@@ -402,16 +399,16 @@ class TradeStateMachine
 
   def log_action(action, trade, strategy)
     @logger.info "Trade #{trade.id} / Action: #{action} / " \
-                 "#{trade_progress_msg(trade, strategy)}/" \
+                 "#{trade_progress_msg(strategy)}/" \
                  "#{strategy_risk_msg(strategy)}"
   end
 
   def strategy_risk_msg(strategy)
-    if strategy.is_a? IronCondor
+    if strategy.is_a?(IronCondor)
       risk_msg(strategy.call_spread.delta.abs, strategy.put_spread.delta.abs)
-    elsif strategy.is_a? VerticalSpread && strategy.contract_type == 'CALL'
+    elsif strategy.is_a?(VerticalSpread) && strategy.contract_type == StrategyTypes::CALL
       risk_msg(strategy.delta.abs, 0.0)
-    elsif strategy.is_a? VerticalSpread && strategy.contract_type == 'PUT'
+    elsif strategy.is_a?(VerticalSpread) && strategy.contract_type == StrategyTypes::PUT
       risk_msg(0.0, strategy.delta.abs)
     else
       risk_msg(0.0, 0.0)
@@ -419,16 +416,16 @@ class TradeStateMachine
   end
 
   def risk_msg(call_spread_delta, put_spread_delta)
-    "CallSpreadDelta: #{call_spread_delta}/PutSpreadDelta: #{put_spread_delta}/TotalDelta: #{(call_spread_delta + put_spread_delta).round(2)}"
+    "CallSpreadDelta: #{call_spread_delta.round(3)}/PutSpreadDelta: #{put_spread_delta.round(3)}/TotalDelta: #{(call_spread_delta + put_spread_delta).round(3)}"
   end
 
   def trade_progress_msg(strategy)
-    if strategy.is_a? IronCondor
-      "Strategy: #{strategy.class.name} / CallSpreadPrice: #{strategy.call_spread.price}/PutSpreadPrice: #{strategy.put_spread.price}/TotalPrice: #{strategy.price}"
-    elsif strategy.is_a? VerticalSpread && strategy.contract_type == 'CALL'
-      "Strategy: #{strategy.class.name} / CallSpreadPrice: #{strategy.price} / PutSpreadPrice: - / TotalPrice: #{strategy.price}"
-    elsif strategy.is_a? VerticalSpread && strategy.contract_type == 'PUT'
-      "Strategy: #{strategy.class.name} / CallSpreadPrice: - / PutSpreadPrice: #{strategy.price} / TotalPrice: #{strategy.price}"
+    if strategy.is_a?(IronCondor)
+      "Strategy: #{strategy.class.name} / CallSpreadPrice: #{strategy.call_spread.price.round(3)}/PutSpreadPrice: #{strategy.put_spread.price.round(3)}/TotalPrice: #{strategy.price.round(3)}"
+    elsif strategy.is_a?(VerticalSpread) && strategy.contract_type == StrategyTypes::CALL
+      "Strategy: #{strategy.class.name} / CallSpreadPrice: #{strategy.price.round(3)} / PutSpreadPrice: - / TotalPrice: #{strategy.price.round(3)}"
+    elsif strategy.is_a?(VerticalSpread) && strategy.contract_type == StrategyTypes::PUT
+      "Strategy: #{strategy.class.name} / CallSpreadPrice: - / PutSpreadPrice: #{strategy.price.round(3)} / TotalPrice: #{strategy.price.round(3)}"
     else
       "Strategy: - / CallSpreadPrice: - / PutSpreadPrice: - / TotalPrice: -"
     end
