@@ -275,8 +275,6 @@ class Trade
   end
 
   def open_credit
-    # NOTE: you cannot use the init_strategy.price because we
-    # need the actualy fill price from the trade history
     open_price * open_event[:quantity] * 100 - open_fees - open_commissions
   end
 
@@ -345,7 +343,6 @@ class Trade
       exit_prof_price: exit_prof_price,
       exit_loss_mult: exit_loss_mult,
       price_increment: price_increment,
-      strategy: strategy.to_h,
       trade_history: trade_history.map(&:to_h)
     }
   end

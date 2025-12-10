@@ -82,7 +82,7 @@ class StrategyPricer
     OptionLeg.new(
       symbol: quote.symbol,
       contract_type: contract_type,
-      strike: quote.strike,
+      strike: quote.strike_price,
       mark: quote.mark,
       delta: quote.delta,
       gamma: quote.gamma,
