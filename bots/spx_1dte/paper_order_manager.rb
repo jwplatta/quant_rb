@@ -1,20 +1,7 @@
 require 'securerandom'
 require 'schwab_rb'
-require_relative './data_objects'
-
-# NOTE: SchwabRb Order Statuses
-# ORDER_STATUSES = [
-#   "ACCEPTED",
-#   "PENDING_ACTIVATION",
-#   "QUEUED",
-#   "WORKING",
-#   "REJECTED",
-#   "PENDING_CANCEL",
-#   "CANCELED",
-#   "PENDING_REPLACE",
-#   "REPLACED",
-#   "FILLED"
-# ]
+require_relative 'data_objects'
+require_relative 'constants'
 
 class PaperOrderManager
   def initialize(schwab_orders, fill_wait_time: 20, est_fees: nil, est_commissions: nil, logger: nil)
@@ -85,14 +72,14 @@ class PaperOrderManager
     order_result = schwab_orders.preview_order(order_instruction: order_args[:order_instruction], **order_args)
     order_status = order_result.status
 
-    if order_status == 'ACCEPTED' || (order_status == 'REJECTED' && order_args[:order_instruction] == :close)
+    if order_status == OrderStatuses::ACCEPTED || (order_status == OrderStatuses::REJECTED && order_args[:order_instruction] == :close)
       @logger.info "Order preview ACCEPTED for #{order_args[:order_instruction]} order."
       # NOTE: schwab will reject these close orders because you don't have an existing trade in the account.
       #So just assume they get accepted.
       order = WorkingOrder.new(
         SecureRandom.uuid().delete('-'),
         order_result.order_id,
-        'WORKING',
+        OrderStatuses::WORKING,
         order_result, # REVIEW: convert to a hash or something that isn't an SchwabRb object
         order_args.merge({ schwab_order_id: order_result.order_id }),
         0,
@@ -107,7 +94,7 @@ class PaperOrderManager
       order = WorkingOrder.new(
         SecureRandom.uuid().delete('-'),
         order_result.order_id,
-        'WORKING',
+        OrderStatuses::WORKING,
         order_result,
         order_args.merge({ schwab_order_id: order_result.order_id }),
         0,
@@ -116,10 +103,17 @@ class PaperOrderManager
       )
       @working_orders << order
       order
-    elsif order_status == 'REJECTED' && order_args[:order_instruction] == :open
+    elsif order_status == OrderStatuses::REJECTED && order_args[:order_instruction] == :open
       @logger.info "Order preview REJECTED for #{order_args[:order_instruction]} order."
-      binding.pry
-      WorkingOrder.new(nil, order_result.order_id, 'REJECTED', order_result, order_args, 0, nil)
+      WorkingOrder.new(
+        nil,
+        order_result.order_id,
+        OrderStatuses::REJECTED,
+        order_result,
+        order_args,
+        0,
+        nil
+      )
     else
       raise "Unexpected order preview status: #{order_status}"
     end
@@ -129,7 +123,7 @@ class PaperOrderManager
     # NOTE: just assume the cancel succeeds right now
     order = @working_orders.find { |o| o.id == order_id }
     @working_orders = @working_orders.reject { |o| o.id == order_id }
-    order.status = 'CANCELED'
+    order.status = OrderStatuses::CANCELED
     order
   end
 
@@ -145,13 +139,13 @@ class PaperOrderManager
 
     order = @working_orders[idx]
 
-    if order.status == 'WORKING' && Time.now >= order.fill_time
+    if order.status == OrderStatuses::WORKING && Time.now >= order.fill_time
       # remove the entry from the array, update and return the same object
       @working_orders.delete_at(idx)
-      order.status = 'FILLED'
+      order.status = OrderStatuses::FILLED
       order.details = order.details.merge(order_result_details(order))
       order
-    elsif order.status == 'WORKING' && Time.now > order.sent_time + @fill_wait_time
+    elsif order.status == OrderStatuses::WORKING && Time.now > order.sent_time + @fill_wait_time
       # NOTE: cancel if it has been working too long
       cancel_order(order.id)
     else
