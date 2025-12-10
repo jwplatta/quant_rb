@@ -43,17 +43,17 @@ class BotConfig
 
   def monitoring_start_time(date = Date.today)
     window = monitoring_window(date)
-    to_local_time(window[:start_time], window[:timezone])
+    to_local_time(date, window[:start_time], window[:timezone])
   end
 
   def monitoring_end_time(date = Date.today)
     window = monitoring_window(date)
-    to_local_time(window[:end_time], window[:timezone])
+    to_local_time(date, window[:end_time], window[:timezone])
   end
 
   def exit_by_time(date = Date.today)
     window = monitoring_window(date)
-    to_local_time(window[:exit_by_time], window[:timezone])
+    to_local_time(date, window[:exit_by_time], window[:timezone])
   end
 
   def enter_trade_window(date = Date.today)
@@ -63,13 +63,13 @@ class BotConfig
   def enter_trade_window_start_time(date = Date.today)
     window = enter_trade_window(date)
     timezone = window[:timezone]
-    to_local_time(window[:start_time], timezone)
+    to_local_time(date, window[:start_time], timezone)
   end
 
   def enter_trade_window_end_time(date = Date.today)
     window = enter_trade_window(date)
     timezone = window[:timezone]
-    to_local_time(window[:end_time], timezone)
+    to_local_time(date, window[:end_time], timezone)
   end
 
   def low_risk_date?(date)
@@ -119,22 +119,17 @@ class BotConfig
     result
   end
 
-  def to_local_time(time, timezone_name = nil)
-    start_time = DateTime.strptime(time, '%I:%M %p')
+  def to_local_time(date, time, timezone_name = nil)
+    parsed_time = DateTime.strptime(time, '%I:%M %p')
+    hour = parsed_time.hour
+    min = parsed_time.min
+    sec = parsed_time.sec
 
     if timezone_name && !timezone_name.empty?
       timezone = TZInfo::Timezone.get(timezone_name)
-      timezone.local_time(
-        start_time.year, start_time.month,
-        start_time.day, start_time.hour,
-        start_time.min, start_time.second
-      )
+      timezone.local_time(date.year, date.month, date.day, hour, min, sec)
     else
-      Time.local(
-        start_time.year, start_time.month,
-        start_time.day, start_time.hour,
-        start_time.min, start_time.second
-      )
+      Time.local(date.year, date.month, date.day, hour, min, sec)
     end
   end
 end
