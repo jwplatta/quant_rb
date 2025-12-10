@@ -13,9 +13,9 @@ class IronCondorFinder
     min_call_delta: 0.03,
     max_total_delta: 0.15,
     min_credit: 1.05,
-    min_credit_balance_ratio: 0.8,
+    credit_balance_ratio: 0.8,
     delta_ratio: 0.7,
-    contracts: 1,
+    quantity: 1,
     price_increment: 0.05,
     max_search_attempts: 3,
     max_tweak_attempts: 100,
@@ -28,7 +28,7 @@ class IronCondorFinder
     @spread_width = spread_width
     @max_credit = max_credit
     @min_credit = min_credit
-    @min_credit_balance_ratio = min_credit_balance_ratio
+    @credit_balance_ratio = credit_balance_ratio
     @max_call_delta = max_call_delta
     @min_call_delta = min_call_delta
     @max_put_delta = max_put_delta
@@ -38,21 +38,21 @@ class IronCondorFinder
     @max_tweak_attempts = 100
     @max_search_attempts = max_search_attempts
     @search_attempts = 0
-    @contracts = contracts
+    @quantity = quantity
     @price_increment = price_increment
     @expiration_date = nil
     @logger = logger
   end
 
   attr_reader :underlying_symbol, :option_root, :markets,
-    :options_chain, :spread_width,
-    :min_credit_balance_ratio, :delta_ratio, :max_search_attempts,
+    :spread_width,
+    :credit_balance_ratio, :delta_ratio, :max_search_attempts,
     :max_credit, :min_credit,
     :max_call_delta, :min_call_delta,
     :max_put_delta, :min_put_delta,
     :max_total_delta,
     :max_tweak_attempts,
-    :contracts, :price_increment,
+    :quantity, :price_increment,
     :logger
 
   def search(expiration_date: nil)
@@ -69,28 +69,28 @@ class IronCondorFinder
       # What to check:
       # does the strategy meet min credit?
       # does the strategy have enough credit to reduce the risk?
-      # is the strategy credit lopsided?
+      # is the strategy price lopsided?
       # are the deltas on each side acceptable?
       tweak_attempts += 1
-      strategy_credit = call_spread.credit + put_spread.credit
+      strategy_price = call_spread.price + put_spread.price
 
       if tweak_attempts >= max_tweak_attempts
         logger.warn "Could not find valid strategy after #{tweak_attempts} attempts"
         break
-      elsif strategy_credit < min_credit
-        logger.info "Attempt ##{tweak_attempts}: Strategy credit low #{strategy_credit.round(2)} < #{min_credit}"
+      elsif strategy_price < min_credit
+        logger.info "Attempt ##{tweak_attempts}: Strategy credit low #{strategy_price.round(2)} < #{min_credit}"
 
-        if call_spread.credit < put_spread.credit
+        if call_spread.price < put_spread.price
           call_spread = move_spread_up(call_spread, 'CALL', 5)
-        elsif put_spread.credit < call_spread.credit
+        elsif put_spread.price < call_spread.price
           put_spread = move_spread_up(put_spread, 'PUT', 5)
         end
-      elsif strategy_credit > max_credit
-        logger.info "Attempt ##{tweak_attempts}: Strategy credit high #{strategy_credit.round(2)} > #{max_credit}"
+      elsif strategy_price > max_credit
+        logger.info "Attempt ##{tweak_attempts}: Strategy credit high #{strategy_price.round(2)} > #{max_credit}"
 
-        if call_spread.credit > put_spread.credit
+        if call_spread.price > put_spread.price
           call_spread = move_spread_away(call_spread, 'CALL', 5)
-        elsif put_spread.credit > call_spread.credit
+        elsif put_spread.price > call_spread.price
           put_spread = move_spread_away(put_spread, 'PUT', 5)
         end
       elsif call_spread.delta > max_call_delta
@@ -107,11 +107,11 @@ class IronCondorFinder
           put_spread = move_spread_away(put_spread, 'PUT', 5)
         end
       elsif !credit_balanced?(call_spread, put_spread)
-        logger.info "Attempt ##{tweak_attempts}: Strategy credit lopsided: #{call_spread.credit} < #{put_spread.credit}"
+        logger.info "Attempt ##{tweak_attempts}: Strategy credit lopsided: #{call_spread.price} < #{put_spread.price}"
 
-        if call_spread.credit < put_spread.credit
+        if call_spread.price < put_spread.price
           call_spread = move_spread_up(call_spread, 'CALL', 5)
-        elsif put_spread.credit < call_spread.credit
+        elsif put_spread.price < call_spread.price
           put_spread = move_spread_up(put_spread, 'PUT', 5)
         end
       elsif !delta_balanced?(call_spread.delta, put_spread.delta)
@@ -130,12 +130,11 @@ class IronCondorFinder
     end
 
     if valid_strategy_found
-      total_credit = (call_spread.credit + put_spread.credit).round(2)
       iron_condor = IronCondor.new(
         put_spread: put_spread,
         call_spread: call_spread,
         expiration_date: @expiration_date,
-        contracts: @contracts,
+        quantity: @quantity,
         price_increment: @price_increment,
       )
 
@@ -146,7 +145,7 @@ class IronCondorFinder
       logger.info "Could not find valid strategy. Try again in 5 seconds."
       @search_attempts += 1
       sleep(5)
-      search
+      search(expiration_date: @expiration_date)
     else
       # REVIEW: need to handle this gracefully. Right now forcing the bot to crash.
       raise "Could not find valid strategy after #{@search_attempts} attempts"
@@ -207,9 +206,9 @@ class IronCondorFinder
   end
 
   def credit_balanced?(call_spread, put_spread)
-    smaller_credit = [call_spread.credit, put_spread.credit].min
-    larger_credit = [call_spread.credit, put_spread.credit].max
-    smaller_credit / larger_credit >= @min_credit_balance_ratio
+    smaller_credit = [call_spread.price, put_spread.price].min
+    larger_credit = [call_spread.price, put_spread.price].max
+    smaller_credit / larger_credit >= @credit_balance_ratio
   end
 
   def delta_balanced?(call_delta, put_delta)

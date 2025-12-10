@@ -9,10 +9,10 @@ trade:
   underlying_symbol: "$SPX"
   option_root: "SPXW"
   spread_width: 20
-  min_credit: 1.2
-  max_credit: 1.4
+  min_credit: 1.25
+  max_credit: 1.45
   target_delta: 0.7
-  credit_balance_ratio: 0.5
+  credit_balance_ratio: 0.7
   delta_ratio: 0.8
   max_total_delta: 0.14
   max_call_delta: 0.07
@@ -59,13 +59,17 @@ high_risk_dates:
     event_type: "Unemployment"
     description: "Unemployment Report (First Friday)"
 
-  - date: "2025-12-10"
+  # - date: "2025-12-10"
+  #   event_type: "FOMC"
+  #   description: "FOMC Meeting / Fed Decision"
+
+  - date: "2025-12-16"
+    event_type: "Unemployment"
+    description: "Unemployment Report"
+
+  - date: "2025-12-18"
     event_type: "CPI"
     description: "CPI Report"
-
-  - date: "2025-12-10"
-    event_type: "FOMC"
-    description: "FOMC Meeting / Fed Decision"
 
 early_close_dates:
   - date: "2025-11-28"

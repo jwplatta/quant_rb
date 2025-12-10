@@ -67,6 +67,15 @@ class StrategyBase
 
   attr_reader :quantity, :expiration_date, :price, :price_increment
 
+  def price_rounded_up_by_increment
+    # NOTE: subclass must implement price method
+    ((price / price_increment).ceil * price_increment).round(2)
+  end
+
+  def price_rounded_down_by_increment
+    ((price / price_increment).floor * price_increment).round(2)
+  end
+
   def to_h(**kwargs)
     {
       quantity: quantity,
@@ -87,10 +96,6 @@ class IronCondor < StrategyBase
 
   def price
     put_spread.price + call_spread.price
-  end
-
-  def price_rounded_down_by_increment
-    ((price / price_increment).floor * price_increment).round(2)
   end
 
   def to_h

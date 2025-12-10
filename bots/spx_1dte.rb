@@ -10,7 +10,6 @@ require 'logger'
 
 require_relative '../lib/options_trader'
 require_relative './spx_1dte/data_objects'
-require_relative './spx_1dte/iron_condor_trade'
 require_relative './spx_1dte/trades_file_manager'
 require_relative './spx_1dte/paper_order_manager'
 require_relative './spx_1dte/iron_condor_finder'
@@ -18,6 +17,7 @@ require_relative './spx_1dte/iron_condor_roller'
 require_relative './spx_1dte/trade_state_machine'
 require_relative './spx_1dte/bot'
 require_relative './spx_1dte/bot_config'
+require_relative './spx_1dte/strategy_pricer'
 
 #####################
 ### CONFIGURATION ###
@@ -42,14 +42,9 @@ end
 bot_config = BotConfig.new('bots/config/spx_1dte.yml')
 
 TradesFileManager.setup(TRADES_FILE)
+
 schwab_markets = OptionsTrader::DataProviders::Schwab::Markets.new
-schwab_orders = OptionsTrader::DataProviders::Schwab::Orders.new(account_name: ACCOUNT_NAME)
-order_manager = PaperOrderManager.new(
-  schwab_orders,
-  est_fees: bot_config.est_fees_per_contract,
-  est_commissions: bot_config.est_commission_per_contract,
-  logger: bot_logger
-)
+
 trade_finder = IronCondorFinder.new(
   bot_config.underlying_symbol,
   schwab_markets,
@@ -64,34 +59,23 @@ trade_finder = IronCondorFinder.new(
   min_call_delta: bot_config.min_call_delta,
   max_total_delta: bot_config.max_total_delta,
   min_credit: bot_config.min_credit,
-  min_credit_balance_ratio: bot_config.min_credit_balance_ratio,
+  credit_balance_ratio: bot_config.credit_balance_ratio,
   delta_ratio: bot_config.delta_ratio,
   quantity: bot_config.quantity,
   price_increment: bot_config.price_increment,
   logger: bot_logger
 )
 
-trade_roller = IronCondorRoller.new(
-  underlying_symbol: bot_config.underlying_symbol,
-  option_root: bot_config.option_root,
-  spread_width: bot_config.spread_width,
-  quantity: bot_config.quantity,
-  max_delta: bot_config.green_delta,
+order_manager = PaperOrderManager.new(
+  OptionsTrader::DataProviders::Schwab::Orders.new(account_name: ACCOUNT_NAME),
   est_fees: bot_config.est_fees_per_contract,
   est_commissions: bot_config.est_commission_per_contract,
-  price_increment: bot_config.price_increment,
-  cost_coverage_perc: 1.0,
-  max_search_attempts: bot_config.max_search_attempts,
-  markets: schwab_markets,
   logger: bot_logger
 )
 
-strategy_pricer = StrategyPricer.new(schwab_markets, logger)
-
 trade_state_machine = TradeStateMachine.new(
-  strategy_pricer,
+  StrategyPricer.new(schwab_markets, bot_logger),
   order_manager,
-  trade_roller: trade_roller,
   yellow_zone_delta: bot_config.yellow_delta,
   red_zone_delta: bot_config.red_delta,
   logger: bot_logger

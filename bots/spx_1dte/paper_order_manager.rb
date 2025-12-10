@@ -28,17 +28,6 @@ class PaperOrderManager
 
   attr_reader :schwab_orders, :fill_wait_time, :check_fill_count, :logger
 
-  def send_close_order(strategy, **kwargs)
-    case strategy.class.name
-    when 'IronCondor'
-      close_iron_condor(strategy, **kwargs)
-    when 'VerticalSpread'
-      close_spread(strategy, **kwargs)
-    else
-      raise "Unsupported strategy type for close_order: #{strategy.class.name}"
-    end
-  end
-
   def open_iron_condor(strategy, **kwargs)
     order_args = open_iron_condor_args(strategy)
     send_order(order_args)
@@ -127,8 +116,9 @@ class PaperOrderManager
       )
       @working_orders << order
       order
-    elsif order_status == 'REJECTED' && order_instruction == :open
-      @logger.info "Order preview REJECTED for #{order_instruction} order."
+    elsif order_status == 'REJECTED' && order_args[:order_instruction] == :open
+      @logger.info "Order preview REJECTED for #{order_args[:order_instruction]} order."
+      binding.pry
       WorkingOrder.new(nil, order_result.order_id, 'REJECTED', order_result, order_args, 0, nil)
     else
       raise "Unexpected order preview status: #{order_status}"
@@ -215,7 +205,7 @@ class PaperOrderManager
       put_long_symbol: strategy.put_spread.long_leg.symbol,
       call_short_symbol: strategy.call_spread.short_leg.symbol,
       call_long_symbol: strategy.call_spread.long_leg.symbol,
-      price: strategy.price,
+      price: strategy.price_rounded_down_by_increment,
       duration: SchwabRb::Orders::Duration::DAY,
       quantity: strategy.quantity,
       strategy_type: SchwabRb::Order::ComplexOrderStrategyTypes::IRON_CONDOR
