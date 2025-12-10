@@ -1,4 +1,5 @@
 require_relative 'util'
+require_relative 'constants'
 
 ###########################
 ### ORDERS DATA OBJECTS ###
@@ -54,7 +55,7 @@ class NullStrategy
   end
 
   def to_h
-    { type: 'NULL_STRATEGY' }
+    { type: StrategyTypes::NULL_STRATEGY }
   end
 end
 
@@ -73,6 +74,7 @@ class StrategyBase
   end
 
   def price_rounded_down_by_increment
+    # NOTE: subclass must implement price method
     ((price / price_increment).floor * price_increment).round(2)
   end
 
@@ -101,7 +103,7 @@ class IronCondor < StrategyBase
   def to_h
     super.merge(
       {
-        type: 'IRON_CONDOR',
+        type: StrategyTypes::IRON_CONDOR,
         put_spread: put_spread.to_h(with_contract_dtls: false),
         call_spread: call_spread.to_h(with_contract_dtls: false)
       }
@@ -147,7 +149,7 @@ class VerticalSpread < StrategyBase
     if with_contract_dtls
       super.merge(
         {
-          type: 'VERTICAL_SPREAD',
+          type: StrategyTypes::VERTICAL_SPREAD,
           contract_type: contract_type,
           short_leg: short_leg.to_h(with_contract_dtls: false),
           long_leg: long_leg.to_h(with_contract_dtls: false)
@@ -155,7 +157,7 @@ class VerticalSpread < StrategyBase
       )
     else
       {
-        type: 'VERTICAL_SPREAD',
+        type: StrategyTypes::VERTICAL_SPREAD,
         contract_type: contract_type,
         short_leg: short_leg.to_h(with_contract_dtls: false),
         long_leg: long_leg.to_h(with_contract_dtls: false)

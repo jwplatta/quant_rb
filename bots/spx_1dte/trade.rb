@@ -1,6 +1,7 @@
 require 'securerandom'
 require_relative 'trades_file_manager'
 require_relative 'data_objects'
+require_relative 'constants'
 
 class Trade
   class << self
@@ -57,15 +58,24 @@ class Trade
       e[:quantity] = order_dtls[:quantity]
       e[:credit_debit_type] = order_dtls[:credit_debit]
       e[:credit_debit_amount] = calc_credit_debit(e[:price], e[:quantity], order_dtls[:credit_debit])
-      e[:put_short_symbol] = order_dtls[:put_short_symbol] if order_dtls.key?(:put_short_symbol)
-      e[:put_long_symbol] = order_dtls[:put_long_symbol] if order_dtls.key?(:put_long_symbol)
-      e[:call_short_symbol] = order_dtls[:call_short_symbol] if order_dtls.key?(:call_short_symbol)
-      e[:call_long_symbol] = order_dtls[:call_long_symbol] if order_dtls.key?(:call_long_symbol)
+      if event_type == EventTypes::OPEN_IRON_CONDOR || event_type == EventTypes::CLOSE_IRON_CONDOR
+        e[:put_short_symbol] = order_dtls[:put_short_symbol]
+        e[:put_long_symbol] = order_dtls[:put_long_symbol]
+        e[:call_short_symbol] = order_dtls[:call_short_symbol]
+        e[:call_long_symbol] = order_dtls[:call_long_symbol]
+      elsif event_type == EventTypes::OPEN_PUT_SPREAD || event_type == EventTypes::CLOSE_PUT_SPREAD
+        e[:put_short_symbol] = order_dtls[:short_leg_symbol]
+        e[:put_long_symbol] = order_dtls[:long_leg_symbol]
+      elsif event_type == EventTypes::OPEN_CALL_SPREAD || event_type == EventTypes::CLOSE_CALL_SPREAD
+        e[:call_short_symbol] = order_dtls[:short_leg_symbol]
+        e[:call_long_symbol] = order_dtls[:long_leg_symbol]
+      end
       e[:timestamp] = Time.now
     end
     # REVIEW: should just update the positions when we save the event?
     # Replaying the trade history could be slow for long lived trades.
     @current_positions = nil # NOTE: reset cached positions
+    current_positions
 
     if @status == NEW_STATUS
       set_status
@@ -160,17 +170,17 @@ class Trade
       { call_positions: {}, put_positions: {} }
     ) do |positions, event|
       case event[:event_type]
-      when "OPEN_IRON_CONDOR"
+      when EventTypes::OPEN_IRON_CONDOR
         open_iron_condor_position(positions, event)
-      when "CLOSE_IRON_CONDOR"
+      when EventTypes::CLOSE_IRON_CONDOR
         close_iron_condor_position(positions, event)
-      when "OPEN_PUT_SPREAD"
+      when EventTypes::OPEN_PUT_SPREAD
         open_put_spread_position(positions, event)
-      when "CLOSE_PUT_SPREAD"
+      when EventTypes::CLOSE_PUT_SPREAD
         close_put_spread_position(positions, event)
-      when "OPEN_CALL_SPREAD"
+      when EventTypes::OPEN_CALL_SPREAD
         open_call_spread_position(positions, event)
-      when "CLOSE_CALL_SPREAD"
+      when EventTypes::CLOSE_CALL_SPREAD
         close_call_spread_position(positions, event)
       else
         raise "Unknown event type: #{event[:event_type]}"
