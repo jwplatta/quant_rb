@@ -11,7 +11,7 @@ gem 'rake'
 gem 'rspec'
 gem 'factory_bot', '~> 6.5'
 gem 'rubocop', require: false
-gem 'schwab_rb', '~> 0.5.0'
+gem 'schwab_rb', '~> 0.6.0'
 gem 'sqlite3', '~> 2.1'
 gem 'timecop'
 gem 'gruff'
