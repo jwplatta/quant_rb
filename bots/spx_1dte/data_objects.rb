@@ -4,7 +4,7 @@ require_relative 'constants'
 ###########################
 ### ORDERS DATA OBJECTS ###
 ###########################
-WorkingOrder = Struct.new(:id, :schwab_id, :status, :order_result, :details, :check_fill_count, :fill_time, :sent_time)
+WorkingOrder = Struct.new(:id, :schwab_id, :status, :order_result, :details, :fill_time, :sent_time)
 
 ###########################
 ### MARKET DATA OBJECTS ###
