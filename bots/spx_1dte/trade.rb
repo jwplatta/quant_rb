@@ -130,7 +130,8 @@ class Trade
       IronCondor.new(
         put_spread: put_spread,
         call_spread: call_spread,
-        quantity: [call_spread.quantity, put_spread.quantity].min
+        quantity: [call_spread.quantity, put_spread.quantity].min,
+        expiration_date: put_spread.expiration_date
       )
     end
   end
@@ -364,12 +365,30 @@ class Trade
   end
 
   def new_vertical_spread(quantity, short_leg_symbol, long_leg_symbol, contract_type)
+    expiration_date = parse_expiration_date(short_leg_symbol)
     VerticalSpread.new(
       quantity: quantity,
-      short_leg: OptionLeg.new(symbol: short_leg_symbol, contract_type: contract_type),
-      long_leg: OptionLeg.new(symbol: long_leg_symbol, contract_type: contract_type),
+      short_leg: OptionLeg.new(
+        symbol: short_leg_symbol, contract_type: contract_type, expiration_date: expiration_date
+      ),
+      long_leg: OptionLeg.new(
+        symbol: long_leg_symbol, contract_type: contract_type, expiration_date: expiration_date
+      ),
       contract_type: contract_type,
+      expiration_date: expiration_date
     )
+  end
+
+  def parse_expiration_date(symbol)
+    # NOTE: example "SPXW  251211P06785000" where the expiration date is "251211" -> "2025-12-11"
+    match = symbol.match(/\s(\d{6})/)
+    raise "Invalid symbol format" unless match
+
+    date_str = match[1]
+    year = "20#{date_str[0..1]}"
+    month = date_str[2..3]
+    day = date_str[4..5]
+    Date.parse("#{year}-#{month}-#{day}")
   end
 
   def trades_file_manager
