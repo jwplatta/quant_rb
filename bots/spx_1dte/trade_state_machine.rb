@@ -157,15 +157,25 @@ class TradeStateMachine
   end
 
   def exit_loss?(trade, strategy)
+    return false unless expires_today?(strategy)
+
     strategy.price >= trade.max_loss_price
   end
 
   def exit_late_profitable?(trade, strategy)
+    return false unless expires_today?(strategy)
+
     Time.now >= @exit_by_time && strategy.price < trade.total_credit_debit
   end
 
   def exit_late?(strategy)
+    return false unless expires_today?(strategy)
+
     Time.now >= @exit_by_time + 3600
+  end
+
+  def expires_today?(strategy)
+    strategy.expiration_date == Date.today
   end
 
   ###########################
