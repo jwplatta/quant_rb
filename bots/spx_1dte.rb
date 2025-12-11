@@ -68,8 +68,6 @@ trade_finder = IronCondorFinder.new(
 
 order_manager = PaperOrderManager.new(
   OptionsTrader::DataProviders::Schwab::Orders.new(account_name: ACCOUNT_NAME),
-  est_fees: bot_config.est_fees_per_contract,
-  est_commissions: bot_config.est_commission_per_contract,
   logger: bot_logger
 )
 
