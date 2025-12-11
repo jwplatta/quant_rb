@@ -40,15 +40,9 @@ RSpec.describe Trade do
 
     it 'creates a trade with the correct attributes' do
       expect(trade.id).to eq(trade_data[:id])
-      expect(trade.exit_prof_thresh).to eq(trade_data[:exit_prof_thresh])
-      expect(trade.exit_loss_thresh).to eq(trade_data[:exit_loss_thresh])
+      expect(trade.exit_prof_price).to eq(trade_data[:exit_prof_price])
+      expect(trade.exit_loss_mult).to eq(trade_data[:exit_loss_mult])
       expect(trade.price_increment).to eq(trade_data[:price_increment])
-    end
-
-    it 'initializes with call and put spreads' do
-      expect(trade.init_strategy).to be_a(IronCondor)
-      expect(trade.init_strategy.call_spread).to be_a(VerticalSpread)
-      expect(trade.init_strategy.put_spread).to be_a(VerticalSpread)
     end
 
     it 'loads trade history from data' do
@@ -129,9 +123,8 @@ RSpec.describe Trade do
     it 'saves opening event and updates status' do
       trade = Trade.new(
         id: 'test-save',
-        init_strategy: init_strategy,
-        exit_prof_thresh: 0.5,
-        exit_loss_thresh: 3.0
+        exit_prof_price: 0.5,
+        exit_loss_mult: 3.0
       )
 
       expect(trade.status).to eq(Trade::NEW_STATUS)
@@ -160,9 +153,8 @@ RSpec.describe Trade do
     it 'saves closing event and updates status' do
       trade = Trade.new(
         id: 'test-close',
-        init_strategy: init_strategy,
-        exit_prof_thresh: 0.5,
-        exit_loss_thresh: 3.0
+        exit_prof_price: 0.5,
+        exit_loss_mult: 3.0
       )
 
       # Open the trade first
@@ -217,11 +209,8 @@ RSpec.describe Trade do
       # Create trade with only opening event
       trade_with_open = Trade.new(
         id: closed_trade_data[:id],
-        init_strategy: trade.init_strategy,
         trade_history: [closed_trade_data[:trade_history].first.merge({ timestamp: Time.parse(closed_trade_data[:trade_history].first[:timestamp]) })]
       )
-
-      expect(trade_with_open.open_iron_condor?).to be true
       expect(trade_with_open.strategy).to be_a(IronCondor)
     end
 
@@ -247,13 +236,9 @@ RSpec.describe Trade do
 
       trade_with_call_spread = Trade.new(
         id: closed_trade_data[:id],
-        init_strategy: trade.init_strategy,
         trade_history: [open_event, close_put_event]
       )
 
-      expect(trade_with_call_spread.open_call_spread?).to be true
-      expect(trade_with_call_spread.open_put_spread?).to be false
-      expect(trade_with_call_spread.open_iron_condor?).to be false
       expect(trade_with_call_spread.strategy).to be_a(VerticalSpread)
       expect(trade_with_call_spread.strategy.contract_type).to eq('CALL')
     end
@@ -265,7 +250,6 @@ RSpec.describe Trade do
     it 'returns symbols for open positions' do
       trade_with_open = Trade.new(
         id: closed_trade_data[:id],
-        init_strategy: trade.init_strategy,
         trade_history: [closed_trade_data[:trade_history].first.merge({ timestamp: Time.parse(closed_trade_data[:trade_history].first[:timestamp]) })]
       )
 
@@ -285,7 +269,6 @@ RSpec.describe Trade do
     it 'tracks current positions after opening' do
       trade = Trade.new(
         id: trade_data[:id],
-        init_strategy: TradesFileManager.instance.to_trade_object(trade_data).init_strategy,
         trade_history: [trade_data[:trade_history].first.merge({ timestamp: Time.parse(trade_data[:trade_history].first[:timestamp]) })]
       )
 
@@ -328,7 +311,6 @@ RSpec.describe Trade do
 
       trade = Trade.new(
         id: trade_data[:id],
-        init_strategy: TradesFileManager.instance.to_trade_object(trade_data).init_strategy,
         trade_history: [open_event, close_put_event]
       )
 
@@ -372,7 +354,7 @@ RSpec.describe Trade do
     end
 
     it 'calculates open_credit correctly' do
-      expected_credit = (trade_data[:open_price] * trade.init_strategy.quantity * 100) -
+      expected_credit = (trade_data[:open_price] * trade_data[:quantity] * 100) -
                        trade_data[:open_fees] - trade_data[:open_commissions]
       expect(trade.open_credit).to eq(expected_credit)
     end
