@@ -36,8 +36,13 @@ class SPX1DTEBot
         log "No open trade. Waiting until trade window. Sleep #{sleep_interval / 60} minutes."
         sleep(sleep_interval)
       else
-        sleep_interval = seconds_until_market_open(Date.today + 1)
-        log "No open trade. Waiting until market open. Sleep #{sleep_interval / 60} minutes."
+        sleep_interval = if Time.now > config.monitoring_end_time(Date.today)
+          seconds_until_market_open(Date.today + 1)
+        else
+          seconds_until_market_open(Date.today)
+        end
+
+        log "Waiting until market open. Sleep #{sleep_interval / 60} minutes."
         sleep(sleep_interval)
       end
     end
