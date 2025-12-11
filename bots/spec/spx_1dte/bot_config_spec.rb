@@ -68,7 +68,7 @@ RSpec.describe BotConfig do
       )
 
       expect(config.monitoring_window(date)).to eq(
-        start_time: '08:25 AM',
+        start_time: '08:30 AM',
         end_time: '03:15 PM',
         exit_by_time: '12:00 PM',
         timezone: 'America/Chicago'
@@ -85,7 +85,7 @@ RSpec.describe BotConfig do
       )
 
       expect(config.monitoring_window(early_close)).to eq(
-        start_time: '08:25 AM',
+        start_time: '08:30 AM',
         end_time: '12:15 PM',
         exit_by_time: '11:00 AM',
         timezone: 'America/Chicago'
@@ -98,14 +98,14 @@ RSpec.describe BotConfig do
     let(:early_close_date) { Date.new(2025, 11, 28) }
 
     it 'parses monitoring and trade windows into timezone-aware times on regular days' do
-      expect_time_in_zone(config.monitoring_start_time(normal_date), '08:25 AM')
+      expect_time_in_zone(config.monitoring_start_time(normal_date), '08:30 AM')
       expect_time_in_zone(config.monitoring_end_time(normal_date), '03:15 PM')
       expect_time_in_zone(config.enter_trade_window_start_time(normal_date), '02:55 PM')
       expect_time_in_zone(config.enter_trade_window_end_time(normal_date), '03:15 PM')
     end
 
     it 'honors the early close schedule for monitoring and trade times' do
-      expect_time_in_zone(config.monitoring_start_time(early_close_date), '08:25 AM')
+      expect_time_in_zone(config.monitoring_start_time(early_close_date), '08:30 AM')
       expect_time_in_zone(config.monitoring_end_time(early_close_date), '12:15 PM')
       expect_time_in_zone(config.enter_trade_window_start_time(early_close_date), '11:55 AM')
       expect_time_in_zone(config.enter_trade_window_end_time(early_close_date), '12:15 PM')
