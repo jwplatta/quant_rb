@@ -12,9 +12,9 @@
       "total_credit_debit": 125.0,
       "total_fees": 4.2,
       "total_commissions": 5.2,
-      "exit_prof_thresh": 0.35,
-      "exit_loss_thresh": 3.0,
-      "contracts": 1,
+      "exit_prof_price": 0.35,
+      "exit_loss_mult": 3.0,
+      "quantity": 1,
       "status": "CLOSED",
       "strategy_type": "IRON_CONDOR",
       "call_spread": {
@@ -35,7 +35,7 @@
           "expiration_date": "2025-11-06"
         },
         "contract_type": "CALL",
-        "contracts": 1
+        "quantity": 1
       },
       "put_spread": {
         "short_leg": {
@@ -55,7 +55,7 @@
           "expiration_date": "2025-11-06"
         },
         "contract_type": "PUT",
-        "contracts": 1
+        "quantity": 1
       },
       "adjustment_count": 0,
       "price_increment": 0.05,
@@ -108,9 +108,9 @@
       "total_credit_debit": 115.0,
       "total_fees": 4.2,
       "total_commissions": 5.2,
-      "exit_prof_thresh": 0.35,
-      "exit_loss_thresh": 3.0,
-      "contracts": 1,
+      "exit_prof_price": 0.35,
+      "exit_loss_mult": 3.0,
+      "quantity": 1,
       "status": "CLOSED",
       "strategy_type": "IRON_CONDOR",
       "call_spread": {
@@ -131,7 +131,7 @@
           "expiration_date": "2025-11-07"
         },
         "contract_type": "CALL",
-        "contracts": 1
+        "quantity": 1
       },
       "put_spread": {
         "short_leg": {
@@ -151,7 +151,7 @@
           "expiration_date": "2025-11-07"
         },
         "contract_type": "PUT",
-        "contracts": 1
+        "quantity": 1
       },
       "adjustment_count": 0,
       "price_increment": 0.05,
@@ -204,9 +204,9 @@
       "total_credit_debit": -190.0,
       "total_fees": 4.2,
       "total_commissions": 5.2,
-      "exit_prof_thresh": 0.35,
-      "exit_loss_thresh": 3.0,
-      "contracts": 1,
+      "exit_prof_price": 0.35,
+      "exit_loss_mult": 3.0,
+      "quantity": 1,
       "status": "CLOSED",
       "strategy_type": "IRON_CONDOR",
       "call_spread": {
@@ -227,7 +227,7 @@
           "expiration_date": "2025-11-10"
         },
         "contract_type": "CALL",
-        "contracts": 1
+        "quantity": 1
       },
       "put_spread": {
         "short_leg": {
@@ -247,7 +247,7 @@
           "expiration_date": "2025-11-10"
         },
         "contract_type": "PUT",
-        "contracts": 1
+        "quantity": 1
       },
       "adjustment_count": 0,
       "price_increment": 0.05,
@@ -300,9 +300,9 @@
       "total_credit_debit": 100.0,
       "total_fees": 4.2,
       "total_commissions": 5.2,
-      "exit_prof_thresh": 0.35,
-      "exit_loss_thresh": 3.0,
-      "contracts": 1,
+      "exit_prof_price": 0.35,
+      "exit_loss_mult": 3.0,
+      "quantity": 1,
       "status": "CLOSED",
       "strategy_type": "IRON_CONDOR",
       "call_spread": {
@@ -323,7 +323,7 @@
           "expiration_date": "2025-11-11"
         },
         "contract_type": "CALL",
-        "contracts": 1
+        "quantity": 1
       },
       "put_spread": {
         "short_leg": {
@@ -343,7 +343,7 @@
           "expiration_date": "2025-11-11"
         },
         "contract_type": "PUT",
-        "contracts": 1
+        "quantity": 1
       },
       "adjustment_count": 0,
       "price_increment": 0.05,
@@ -398,9 +398,9 @@
       "total_credit_debit": 70.0,
       "total_fees": 4.2,
       "total_commissions": 5.2,
-      "exit_prof_thresh": 0.5,
-      "exit_loss_thresh": 3.0,
-      "contracts": 1,
+      "exit_prof_price": 0.5,
+      "exit_loss_mult": 3.0,
+      "quantity": 1,
       "status": "CLOSED",
       "strategy_type": "IRON_CONDOR",
       "call_spread": {
@@ -421,7 +421,7 @@
           "expiration_date": "2025-11-12"
         },
         "contract_type": "CALL",
-        "contracts": 1
+        "quantity": 1
       },
       "put_spread": {
         "short_leg": {
@@ -441,7 +441,7 @@
           "expiration_date": "2025-11-12"
         },
         "contract_type": "PUT",
-        "contracts": 1
+        "quantity": 1
       },
       "adjustment_count": 0,
       "price_increment": 0.05,
@@ -496,9 +496,9 @@
       "total_credit_debit": 110.0,
       "total_fees": 4.2,
       "total_commissions": 5.2,
-      "exit_prof_thresh": 0.5,
-      "exit_loss_thresh": 3.0,
-      "contracts": 1,
+      "exit_prof_price": 0.5,
+      "exit_loss_mult": 3.0,
+      "quantity": 1,
       "status": "CLOSED",
       "strategy_type": "IRON_CONDOR",
       "call_spread": {
@@ -519,7 +519,7 @@
           "expiration_date": "2025-11-25"
         },
         "contract_type": "CALL",
-        "contracts": 1
+        "quantity": 1
       },
       "put_spread": {
         "short_leg": {
@@ -539,7 +539,7 @@
           "expiration_date": "2025-11-25"
         },
         "contract_type": "PUT",
-        "contracts": 1
+        "quantity": 1
       },
       "adjustment_count": 0,
       "price_increment": 0.05,
@@ -592,9 +592,9 @@
       "total_credit_debit": -175.0,
       "total_fees": 4.2,
       "total_commissions": 5.2,
-      "exit_prof_thresh": 0.5,
-      "exit_loss_thresh": 3.0,
-      "contracts": 1,
+      "exit_prof_price": 0.5,
+      "exit_loss_mult": 3.0,
+      "quantity": 1,
       "status": "CLOSED",
       "strategy_type": "IRON_CONDOR",
       "call_spread": {
@@ -615,7 +615,7 @@
           "expiration_date": "2025-11-26"
         },
         "contract_type": "CALL",
-        "contracts": 1
+        "quantity": 1
       },
       "put_spread": {
         "short_leg": {
@@ -635,7 +635,7 @@
           "expiration_date": "2025-11-26"
         },
         "contract_type": "PUT",
-        "contracts": 1
+        "quantity": 1
       },
       "adjustment_count": 0,
       "price_increment": 0.05,
@@ -688,9 +688,9 @@
       "total_credit_debit": 75.0,
       "total_fees": 4.2,
       "total_commissions": 5.2,
-      "exit_prof_thresh": 0.5,
-      "exit_loss_thresh": 3.0,
-      "contracts": 1,
+      "exit_prof_price": 0.5,
+      "exit_loss_mult": 3.0,
+      "quantity": 1,
       "status": "OPEN",
       "strategy_type": "IRON_CONDOR",
       "call_spread": {
@@ -711,7 +711,7 @@
           "expiration_date": "2025-11-28"
         },
         "contract_type": "CALL",
-        "contracts": 1
+        "quantity": 1
       },
       "put_spread": {
         "short_leg": {
@@ -731,7 +731,7 @@
           "expiration_date": "2025-11-28"
         },
         "contract_type": "PUT",
-        "contracts": 1
+        "quantity": 1
       },
       "adjustment_count": 0,
       "price_increment": 0.05,

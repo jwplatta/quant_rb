@@ -4,7 +4,20 @@ require_relative 'constants'
 ###########################
 ### ORDERS DATA OBJECTS ###
 ###########################
-WorkingOrder = Struct.new(:id, :schwab_id, :status, :order_result, :details, :check_fill_count, :fill_time, :sent_time)
+class WorkingOrder
+  def initialize(id, schwab_id, status, order_result, details, fill_time, sent_time = Time.now)
+    @id = id
+    @schwab_id = schwab_id
+    @status = status
+    @order_result = order_result
+    @details = details
+    @fill_time = fill_time
+    @sent_time = sent_time
+  end
+
+  attr_reader :id, :schwab_id, :order_result, :fill_time, :sent_time
+  attr_accessor :status, :details
+end
 
 ###########################
 ### MARKET DATA OBJECTS ###
