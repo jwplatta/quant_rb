@@ -43,12 +43,12 @@ enter_trade_window:
 
 monitoring_window:
   default:
-    start_time: "08:25 AM"
+    start_time: "08:30 AM"
     end_time: "03:15 PM"
     exit_by_time: "12:00 PM"
     timezone: "America/Chicago"
   early_close:
-    start_time: "08:25 AM"
+    start_time: "08:30 AM"
     end_time: "12:15 PM"
     exit_by_time: "11:00 AM"
     timezone: "America/Chicago"

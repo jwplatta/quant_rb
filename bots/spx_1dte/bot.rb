@@ -25,19 +25,25 @@ class SPX1DTEBot
 
   def run
     while true
-      if inside_market_hours?(Date.today) && open_trade
-        manage_trade(open_trade)
-      elsif inside_trade_window?(Date.today) && valid_expiration_date?(Date.today + 1) && open_trade.nil?
+      trade = open_trade
+      if inside_market_hours?(Date.today) && trade
+        manage_trade(trade)
+      elsif inside_trade_window?(Date.today) && valid_expiration_date?(Date.today + 1) && trade.nil?
         trade_finder.search(expiration_date: Date.today + 1).then do |strategy|
           send_order(strategy)
         end
-      elsif inside_market_hours?(Date.today) && open_trade.nil?
+      elsif inside_market_hours?(Date.today) && trade.nil?
         sleep_interval = seconds_until_trade_window_start(Date.today)
         log "No open trade. Waiting until trade window. Sleep #{sleep_interval / 60} minutes."
         sleep(sleep_interval)
       else
-        sleep_interval = seconds_until_market_open(Date.today + 1)
-        log "No open trade. Waiting until market open. Sleep #{sleep_interval / 60} minutes."
+        sleep_interval = if Time.now > config.monitoring_end_time(Date.today)
+          seconds_until_market_open(Date.today + 1)
+        else
+          seconds_until_market_open(Date.today)
+        end
+
+        log "Waiting until market open. Sleep #{sleep_interval / 60} minutes."
         sleep(sleep_interval)
       end
     end
