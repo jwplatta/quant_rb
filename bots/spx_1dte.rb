@@ -25,7 +25,6 @@ require_relative './spx_1dte/strategy_pricer'
 
 LOG_FILE = ENV.fetch('SPX_1DTE_LOG_FILE', 'logs/spx_1dte_bot.log')
 TRADES_FILE = ENV.fetch('SPX_1DTE_TRADES_FILE', 'trades/spx_1dte_trades.json')
-ACCOUNT_NAME = ENV.fetch('SPX_1DTE_ACCOUNT_NAME', 'TRADING_BROKERAGE_ACCOUNT')
 
 SchwabRb.configure do |config|
   config.log_file = LOG_FILE
@@ -67,7 +66,7 @@ trade_finder = IronCondorFinder.new(
 )
 
 order_manager = PaperOrderManager.new(
-  OptionsTrader::DataProviders::Schwab::Orders.new(account_name: ACCOUNT_NAME),
+  OptionsTrader::DataProviders::Schwab::Orders.new(account_name: bot_config.account_name),
   logger: bot_logger
 )
 

@@ -4,7 +4,7 @@
 # Format: YYYY-MM-DD
 
 trade_mode: "paper"  # Options: "paper", "live"
-
+account_name: "ALGO_TRADING_ACCOUNT"
 trade:
   underlying_symbol: "$SPX"
   option_root: "SPXW"
