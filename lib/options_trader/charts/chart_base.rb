@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require 'gruff'
+# require 'gruff'
 require 'fileutils'
 
 module OptionsTrader

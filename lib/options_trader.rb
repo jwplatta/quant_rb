@@ -90,9 +90,6 @@ module OptionsTrader
   require_relative "options_trader/synthetic_data/transform/monotonicity_enforcer"
   require_relative "options_trader/synthetic_data/validators/monotonicity"
 
-  # Require MCP server
-  require_relative "options_trader/mcp/server"
-
   def self.create_bot(&block)
     builder = BotBuilder.new
     builder.instance_eval(&block)
