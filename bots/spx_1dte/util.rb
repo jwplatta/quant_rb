@@ -18,6 +18,10 @@ def next_business_day
   end
 end
 
+def date_to_epoch_millis(date_str)
+  Time.parse(date_str).to_i * 1000
+end
+
 # def find_spread_by_delta(target_delta, spread_width, contract_type)
 #   opts = if contract_type == 'CALL'
 #             options_chain.call_opts
