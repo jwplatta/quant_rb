@@ -72,6 +72,7 @@ module OptionsTrader
   require_relative "options_trader/trades/risk_monitor"
 
   # Require charts
+  # REVIEW: remove these charts
   # require_relative "options_trader/charts/chart_base"
   # require_relative "options_trader/charts/monthly_progress"
   # require_relative "options_trader/charts/line_graph"
