@@ -72,9 +72,9 @@ module OptionsTrader
   require_relative "options_trader/trades/risk_monitor"
 
   # Require charts
-  require_relative "options_trader/charts/chart_base"
-  require_relative "options_trader/charts/monthly_progress"
-  require_relative "options_trader/charts/line_graph"
+  # require_relative "options_trader/charts/chart_base"
+  # require_relative "options_trader/charts/monthly_progress"
+  # require_relative "options_trader/charts/line_graph"
 
   # Require job workers
   require_relative "options_trader/workers/sample_spx_option_chain_9dte"
