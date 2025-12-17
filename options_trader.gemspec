@@ -31,11 +31,9 @@ Gem::Specification.new do |spec|
   spec.require_paths = ["lib"]
 
   # Runtime dependencies
-  spec.add_runtime_dependency "activerecord", "~> 8.0"
+  spec.add_runtime_dependency "activerecord", "~> 7.0"
   spec.add_runtime_dependency "clockwork", ">= 3.0"
   spec.add_runtime_dependency "dotenv", ">= 2.0"
-  spec.add_runtime_dependency "gruff", ">= 0.27"
-  spec.add_runtime_dependency "mcp", ">= 0.1"
   spec.add_runtime_dependency "pg", "~> 1.6"
   spec.add_runtime_dependency "pqueue", ">= 2.0"
   spec.add_runtime_dependency "rake", ">= 13.0"

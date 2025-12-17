@@ -4,7 +4,7 @@
 # Format: YYYY-MM-DD
 
 trade_mode: "paper"  # Options: "paper", "live"
-
+account_name: "ALGO_TRADING_ACCOUNT"
 trade:
   underlying_symbol: "$SPX"
   option_root: "SPXW"
@@ -26,7 +26,7 @@ trade:
   green_delta: 0.15
   yellow_delta: 0.25
   red_delta: 0.3
-  exit_loss_mult: 3.0
+  exit_loss_mult: 4.0
   exit_prof_price: 0.5
   est_fees_per_contract: 1.92
   est_commission_per_contract: 2.6

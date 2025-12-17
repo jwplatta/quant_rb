@@ -72,9 +72,10 @@ module OptionsTrader
   require_relative "options_trader/trades/risk_monitor"
 
   # Require charts
-  require_relative "options_trader/charts/chart_base"
-  require_relative "options_trader/charts/monthly_progress"
-  require_relative "options_trader/charts/line_graph"
+  # REVIEW: remove these charts
+  # require_relative "options_trader/charts/chart_base"
+  # require_relative "options_trader/charts/monthly_progress"
+  # require_relative "options_trader/charts/line_graph"
 
   # Require job workers
   require_relative "options_trader/workers/sample_spx_option_chain_9dte"
@@ -89,9 +90,6 @@ module OptionsTrader
   require_relative "options_trader/synthetic_data/transform/linear_interpolator"
   require_relative "options_trader/synthetic_data/transform/monotonicity_enforcer"
   require_relative "options_trader/synthetic_data/validators/monotonicity"
-
-  # Require MCP server
-  require_relative "options_trader/mcp/server"
 
   def self.create_bot(&block)
     builder = BotBuilder.new
