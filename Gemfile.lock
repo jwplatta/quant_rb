@@ -123,6 +123,7 @@ GEM
     parser (3.3.8.0)
       ast (~> 2.4.1)
       racc
+    pg (1.5.0)
     pqueue (2.1.0)
     prism (1.4.0)
     protocol-hpack (1.5.1)
@@ -236,6 +237,7 @@ DEPENDENCIES
   dotenv
   factory_bot (~> 6.5)
   matrix
+  pg (= 1.5.0)
   pqueue
   pry
   rake
