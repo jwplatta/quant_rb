@@ -21,8 +21,10 @@ echo "Stopping old bot process..."
 pkill -f spx_1dte.rb || true
 sleep 2
 
+cd ..
+echo $(pwd)
 echo "Starting bot..."
-nohup bundle exec ruby spx_1dte.rb
+nohup bundle exec ruby bots/spx_1dte.rb
 
 echo "Bot deployed! PID: $!"
 echo "Check logs: tail -f ~/.options_trader/logs/bot.log"
