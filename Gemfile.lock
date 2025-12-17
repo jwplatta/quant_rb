@@ -123,8 +123,6 @@ GEM
     parser (3.3.8.0)
       ast (~> 2.4.1)
       racc
-    pg (1.6.1)
-    pg (1.6.1-arm64-darwin)
     pqueue (2.1.0)
     prism (1.4.0)
     protocol-hpack (1.5.1)
@@ -211,9 +209,9 @@ GEM
     snaky_hash (2.0.3)
       hashie (>= 0.1.0, < 6)
       version_gem (>= 1.1.8, < 3)
-    sqlite3 (2.6.0)
+    sqlite3 (1.7.0)
       mini_portile2 (~> 2.8.0)
-    sqlite3 (2.6.0-arm64-darwin)
+    sqlite3 (1.7.0-arm64-darwin)
     tilt (2.6.1)
     timecop (0.9.10)
     timeout (0.4.3)
@@ -238,7 +236,6 @@ DEPENDENCIES
   dotenv
   factory_bot (~> 6.5)
   matrix
-  pg (~> 1.6)
   pqueue
   pry
   rake
@@ -247,7 +244,7 @@ DEPENDENCIES
   rubyzip
   schwab_rb (~> 0.6.0)
   sidekiq
-  sqlite3 (~> 2.1)
+  sqlite3 (= 1.7.0)
   timecop
   zlib
 
