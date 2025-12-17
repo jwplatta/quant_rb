@@ -89,7 +89,8 @@ class SPX1DTEBot
   def seconds_until_market_open(date)
     now = Time.now
     market_open_time = config.monitoring_start_time(date)
-    (market_open_time - now).to_i
+    seconds = (market_open_time - now).to_i
+    seconds.positive? ? seconds : 1
   end
 
   def inside_market_hours?(date = Date.today)

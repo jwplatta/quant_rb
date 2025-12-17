@@ -9,6 +9,10 @@ class BotConfig
     init_trade_attrs
   end
 
+  def account_name
+    @account_name ||= @config['account_name']
+  end
+
   def trade_mode
     @config['trade_mode']
   end
