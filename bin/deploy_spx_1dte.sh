@@ -12,6 +12,7 @@ echo "Installing dependencies..."
 bundle install
 
 echo "Running tests..."
+cd bots
 bundle exec rspec
 
 echo "Stopping old bot process..."
