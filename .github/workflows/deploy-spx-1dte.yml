@@ -1,0 +1,25 @@
+name: Deploy to Trading Mac
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type "deploy" to confirm'
+        required: true
+        default: ''
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    if: github.event.inputs.confirm == 'deploy'
+
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.JWPLATTA_SERVER_HOST }}
+          username: ${{ secrets.JWPLATTA_SERVER_USER }}
+          key: ${{ secrets.JWPLATTA_SERVER_SSH_KEY }}
+          script: |
+            cd ~/options_trader/bin
+            ./deploy_spx_1dte.sh
