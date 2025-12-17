@@ -24,7 +24,7 @@ sleep 2
 cd ..
 echo $(pwd)
 echo "Starting bot..."
-nohup bundle exec ruby bots/spx_1dte.rb
+nohup bundle exec ruby bots/spx_1dte.rb >> ~/.options_trader/logs/nohup_spx_1dte.log 2>&1 &
 
 echo "Bot deployed! PID: $!"
 echo "Check logs: tail -f ~/.options_trader/logs/bot.log"
