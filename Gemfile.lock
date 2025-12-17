@@ -110,11 +110,6 @@ GEM
     net-http (0.6.0)
       uri
     nio4r (2.7.4)
-    nokogiri (1.18.10)
-      mini_portile2 (~> 2.8.2)
-      racc (~> 1.4)
-    nokogiri (1.18.10-arm64-darwin)
-      racc (~> 1.4)
     oauth2 (2.0.16)
       faraday (>= 0.17.3, < 4.0)
       jwt (>= 1.0, < 4.0)
@@ -243,7 +238,6 @@ DEPENDENCIES
   dotenv
   factory_bot (~> 6.5)
   matrix
-  nokogiri
   pg (~> 1.6)
   pqueue
   pry
