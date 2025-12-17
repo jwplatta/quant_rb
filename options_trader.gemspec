@@ -34,7 +34,7 @@ Gem::Specification.new do |spec|
   spec.add_runtime_dependency "activerecord", "~> 7.0"
   spec.add_runtime_dependency "clockwork", ">= 3.0"
   spec.add_runtime_dependency "dotenv", ">= 2.0"
-  spec.add_runtime_dependency "pg", "~> 1.6"
+  # spec.add_runtime_dependency "pg", "~> 1.5.0"
   spec.add_runtime_dependency "pqueue", ">= 2.0"
   spec.add_runtime_dependency "rake", ">= 13.0"
   spec.add_runtime_dependency "schwab_rb", "~> 0.3.8"
