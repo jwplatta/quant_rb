@@ -83,7 +83,8 @@ class SPX1DTEBot
   def seconds_until_trade_window_start(date)
     now = Time.now
     trade_window_start_time = config.enter_trade_window_start_time(date)
-    (trade_window_start_time - now).to_i
+    seconds = (trade_window_start_time - now).to_i
+    seconds.positive? ? seconds : 1
   end
 
   def seconds_until_market_open(date)
