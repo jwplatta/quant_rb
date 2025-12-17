@@ -12,6 +12,7 @@ require_relative '../lib/options_trader'
 require_relative './spx_1dte/data_objects'
 require_relative './spx_1dte/trades_file_manager'
 require_relative './spx_1dte/paper_order_manager'
+require_relative './spx_1dte/order_manager'
 require_relative './spx_1dte/iron_condor_finder'
 require_relative './spx_1dte/iron_condor_roller'
 require_relative './spx_1dte/trade_state_machine'
@@ -65,10 +66,23 @@ trade_finder = IronCondorFinder.new(
   logger: bot_logger
 )
 
-order_manager = PaperOrderManager.new(
-  OptionsTrader::DataProviders::Schwab::Orders.new(account_name: bot_config.account_name),
-  logger: bot_logger
-)
+order_manager = if bot_config.trade_mode == 'paper'
+  bot_logger.info "Trade mode: PAPER"
+  PaperOrderManager.new(
+    OptionsTrader::DataProviders::Schwab::Orders.new(account_name: bot_config.account_name),
+    fill_wait_time: 20,
+    logger: bot_logger
+  )
+elsif bot_config.trade_mode == 'live'
+  bot_logger.info "Trade mode: LIVE"
+  OrderManager.new(
+    OptionsTrader::DataProviders::Schwab::Orders.new(account_name: bot_config.account_name),
+    fill_wait_time: 20,
+    logger: bot_logger
+  )
+else
+  raise "Invalid trade mode: #{bot_config.trade_mode}"
+end
 
 trade_state_machine = TradeStateMachine.new(
   StrategyPricer.new(schwab_markets, bot_logger),
