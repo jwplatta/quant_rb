@@ -19,7 +19,7 @@ jobs:
         with:
           host: ${{ secrets.JWPLATTA_SERVER_HOST }}
           username: ${{ secrets.JWPLATTA_SERVER_USER }}
-          key: ${{ secrets.JWPLATTA_SERVER_SSH_KEY }}
+          key: ${{ secrets.JWPLATTA_SERVER_KEY }}
           script: |
             cd ~/options_trader/bin
             ./deploy_spx_1dte.sh
