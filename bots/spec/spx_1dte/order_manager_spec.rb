@@ -19,7 +19,14 @@ RSpec.describe OrderManager do
     end
 
     context 'when preview is rejected' do
-      let(:preview_result) { double('PreviewResult', status: OrderStatuses::REJECTED, order_id: 'preview-123') }
+      let(:preview_result) do
+        double(
+          'PreviewResult',
+          status: OrderStatuses::REJECTED,
+          order_id: 'preview-123',
+          order_validation_result: double('ValidationResult', rejects: [double('Reject', activity_message: 'Insufficient funds')])
+        )
+      end
 
       it 'returns a rejected WorkingOrder without placing the order' do
         expect(mock_schwab_orders).to receive(:preview_order).and_return(preview_result)
