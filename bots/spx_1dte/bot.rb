@@ -34,7 +34,7 @@ class SPX1DTEBot
         end
       elsif inside_market_hours?(Date.today) && trade.nil?
         sleep_interval = seconds_until_trade_window_start(Date.today)
-        log "No open trade. Waiting until trade window. Sleep #{sleep_interval / 60} minutes."
+        log "Market Open. No trade. Sleep #{sleep_interval / 60} minutes."
         sleep(sleep_interval)
       else
         sleep_interval = if Time.now > config.monitoring_end_time(Date.today)
@@ -43,7 +43,7 @@ class SPX1DTEBot
           seconds_until_market_open(Date.today)
         end
 
-        log "Waiting until market open. Sleep #{sleep_interval / 60} minutes."
+        log "Market closed. Sleep #{sleep_interval / 60} minutes."
         sleep(sleep_interval)
       end
     end
@@ -84,14 +84,14 @@ class SPX1DTEBot
     now = Time.now
     trade_window_start_time = config.enter_trade_window_start_time(date)
     seconds = (trade_window_start_time - now).to_i
-    seconds.positive? ? seconds : 1
+    seconds.positive? ? [seconds, 1800].min : 1
   end
 
   def seconds_until_market_open(date)
     now = Time.now
     market_open_time = config.monitoring_start_time(date)
     seconds = (market_open_time - now).to_i
-    seconds.positive? ? seconds : 1
+    seconds.positive? ? [seconds, 1800].min : 1
   end
 
   def inside_market_hours?(date = Date.today)
