@@ -12,7 +12,7 @@ class OrderManager < BaseOrderManager
     preview_status = preview_result.status
 
     if preview_status == OrderStatuses::REJECTED
-      @logger.error "Order preview REJECTED for #{order_args[:order_instruction]} order."
+      @logger.error "Order preview REJECTED: #{preview_result.order_validation_result.rejects.map(&:activity_message).join(' | ')}"
       return WorkingOrder.new(
         nil,
         preview_result.order_id,
@@ -39,21 +39,21 @@ class OrderManager < BaseOrderManager
         nil,
         Time.now
       )
+    else
+      @logger.info "Order placed successfully: #{placed_order.order_id}"
+
+      order = WorkingOrder.new(
+        SecureRandom.uuid().delete('-'),
+        placed_order.order_id,
+        OrderStatuses::WORKING,
+        placed_order,
+        order_args.merge({ schwab_order_id: placed_order.order_id }),
+        nil, # No preset fill time - we'll check status via API
+        Time.now
+      )
+      @working_orders << order
+      order
     end
-
-    @logger.info "Order placed successfully: #{placed_order.order_id}"
-
-    order = WorkingOrder.new(
-      SecureRandom.uuid().delete('-'),
-      placed_order.order_id,
-      OrderStatuses::WORKING,
-      placed_order,
-      order_args.merge({ schwab_order_id: placed_order.order_id }),
-      nil, # No preset fill time - we'll check status via API
-      Time.now
-    )
-    @working_orders << order
-    order
   rescue => e
     @logger.error "Error in send_order: #{e.message}"
     @logger.error e.backtrace.join("\n")
