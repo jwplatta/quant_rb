@@ -15,3 +15,6 @@ client = SchwabRb::Auth.init_client_easy(
   ENV['SCHWAB_APP_CALLBACK_URL'],
   token_path
 )
+
+client.refresh_token if client.session.expired?
+client.get_account_numbers
