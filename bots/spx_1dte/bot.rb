@@ -28,8 +28,8 @@ class SPX1DTEBot
       trade = open_trade
       if inside_market_hours?(Date.today) && trade
         manage_trade(trade)
-      elsif inside_trade_window?(Date.today) && valid_expiration_date?(Date.today + 1) && trade.nil?
-        trade_finder.search(expiration_date: Date.today + 1).then do |strategy|
+      elsif inside_trade_window?(Date.today) && valid_expiration_date?(next_trading_day) && trade.nil?
+        trade_finder.search(expiration_date: next_trading_day).then do |strategy|
           send_order(strategy)
         end
       elsif inside_market_hours?(Date.today) && trade.nil?
@@ -62,6 +62,12 @@ class SPX1DTEBot
     )
     log "Manage open trade #{open_trade.id}."
     @trade_state_machine.manage(trade)
+  end
+
+  def next_trading_day
+    date = Date.today + 1
+    date += 1 while !trading_day?(date)
+    date
   end
 
   def valid_expiration_date?(date)
