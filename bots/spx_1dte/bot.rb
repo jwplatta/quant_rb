@@ -114,6 +114,8 @@ class SPX1DTEBot
   end
 
   def inside_trade_window?(date = Date.today)
+    return false unless trading_day?(date)
+
     trade_window_start = config.enter_trade_window_start_time(date)
     trade_window_end = config.enter_trade_window_end_time(date)
     curr_time = Time.now
