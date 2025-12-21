@@ -38,7 +38,7 @@ class SPX1DTEBot
         sleep(sleep_interval)
       else
         sleep_interval = if Time.now > config.monitoring_end_time(Date.today)
-          seconds_until_market_open(Date.today + 1)
+          seconds_until_market_open(next_trading_day)
         else
           seconds_until_market_open(Date.today)
         end
@@ -102,7 +102,7 @@ class SPX1DTEBot
 
   def inside_market_hours?(date = Date.today)
     return false unless trading_day?(date)
-    
+
     now = Time.now
     market_open_time = config.monitoring_start_time(date)
     market_close_time = config.monitoring_end_time(date)
