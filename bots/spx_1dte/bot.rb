@@ -37,10 +37,10 @@ class SPX1DTEBot
         log "Market Open. No trade. Sleep #{sleep_interval / 60} minutes."
         sleep(sleep_interval)
       else
-        sleep_interval = if Time.now > config.monitoring_end_time(Date.today)
-          seconds_until_market_open(next_trading_day)
-        else
+        sleep_interval = if trading_day?(Date.today) && Time.now < config.monitoring_start_time(Date.today)
           seconds_until_market_open(Date.today)
+        else
+          seconds_until_market_open(next_trading_day)
         end
 
         log "Market closed. Sleep #{sleep_interval / 60} minutes."
