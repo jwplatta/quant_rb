@@ -101,6 +101,8 @@ class SPX1DTEBot
   end
 
   def inside_market_hours?(date = Date.today)
+    return false unless trading_day?(date)
+    
     now = Time.now
     market_open_time = config.monitoring_start_time(date)
     market_close_time = config.monitoring_end_time(date)
