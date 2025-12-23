@@ -147,8 +147,7 @@ class IronCondorFinder
       sleep(5)
       search(expiration_date: @expiration_date)
     else
-      # REVIEW: need to handle this gracefully. Right now forcing the bot to crash.
-      raise "Could not find valid strategy after #{@search_attempts} attempts"
+      NullStrategy.new
     end
   end
 
