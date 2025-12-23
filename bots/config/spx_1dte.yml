@@ -9,19 +9,19 @@ trade:
   underlying_symbol: "$SPX"
   option_root: "SPXW"
   spread_width: 20
-  min_credit: 1.15
+  min_credit: 1.1
   max_credit: 1.45
   target_delta: 0.7
-  credit_balance_ratio: 0.7
-  delta_ratio: 0.7
+  credit_balance_ratio: 0.6
+  delta_ratio: 0.6
   max_total_delta: 0.16
   max_call_delta: 0.07
-  min_call_delta: 0.03
+  min_call_delta: 0.02
   max_put_delta: 0.1
-  min_put_delta: 0.03
+  min_put_delta: 0.02
   quantity: 1
   price_increment: 0.05
-  max_search_attempts: 10
+  max_search_attempts: 20
   max_tweak_attempts: 100
   green_delta: 0.15
   yellow_delta: 0.25
