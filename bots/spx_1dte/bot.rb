@@ -30,7 +30,12 @@ class SPX1DTEBot
         manage_trade(trade)
       elsif inside_trade_window?(Date.today) && valid_expiration_date?(next_trading_day) && trade.nil?
         trade_finder.search(expiration_date: next_trading_day).then do |strategy|
-          send_order(strategy)
+          unless strategy.is_a?(NullStrategy)
+            send_order(strategy)
+          else
+            log "No valid strategy found. Pause 1 minute."
+            sleep(60)
+          end
         end
       elsif inside_market_hours?(Date.today) && trade.nil?
         sleep_interval = seconds_until_trade_window_start(Date.today)
