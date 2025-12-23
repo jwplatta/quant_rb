@@ -17,7 +17,7 @@ trade:
   max_total_delta: 0.16
   max_call_delta: 0.08
   min_call_delta: 0.02
-  max_put_delta: 0.1
+  max_put_delta: 0.11
   min_put_delta: 0.02
   quantity: 1
   price_increment: 0.05
