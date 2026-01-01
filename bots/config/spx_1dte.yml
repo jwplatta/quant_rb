@@ -70,6 +70,18 @@ high_risk_dates:
     event_type: "CPI"
     description: "CPI Report"
 
+  - date: "2026-01-09"
+    event_type: "Unemployment"
+    description: "Unemployment Report"
+
+  - date: "2026-01-13"
+    event_type: "CPI"
+    description: "CPI Report"
+
+  - date: "2026-01-28"
+    event_type: "FOMC"
+    description: "FOMC Meeting / Fed Decision"
+
 early_close_dates:
   - date: "2025-11-28"
     description: "Day after Thanksgiving - Market closes early at 1:00 PM ET"
