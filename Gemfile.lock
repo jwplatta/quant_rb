@@ -101,7 +101,7 @@ GEM
     matrix (0.4.3)
     method_source (1.1.0)
     metrics (0.12.2)
-    mini_portile2 (2.8.8)
+    mini_portile2 (2.8.9)
     minitest (5.25.5)
     multi_xml (0.7.1)
       bigdecimal (~> 3.1)
@@ -210,9 +210,9 @@ GEM
     snaky_hash (2.0.3)
       hashie (>= 0.1.0, < 6)
       version_gem (>= 1.1.8, < 3)
-    sqlite3 (1.7.0)
+    sqlite3 (2.9.0)
       mini_portile2 (~> 2.8.0)
-    sqlite3 (1.7.0-arm64-darwin)
+    sqlite3 (2.9.0-arm64-darwin)
     tilt (2.6.1)
     timecop (0.9.10)
     timeout (0.4.3)
@@ -246,7 +246,7 @@ DEPENDENCIES
   rubyzip
   schwab_rb (~> 0.6.0)
   sidekiq
-  sqlite3 (= 1.7.0)
+  sqlite3 (= 2.9.0)
   timecop
   zlib
 

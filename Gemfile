@@ -12,7 +12,7 @@ gem 'rspec'
 gem 'factory_bot', '~> 6.5'
 gem 'rubocop', require: false
 gem 'schwab_rb', '~> 0.6.0'
-gem 'sqlite3', '1.7.0'
+gem 'sqlite3', '2.9.0'
 gem 'timecop'
 gem 'pqueue'
 gem 'clockwork'
