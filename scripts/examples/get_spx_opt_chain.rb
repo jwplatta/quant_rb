@@ -54,13 +54,12 @@ schwab_provider = OptionsTrader::DataProviders::Schwab::Markets.new
 markets_service = OptionsTrader::Services::Markets.new(provider: schwab_provider)
 
 expiration_dates = [
-  Date.parse('2025-11-26'),
-  Date.parse('2025-11-28'),
-  Date.parse('2025-12-01'),
-  Date.parse('2025-12-02'),
-  Date.parse('2025-12-03'),
-  Date.parse('2025-12-04'),
-  Date.parse('2025-12-05')
+  Date.parse('2025-12-18'),
+  Date.parse('2025-12-19'),
+  Date.parse('2025-12-22'),
+  Date.parse('2025-12-23'),
+  Date.parse('2025-12-24'),
+  Date.parse('2025-12-26')
 ]
 option_root = 'SPXW'
 
