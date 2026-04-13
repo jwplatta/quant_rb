@@ -28,21 +28,19 @@ module QuantRb
       end
 
       def run
-        strategy  = @strategy_class.new
         portfolio = Portfolio.new(initial_cash: 100_000)  # default; overridden by strategy.set_cash
         scheduler = Scheduler.new
         securities = Securities.new
 
         broker = @broker || Brokers::BacktestBroker.new
 
-        # Inject dependencies before calling strategy's initialize
-        strategy.send(:set_portfolio,  portfolio)
-        strategy.send(:set_schedule,   scheduler)
-        strategy.send(:set_securities, securities)
-        strategy.send(:set_broker,     broker)
+        strategy = @strategy_class.build_for_engine(
+          portfolio: portfolio,
+          schedule: scheduler,
+          securities: securities,
+          broker: broker
+        )
 
-        # strategy.initialize has already run (Ruby's new calls initialize)
-        # Re-initialize portfolio with configured cash
         portfolio = Portfolio.new(initial_cash: strategy.initial_cash || 100_000)
         strategy.send(:set_portfolio, portfolio)
 

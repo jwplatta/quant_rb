@@ -21,6 +21,16 @@ module QuantRb
     #   end
     #
     class StrategyBase
+      def self.build_for_engine(portfolio:, schedule:, securities:, broker:)
+        instance = allocate
+        instance.send(:set_portfolio, portfolio)
+        instance.send(:set_schedule, schedule)
+        instance.send(:set_securities, securities)
+        instance.send(:set_broker, broker)
+        instance.send(:initialize)
+        instance
+      end
+
       # Injected by the engine before initialize is called
       attr_reader :time, :portfolio, :securities, :schedule, :broker
 
@@ -93,7 +103,7 @@ module QuantRb
         order = QuantRb::Engine::Order.new(
           legs: legs,
           quantity: quantity,
-          limit_price: limit_price,
+          limit_price: limit_price.abs,
           direction: limit_price >= 0 ? :credit : :debit,
           submitted_at: time
         )

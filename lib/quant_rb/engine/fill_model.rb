@@ -34,7 +34,7 @@ module QuantRb
         candle = find_candle(slice, leg[:symbol])
         return nil unless candle
 
-        candle.close
+        candle.close.to_f
       end
 
       def simulate_combo_fill(order, slice)
@@ -44,9 +44,12 @@ module QuantRb
           return nil unless opt
 
           price = leg_fill_price(opt, leg[:quantity])
-          net  += price * leg[:quantity] + @slippage
+          return nil unless price
+
+          net -= price.to_f * leg[:quantity].to_i
         end
-        net
+
+        (net - @slippage.to_f).round(4)
       end
 
       def leg_fill_price(opt, quantity)
@@ -71,7 +74,7 @@ module QuantRb
       end
 
       def find_candle(slice, symbol_key)
-        slice.bars[symbol_key.to_sym]
+        slice.bars[symbol_key.to_sym] || slice.bars[symbol_key.to_s]
       end
     end
   end

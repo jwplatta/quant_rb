@@ -7,7 +7,7 @@ module QuantRb
     # TODO (Phase 3): Implement full scheduling logic.
     #
     class Scheduler
-      ScheduledEvent = Struct.new(:date_rule, :time_rule, :callback, keyword_init: true)
+      ScheduledEvent = Struct.new(:date_rule, :time_rule, :callback, :last_fired_at, keyword_init: true)
 
       def initialize
         @events = []
@@ -22,7 +22,11 @@ module QuantRb
       # Called by BacktestEngine on each time step. Fires matching callbacks.
       def fire(current_time)
         @events.each do |event|
-          event.callback.call if event.date_rule.matches?(current_time) && event.time_rule.matches?(current_time)
+          next unless event.date_rule.matches?(current_time) && event.time_rule.matches?(current_time)
+          next if event.last_fired_at == current_time
+
+          event.callback.call
+          event.last_fired_at = current_time
         end
       end
 
