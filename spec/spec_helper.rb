@@ -1,7 +1,12 @@
 # frozen_string_literal: true
 
+require "pathname"
 require "securerandom"
 require_relative "../lib/quant_rb"
+
+SPEC_ROOT = Pathname(__dir__).expand_path
+FIXTURES_ROOT = SPEC_ROOT.join("fixtures")
+QUANT_RB_FIXTURES_ROOT = FIXTURES_ROOT.join("quant_rb")
 
 RSpec.configure do |config|
   config.expect_with :rspec do |expectations|
