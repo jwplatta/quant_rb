@@ -1,23 +1,17 @@
 # frozen_string_literal: true
 
-source 'https://rubygems.org'
-ruby '3.1.7'
+source "https://rubygems.org"
+ruby ">= 3.1.0"
 
-gem 'activerecord', '~> 7.0'
-gem 'dotenv'
-gem 'pg', '1.5.0'
-gem 'pry'
-gem 'rake'
-gem 'rspec'
-gem 'factory_bot', '~> 6.5'
-gem 'rubocop', require: false
-gem 'schwab_rb', '~> 0.6.0'
-gem 'sqlite3', '1.7.0'
-gem 'timecop'
-gem 'pqueue'
-gem 'clockwork'
-gem 'sidekiq'
-gem 'rubyzip'
-gem 'zlib'
-gem 'matrix'
-gem 'aws-sdk-s3', '~> 1'
+gemspec path: ".", name: "quant_rb"
+
+gem "dotenv"
+gem "pry"
+gem "rake"
+
+group :development, :test do
+  gem "factory_bot", "~> 6.5"
+  gem "rspec",       "~> 3.12"
+  gem "rubocop",     require: false
+  gem "timecop"
+end

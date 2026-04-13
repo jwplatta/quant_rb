@@ -20,7 +20,12 @@
       "Bash(RAILS_ENV=development RACK_ENV=development rake db:migrate)",
       "Bash(RAILS_ENV=development RACK_ENV=development rake \"polygon:import_spxw_date[2023,9,26]\")",
       "Bash(RAILS_ENV=development RACK_ENV=development DEBUG=true LOG_LEVEL=DEBUG rake \"polygon:import_spxw_date[2023,9,26]\")",
-      "Bash(test:*)"
+      "Bash(test:*)",
+      "Bash(ls -la /Users/jplatta/repos/options_trader/*.md /Users/jplatta/repos/options_trader/*.gemspec)",
+      "Bash(cp -r lib/options_trader/strategies/* doc/reference/strategies/)",
+      "Bash(cp -r lib/options_trader/search/* doc/reference/search/)",
+      "Bash(bundle install:*)",
+      "Bash(git add:*)"
     ],
     "deny": [],
     "ask": []
