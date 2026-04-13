@@ -49,32 +49,26 @@ module QuantRb
           securities.register(key, sub)
         end
 
-        # TODO (Phase 4): Load real candle data and options chain index here:
-        # candle_series = @candle_series || load_candle_series(strategy)
-        # options_chain_index = @options_chain_index || load_options_chain_index(strategy)
+        candle_series_map = resolve_candle_series_map(strategy)
+        option_chain_indexes = resolve_option_chain_index_map(strategy)
+        primary_key = strategy.subscribed_candle_symbols.keys.first
+        raise ArgumentError, "BacktestEngine requires at least one candle subscription" unless primary_key
 
-        candles = @candle_series&.to_a || []
-        prev_date = nil
-
+        primary_series = candle_series_map.fetch(primary_key)
+        candles = primary_series.to_a
         candles.each_with_index do |candle, idx|
           current_time = candle.datetime
           strategy.send(:set_time, current_time)
 
-          # Update securities registry
-          primary_key = strategy.subscribed_candle_symbols.keys.first
-          securities.update(primary_key, candle) if primary_key
+          bars = build_bars(current_time, candle_series_map)
+          bars.each do |symbol_key, bar|
+            securities.update(symbol_key, bar)
+          end
 
           # Fire scheduled callbacks
           scheduler.fire(current_time)
 
-          # Build slice
-          bars = primary_key ? { primary_key => candle } : {}
-          chains = {}
-          if @options_chain_index
-            strategy.subscribed_option_chain_symbols.each do |key, _sub|
-              chains[key] = @options_chain_index.chains_at(current_time)
-            end
-          end
+          chains = build_option_chains(current_time, strategy, option_chain_indexes)
           slice = Slice.new(time: current_time, bars: bars, option_chains: chains)
 
           # Dispatch on_data
@@ -86,11 +80,9 @@ module QuantRb
           # End-of-day callbacks
           current_date = current_time.to_date
           next_date    = candles[idx + 1]&.datetime&.to_date
-          if next_date != current_date && prev_date != current_date
+          if next_date != current_date
             strategy.subscribed_symbols.each { |sym| strategy.on_end_of_day(sym) }
           end
-
-          prev_date = current_date
         end
 
         strategy.on_end_of_algorithm
@@ -103,6 +95,67 @@ module QuantRb
           final_portfolio_value: portfolio.total_value,
           trades:                portfolio.trade_history
         )
+      end
+
+      private
+
+      def resolve_candle_series_map(strategy)
+        subscriptions = strategy.subscribed_candle_symbols
+        raise ArgumentError, "BacktestEngine requires at least one candle subscription" if subscriptions.empty?
+
+        explicit_series_map(@candle_series, subscriptions.keys) || load_candle_series_map(strategy)
+      end
+
+      def resolve_option_chain_index_map(strategy)
+        subscriptions = strategy.subscribed_option_chain_symbols
+        return {} if subscriptions.empty?
+
+        explicit_series_map(@options_chain_index, subscriptions.keys) || load_option_chain_index_map(strategy)
+      end
+
+      def explicit_series_map(explicit_value, keys)
+        return nil if explicit_value.nil?
+        return explicit_value.transform_keys(&:to_sym) if explicit_value.is_a?(Hash)
+        return { keys.first => explicit_value } if keys.size == 1
+
+        raise ArgumentError, "Multiple subscriptions require a hash of injected data sources"
+      end
+
+      def load_candle_series_map(strategy)
+        strategy.subscribed_candle_symbols.each_with_object({}) do |(key, subscription), result|
+          result[key] = QuantRb::Data::Series::CandleLoader.load(
+            symbol: subscription.fetch(:symbol),
+            resolution: subscription.fetch(:resolution, :minute),
+            data_path: QuantRb::Data::DataSource.history_path,
+            start_date: strategy.start_date,
+            end_date: strategy.end_date
+          )
+        end
+      end
+
+      def load_option_chain_index_map(strategy)
+        strategy.subscribed_option_chain_symbols.each_with_object({}) do |(key, subscription), result|
+          result[key] = QuantRb::Data::Index::OptionsChainIndex.new(
+            root_path: QuantRb::Data::DataSource.options_path,
+            symbol: subscription.fetch(:option_root)
+          )
+        end
+      end
+
+      def build_bars(current_time, candle_series_map)
+        candle_series_map.each_with_object({}) do |(key, series), bars|
+          candle = series.at(current_time)
+          bars[key] = candle if candle
+        end
+      end
+
+      def build_option_chains(current_time, strategy, option_chain_indexes)
+        strategy.subscribed_option_chain_symbols.each_with_object({}) do |(key, subscription), chains|
+          index = option_chain_indexes[key]
+          next unless index
+
+          chains[key] = index.chains_at(current_time, expiry_filter: subscription[:filter])
+        end
       end
     end
   end
