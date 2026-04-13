@@ -4,7 +4,7 @@ require "spec_helper"
 
 RSpec.describe QuantRb::Data::Series::CandleSeries do
   let(:data_path) do
-    File.expand_path("../../../fixtures/quant_rb/history/schwab", __dir__)
+    QUANT_RB_FIXTURES_ROOT.join("history", "schwab")
   end
 
   let(:series) do

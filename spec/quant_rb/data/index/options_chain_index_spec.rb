@@ -4,7 +4,7 @@ require "spec_helper"
 
 RSpec.describe QuantRb::Data::Index::OptionsChainIndex do
   let(:root_path) do
-    File.expand_path("../../../fixtures/quant_rb/options/schwab", __dir__)
+    QUANT_RB_FIXTURES_ROOT.join("options", "schwab")
   end
 
   subject(:index) { described_class.new(root_path: root_path, symbol: "SPXW") }

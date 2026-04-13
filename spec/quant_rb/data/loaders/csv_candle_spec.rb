@@ -4,7 +4,7 @@ require "spec_helper"
 
 RSpec.describe QuantRb::Data::Loaders::CsvCandle do
   let(:fixture_path) do
-    File.expand_path("../../../fixtures/quant_rb/history/schwab/SPY/SPY_1min.csv", __dir__)
+    QUANT_RB_FIXTURES_ROOT.join("history", "schwab", "SPY", "SPY_1min.csv")
   end
 
   describe ".load" do

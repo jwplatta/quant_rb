@@ -4,7 +4,7 @@ require "spec_helper"
 
 RSpec.describe QuantRb::Data::Loaders::CsvOptionsChain do
   let(:fixture_path) do
-    File.expand_path("../../../fixtures/quant_rb/options/schwab/SPXW_exp2025-12-18_2025-12-18_13-50-58.csv", __dir__)
+    QUANT_RB_FIXTURES_ROOT.join("options", "schwab", "SPXW_exp2025-12-18_2025-12-18_13-50-58.csv")
   end
 
   describe ".load" do
