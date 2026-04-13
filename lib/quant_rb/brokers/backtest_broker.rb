@@ -29,6 +29,7 @@ module QuantRb
       end
 
       def process_pending_orders(slice, portfolio)
+        portfolio.mark_to_market(slice)
         filled = []
 
         @pending_orders.each do |order|
@@ -59,7 +60,7 @@ module QuantRb
 
         case order.direction
         when :credit then fill_price >= order.limit_price
-        when :debit   then fill_price <= order.limit_price
+        when :debit   then fill_price.abs <= order.limit_price
         when :buy     then true
         when :sell    then true
         else true

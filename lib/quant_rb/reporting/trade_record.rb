@@ -26,12 +26,18 @@ module QuantRb
         @notes          = notes
       end
 
-      # Net P&L for this trade.
-      # Options spreads: price delta * quantity * 100 (per contract multiplier)
-      # Equities: price delta * quantity
+      # Credit and short trades profit when the exit price is lower than the entry.
       def pnl
-        delta = (exit_price - entry_price)
-        multi_leg? ? delta * quantity * 100 : delta * quantity
+        multiplier = multi_leg? ? 100 : 1
+        delta =
+          case direction
+          when :credit, :short, :sell
+            entry_price - exit_price
+          else
+            exit_price - entry_price
+          end
+
+        delta * quantity * multiplier
       end
 
       def winner?
