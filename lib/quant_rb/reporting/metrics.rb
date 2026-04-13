@@ -77,6 +77,19 @@ module QuantRb
         max_dd
       end
 
+      def sharpe_ratio(risk_free_rate: 0.0)
+        daily_pnls = grouped_daily_pnls
+        return 0.0 if daily_pnls.size < 2
+
+        daily_risk_free_rate = risk_free_rate / 252.0
+        mean_excess_return = daily_pnls.sum { |pnl| pnl - daily_risk_free_rate } / daily_pnls.size.to_f
+        variance = daily_pnls.sum { |pnl| ((pnl - daily_risk_free_rate) - mean_excess_return)**2 } / (daily_pnls.size - 1).to_f
+        standard_deviation = Math.sqrt(variance)
+        return 0.0 if standard_deviation.zero?
+
+        ((mean_excess_return / standard_deviation) * Math.sqrt(252)).round(4)
+      end
+
       def to_h
         {
           total_trades:   total_trades,
@@ -86,8 +99,18 @@ module QuantRb
           avg_winner:     avg_winner.round(2),
           avg_loser:      avg_loser.round(2),
           profit_factor:  profit_factor,
-          max_drawdown:   max_drawdown.round(2)
+          max_drawdown:   max_drawdown.round(2),
+          sharpe_ratio:   sharpe_ratio
         }
+      end
+
+      private
+
+      def grouped_daily_pnls
+        trades
+          .group_by { |trade| (trade.exit_time || trade.entry_time).to_date }
+          .sort_by { |date, _| date }
+          .map { |_date, grouped_trades| grouped_trades.sum(&:pnl) }
       end
     end
   end

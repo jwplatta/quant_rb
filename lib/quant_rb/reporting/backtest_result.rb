@@ -45,9 +45,23 @@ module QuantRb
           "Avg loser:        $#{"%.2f" % m[:avg_loser]}",
           "Profit factor:    #{m[:profit_factor]}",
           "Max drawdown:     $#{"%.2f" % m[:max_drawdown]}",
+          "Sharpe ratio:     #{m[:sharpe_ratio]}",
           "=" * 50
         ]
         lines.join("\n")
+      end
+
+      def to_h
+        {
+          strategy_class: strategy_class.to_s,
+          start_date: start_date,
+          end_date: end_date,
+          initial_cash: initial_cash,
+          final_portfolio_value: final_portfolio_value,
+          total_return: total_return,
+          trades: trades.map(&:to_h),
+          metrics: metrics.to_h
+        }
       end
     end
   end
