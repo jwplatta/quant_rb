@@ -1,0 +1,91 @@
+# frozen_string_literal: true
+
+require_relative "quant_rb/version"
+require_relative "quant_rb/constants"
+
+begin
+  require "dotenv"
+  Dotenv.load
+rescue LoadError
+  # dotenv not available
+rescue Errno::ENOENT
+  # .env file not found
+end
+
+module QuantRb
+  class Error < StandardError; end
+
+  # ── Configuration ──────────────────────────────────────────────────────────
+
+  Config = Struct.new(
+    :data_path,
+    :options_subpath,
+    :history_subpath,
+    :log_level,
+    keyword_init: true
+  ) do
+    def initialize(
+      data_path:        ENV.fetch("QUANT_RB_DATA_PATH", "~/.tickrake/data"),
+      options_subpath:  ENV.fetch("QUANT_RB_OPTIONS_SUBPATH", "options/schwab"),
+      history_subpath:  ENV.fetch("QUANT_RB_HISTORY_SUBPATH", "history/schwab"),
+      log_level:        :info
+    )
+      super
+    end
+  end
+
+  def self.config
+    @config ||= Config.new
+  end
+
+  def self.configure
+    yield config
+  end
+
+  # ── Core data objects ─────────────────────────────────────────────────────
+
+  require_relative "quant_rb/data_objects/candle"
+  require_relative "quant_rb/data_objects/option"
+  require_relative "quant_rb/data_objects/options_chain"
+  require_relative "quant_rb/data_objects/quote"
+
+  # ── Data layer ────────────────────────────────────────────────────────────
+
+  require_relative "quant_rb/data/data_source"
+  require_relative "quant_rb/data/loaders/csv_candle"
+  require_relative "quant_rb/data/loaders/csv_options_chain"
+  require_relative "quant_rb/data/series/candle_series"
+  require_relative "quant_rb/data/index/options_chain_index"
+  require_relative "quant_rb/data/synthetic/synthetic_chain_builder"
+
+  # ── Engine ────────────────────────────────────────────────────────────────
+
+  require_relative "quant_rb/engine/order"
+  require_relative "quant_rb/engine/slice"
+  require_relative "quant_rb/engine/portfolio"
+  require_relative "quant_rb/engine/position"
+  require_relative "quant_rb/engine/fill_model"
+  require_relative "quant_rb/engine/securities"
+  require_relative "quant_rb/engine/date_rules"
+  require_relative "quant_rb/engine/time_rules"
+  require_relative "quant_rb/engine/scheduler"
+
+  # ── Brokers ───────────────────────────────────────────────────────────────
+
+  require_relative "quant_rb/brokers/broker_adapter"
+  require_relative "quant_rb/brokers/backtest_broker"
+
+  # ── Reporting ─────────────────────────────────────────────────────────────
+
+  require_relative "quant_rb/reporting/trade_record"
+  require_relative "quant_rb/reporting/metrics"
+  require_relative "quant_rb/reporting/backtest_result"
+
+  # ── Strategy base (last, depends on engine) ───────────────────────────────
+
+  require_relative "quant_rb/engine/strategy_base"
+  require_relative "quant_rb/engine/backtest_engine"
+
+  # Public alias so users write: QuantRb::BacktestEngine.run(MyStrategy)
+  BacktestEngine = Engine::BacktestEngine
+end
