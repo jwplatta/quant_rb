@@ -4,9 +4,6 @@ module QuantRb
   module Data
     module Series
       # Sorted, immutable collection of Candle objects for a single symbol.
-      #
-      # TODO (Phase 2): Implement CandleLoader.load factory method and SMA helper.
-      #
       class CandleSeries
         include Enumerable
 
@@ -20,6 +17,10 @@ module QuantRb
 
         def size
           @candles.size
+        end
+
+        def [](index)
+          @candles[index]
         end
 
         def empty?
@@ -76,17 +77,9 @@ module QuantRb
 
       # Loads candle CSVs from the configured data path and returns a CandleSeries.
       module CandleLoader
-        # symbol:     e.g. "SPY", "SPX", "VIX"
-        # resolution: :minute, :daily, etc. (maps to Intervals constant)
-        # data_path:  root history path (defaults to QuantRb::Data::DataSource.history_path)
         def self.load(symbol:, resolution: :minute, data_path: nil, start_date: nil, end_date: nil)
           data_path ||= QuantRb::Data::DataSource.history_path
-          interval   = QuantRb::Intervals::RESOLUTION_MAP[resolution] || resolution.to_s
-          file_path  = File.join(data_path, symbol.upcase, "#{symbol.upcase}_#{interval}.csv")
-
-          unless File.exist?(file_path)
-            raise ArgumentError, "Candle data not found: #{file_path}"
-          end
+          file_path = resolve_file_path(symbol: symbol, resolution: resolution, data_path: data_path)
 
           candles = QuantRb::Data::Loaders::CsvCandle.load(file_path)
 
@@ -98,6 +91,18 @@ module QuantRb
           end
 
           CandleSeries.new(candles)
+        end
+
+        def self.resolve_file_path(symbol:, resolution:, data_path:)
+          interval = QuantRb::Intervals::RESOLUTION_MAP.fetch(resolution, resolution.to_s)
+          upcased_symbol = symbol.upcase
+          filename = "#{upcased_symbol}_#{interval}.csv"
+          candidates = [
+            File.join(data_path, upcased_symbol, filename),
+            File.join(data_path, filename)
+          ]
+
+          candidates.find { |path| File.exist?(path) } || raise(ArgumentError, "Candle data not found: #{candidates.first}")
         end
       end
     end

@@ -1,0 +1,3 @@
+contract_type,symbol,description,strike,expiration_date,mark,bid,bid_size,ask,ask_size,last,last_size,open_interest,total_volume,delta,gamma,theta,vega,rho,volatility,theoretical_volatility,theoretical_option_value,intrinsic_value,extrinsic_value,underlying_price
+CALL,SPXW  251218C06000000,SPXW Dec 18 2025 6000 Call,6000,2025-12-18,15.25,15.0,10,15.5,12,15.1,3,250,125,0.42,0.015,-0.82,1.25,0.08,0.21,0.20,15.25,0.0,15.25,5988.0
+PUT,SPXW  251218P05900000,SPXW Dec 18 2025 5900 Put,5900,2025-12-18,10.5,10.2,8,10.8,9,10.4,2,275,130,-0.31,0.013,-0.71,1.14,-0.06,0.22,0.21,10.5,0.0,10.5,5988.0

@@ -7,13 +7,6 @@ module QuantRb
   module Data
     module Loaders
       # Parses a single candle CSV file into an array of DataObjects::Candle.
-      #
-      # Expected CSV format (no header or header line starting with "datetime"):
-      #   datetime,open,high,low,close,volume
-      #   2019-12-27T14:30:00Z,3247.23,3247.64,3246.46,3247.61,0
-      #
-      # TODO (Phase 2): Implement full parsing with error handling and timezone support.
-      #
       class CsvCandle
         def self.load(file_path)
           new(file_path).load
@@ -27,25 +20,47 @@ module QuantRb
           candles = []
 
           CSV.foreach(@file_path, headers: true) do |row|
+            next if row.to_h.empty?
+
             candles << build_candle(row)
           rescue StandardError => e
             warn "Warning: skipping malformed candle row in #{@file_path}: #{e.message}"
           end
 
-          candles.compact
+          candles.compact.sort_by(&:datetime)
         end
 
         private
 
         def build_candle(row)
           QuantRb::DataObjects::Candle.new(
-            datetime: Time.parse(row["datetime"] || row[0]),
-            open:     row["open"]&.to_f   || row[1]&.to_f,
-            high:     row["high"]&.to_f   || row[2]&.to_f,
-            low:      row["low"]&.to_f    || row[3]&.to_f,
-            close:    row["close"]&.to_f  || row[4]&.to_f,
-            volume:   row["volume"]&.to_i || row[5]&.to_i || 0
+            datetime: parse_time(value_from(row, "datetime", 0)),
+            open: parse_float(value_from(row, "open", 1)),
+            high: parse_float(value_from(row, "high", 2)),
+            low: parse_float(value_from(row, "low", 3)),
+            close: parse_float(value_from(row, "close", 4)),
+            volume: parse_integer(value_from(row, "volume", 5)) || 0
           )
+        end
+
+        def value_from(row, header, index)
+          row[header] || row[index]
+        end
+
+        def parse_time(value)
+          Time.iso8601(value.to_s)
+        end
+
+        def parse_float(value)
+          return nil if value.nil? || value.to_s.strip.empty?
+
+          Float(value)
+        end
+
+        def parse_integer(value)
+          return nil if value.nil? || value.to_s.strip.empty?
+
+          Integer(value, 10)
         end
       end
     end

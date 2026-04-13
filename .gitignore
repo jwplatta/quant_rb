@@ -16,6 +16,7 @@ pkg
 /options-trader-env
 *.json
 *.csv
+!spec/fixtures/**/*.csv
 *.rdb
 *.log
 /logs

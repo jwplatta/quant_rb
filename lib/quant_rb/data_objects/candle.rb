@@ -3,7 +3,19 @@
 module QuantRb
   module DataObjects
     # Immutable OHLCV candle value object.
-    Candle = Struct.new(:datetime, :open, :high, :low, :close, :volume, keyword_init: true) do
+    class Candle
+      attr_reader :datetime, :open, :high, :low, :close, :volume
+
+      def initialize(datetime:, open:, high:, low:, close:, volume:)
+        @datetime = datetime
+        @open = open
+        @high = high
+        @low = low
+        @close = close
+        @volume = volume
+        freeze
+      end
+
       def to_h
         { datetime: datetime, open: open, high: high, low: low, close: close, volume: volume }
       end
