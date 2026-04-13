@@ -1,19 +1,16 @@
 # frozen_string_literal: true
 
 require "date"
+require "time"
 
 module QuantRb
   module Data
     module Index
       # In-memory index of all options chain CSV files under a root path.
       # Supports LOCF (last-observation-carried-forward) lookup by sampled_at time.
-      #
-      # File naming pattern: {SYMBOL}_exp{EXPIRY_DATE}_{SAMPLE_DATE}_{HH-MM-SS}.csv
-      # Example: SPXW_exp2025-12-18_2025-12-18_13-50-58.csv
-      #
-      # TODO (Phase 2): Implement full index with lazy CSV loading, synthetic fallback hook.
-      #
       class OptionsChainIndex
+        FILENAME_PATTERN = /\A(?<symbol>.+?)_exp(?<expiry>\d{4}-\d{2}-\d{2})_(?<sample_date>\d{4}-\d{2}-\d{2})_(?<sample_time>\d{2}-\d{2}-\d{2})\.csv\z/.freeze
+
         # root_path: directory containing the chain CSV files
         # symbol:    e.g. "SPXW"
         def initialize(root_path:, symbol:)
@@ -21,6 +18,7 @@ module QuantRb
           @symbol    = symbol
           @index     = {}     # { sampled_at (Time) => { expiry_date (Date) => file_path } }
           @cache     = {}     # { file_path => OptionsChain } — lazy loaded
+          @sorted_times = []
           build_index!
         end
 
@@ -37,7 +35,8 @@ module QuantRb
           result = {}
 
           expiry_map.each do |expiry, file_path|
-            next if expiry_filter && !expiry_filter.call(expiry)
+            next unless matches_expiry_filter?(expiry, expiry_filter)
+
             result[expiry] = load_chain(file_path)
           end
 
@@ -49,22 +48,20 @@ module QuantRb
         end
 
         def size
-          @index.size
+          @index.values.sum(&:size)
         end
 
         private
 
-        # Parses filename to extract sampled_at and expiry_date.
-        # Returns [sampled_at (Time), expiry_date (Date)] or nil if unparseable.
         def parse_filename(filename)
-          # Pattern: SPXW_exp2025-12-18_2025-12-18_13-50-58.csv
-          match = filename.match(/\A#{Regexp.escape(@symbol)}_exp(\d{4}-\d{2}-\d{2})_(\d{4}-\d{2}-\d{2})_(\d{2}-\d{2}-\d{2})\.csv\z/)
+          match = filename.match(FILENAME_PATTERN)
           return nil unless match
+          return nil unless match[:symbol] == @symbol
 
-          expiry_date = Date.parse(match[1])
-          sample_date = match[2]
-          sample_time = match[3].gsub("-", ":")
-          sampled_at  = Time.parse("#{sample_date}T#{sample_time}")
+          expiry_date = Date.parse(match[:expiry])
+          sample_date = match[:sample_date]
+          sample_time = match[:sample_time].tr("-", ":")
+          sampled_at = Time.parse("#{sample_date} #{sample_time}")
 
           [sampled_at, expiry_date]
         rescue Date::Error, ArgumentError
@@ -74,7 +71,7 @@ module QuantRb
         def build_index!
           return unless Dir.exist?(@root_path)
 
-          Dir.glob(File.join(@root_path, "#{@symbol}_exp*.csv")).each do |file_path|
+          Dir.glob(File.join(@root_path, "**", "#{@symbol}_exp*.csv")).sort.each do |file_path|
             filename = File.basename(file_path)
             parsed   = parse_filename(filename)
             next unless parsed
@@ -88,7 +85,6 @@ module QuantRb
         end
 
         def locf_lookup(target_time)
-          # Binary search for rightmost sampled_at <= target_time
           lo  = 0
           hi  = @sorted_times.size - 1
           res = nil
@@ -108,6 +104,15 @@ module QuantRb
 
         def load_chain(file_path)
           @cache[file_path] ||= QuantRb::Data::Loaders::CsvOptionsChain.load(file_path)
+        end
+
+        def matches_expiry_filter?(expiry, expiry_filter)
+          return true if expiry_filter.nil?
+          return expiry_filter.call(expiry) if expiry_filter.respond_to?(:call)
+          return expiry_filter.cover?(expiry) if expiry_filter.respond_to?(:cover?)
+          return expiry_filter.include?(expiry) if expiry_filter.respond_to?(:include?)
+
+          expiry == expiry_filter
         end
       end
     end
