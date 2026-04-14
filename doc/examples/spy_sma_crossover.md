@@ -17,10 +17,22 @@ The runnable script is [examples/spy_sma_crossover_backtest.rb](../../examples/s
 
 This example expects local candle data in the configured `quant_rb` data root.
 
-With the default configuration, the required file is:
+The runnable script looks for `SPY_1min.csv` under the configured history root. By default it checks these subpaths in order:
+
+- `history/ibkr-paper`
+- `history/ibkr`
+- `history/schwab`
+
+The required file is:
 
 ```text
-~/.tickrake/data/history/schwab/SPY/SPY_1min.csv
+~/.tickrake/data/history/<provider>/SPY_1min.csv
+```
+
+or:
+
+```text
+~/.tickrake/data/history/<provider>/SPY/SPY_1min.csv
 ```
 
 If you want to use a different root path, set:
@@ -32,7 +44,7 @@ export QUANT_RB_DATA_PATH=/path/to/data/root
 Optional overrides:
 
 ```bash
-export QUANT_RB_HISTORY_SUBPATH=history/schwab
+export QUANT_RB_HISTORY_SUBPATH=history/ibkr-paper
 export QUANT_RB_OPTIONS_SUBPATH=options/schwab
 ```
 
@@ -47,9 +59,10 @@ ruby examples/spy_sma_crossover_backtest.rb
 The script will:
 
 1. load the `SpySmaCrossover` reference strategy from `doc/reference/spy_sma_crossover.rb`
-2. configure `quant_rb` to read local data
-3. run the backtest
-4. print the summary and completed trades
+2. detect a local `SPY_1min.csv` history path unless you override it
+3. infer the actual start and end dates from the local candle file
+4. run the backtest
+5. print the summary and completed trades
 
 ## Strategy Source
 
