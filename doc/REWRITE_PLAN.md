@@ -343,6 +343,15 @@ Add a `SyntheticChainBuilder` to `data/synthetic/` that wraps `doc/generate_opti
 
 Then write `Spxw7DteIronCondor` strategy using `doc/reference/` and run a backtest over available data.
 
+### Phase 5c: Basic Logging / Observability
+Goal: Add a minimal logging utility for `quant_rb` so strategies, examples, and the engine can emit structured logs without relying on raw `puts`.
+
+1. Add a small `QuantRb::Logging` wrapper around Ruby's stdlib `Logger`
+2. Support basic log levels (`debug`, `info`, `warn`, `error`) through `QuantRb.config.log_level`
+3. Route `QuantRb::Strategy#log` / `#debug` through the logger instead of direct stdout printing
+4. Make example scripts opt into engine/strategy logging cleanly
+5. Use the old `OptionsTrader::Logger` and `OptionsTrader::Loggable` modules only as reference material, not as code to port directly
+
 ### Phase 6: Gemspec Cleanup
 1. Remove: `activerecord`, `clockwork`, `sidekiq`, `sqlite3`, `aws-sdk-s3`, `rubyzip`
 2. Keep: `dotenv`, stdlib `csv`
@@ -481,3 +490,4 @@ From Broker:
 - **Phase 4:** `QuantRb::BacktestEngine.run(TestStrategy)` completes, returns `BacktestResult` with trades and final portfolio value
 - **Phase 5a:** SPY SMA crossover backtest produces a trade log with correct entry/exit timestamps, non-zero P&L, and a valid `BacktestResult`
 - **Phase 5b:** Options backtest uses real chain samples when present; falls back to synthetic chains (generated from SPX+VIX candles) when not. Iron Condor trades have entry credits in expected range (~$1.00–$2.50 for 7DTE SPXW)
+- **Phase 5c:** `QuantRb::Strategy#log` and engine/example logging route through a shared logger with configurable log level and no direct `puts` dependency
