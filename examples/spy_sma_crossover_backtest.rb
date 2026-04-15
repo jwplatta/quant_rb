@@ -22,6 +22,7 @@ QuantRb.configure do |config|
   config.data_path = data_path
   config.history_subpath = history_subpath
   config.options_subpath = ENV.fetch("QUANT_RB_OPTIONS_SUBPATH", "options/schwab")
+  config.log_level = ENV.fetch("QUANT_RB_LOG_LEVEL", "info")
 end
 
 series = QuantRb::Data::Series::CandleLoader.load(
@@ -40,6 +41,9 @@ strategy_class = Class.new(SpySmaCrossover) do
     set_end_date(last_date.year, last_date.month, last_date.day)
   end
 end
+
+QuantRb.logger.info("Running SPY SMA crossover example")
+QuantRb.logger.info("data_root=#{QuantRb.config.data_path} history_path=#{QuantRb::Data::DataSource.history_path}")
 
 result = QuantRb::BacktestEngine.run(strategy_class)
 

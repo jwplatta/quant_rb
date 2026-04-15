@@ -133,10 +133,24 @@ module QuantRb
       # ── Logging ───────────────────────────────────────────────────────────
 
       def log(msg)
-        puts "[#{time}] #{msg}"
+        info(msg)
       end
 
-      alias debug log
+      def debug(msg)
+        logger.debug(format_log_message(msg))
+      end
+
+      def info(msg)
+        logger.info(format_log_message(msg))
+      end
+
+      def warn(msg)
+        logger.warn(format_log_message(msg))
+      end
+
+      def error(msg)
+        logger.error(format_log_message(msg))
+      end
 
       # ── Internal accessors (used by BacktestEngine) ───────────────────────
 
@@ -158,6 +172,15 @@ module QuantRb
 
       def subscriptions
         @subscriptions ||= { candles: {}, option_chains: {} }
+      end
+
+      def logger
+        QuantRb.logger
+      end
+
+      def format_log_message(msg)
+        prefix = time ? "[#{time.utc}]" : "[no-time]"
+        "#{prefix} #{self.class}: #{msg}"
       end
 
       # Engine calls these to inject dependencies

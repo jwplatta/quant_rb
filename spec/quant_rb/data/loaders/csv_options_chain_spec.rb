@@ -1,8 +1,18 @@
 # frozen_string_literal: true
 
 require "spec_helper"
+require "tmpdir"
 
 RSpec.describe QuantRb::Data::Loaders::CsvOptionsChain do
+  around do |example|
+    original_logger = QuantRb.logger
+    begin
+      example.run
+    ensure
+      QuantRb.logger = original_logger
+    end
+  end
+
   let(:fixture_path) do
     QUANT_RB_FIXTURES_ROOT.join("options", "schwab", "SPXW_exp2025-12-18_2025-12-18_13-50-58.csv")
   end
@@ -28,6 +38,24 @@ RSpec.describe QuantRb::Data::Loaders::CsvOptionsChain do
       expect(call.expiration_date).to eq(Date.new(2025, 12, 18))
       expect(call.days_to_expiration).to eq(0)
       expect(call.timestamp).to eq(Time.parse("2025-12-18 13:50:58"))
+    end
+
+    it "logs malformed rows through QuantRb.logger" do
+      logger = instance_double(Logger, warn: nil)
+      QuantRb.logger = logger
+
+      Dir.mktmpdir do |dir|
+        path = File.join(dir, "SPXW_exp2025-12-18_2025-12-18_13-50-58.csv")
+        File.write(path, <<~CSV)
+          contract_type,symbol,expiration_date,strike,underlying_price,open_interest,total_volume
+          CALL,SPXW  251218C06000000,2025-12-18,6000,6005,not-an-int,10
+        CSV
+
+        expect(logger).to receive(:warn).with(include("Skipping malformed option row"))
+        chain = described_class.load(path)
+        expect(chain.call_opts).to eq([])
+        expect(chain.put_opts).to eq([])
+      end
     end
   end
 end

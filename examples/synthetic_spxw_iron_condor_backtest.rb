@@ -34,6 +34,7 @@ end
 QuantRb.configure do |config|
   config.data_path = DATA_ROOT
   config.history_subpath = detect_history_subpath
+  config.log_level = ENV.fetch("QUANT_RB_LOG_LEVEL", "info")
 end
 
 history_path = QuantRb::Data::DataSource.history_path
@@ -58,10 +59,9 @@ synthetic_index = QuantRb::Data::Index::SyntheticOptionsChainIndex.new(
   )
 )
 
-puts "Running synthetic SPXW iron condor example"
-puts "  data_root:      #{QuantRb.config.data_path}"
-puts "  history_path:   #{QuantRb::Data::DataSource.history_path}"
-puts "  mode:           explicit synthetic chain index"
+QuantRb.logger.info("Running synthetic SPXW iron condor example")
+QuantRb.logger.info("data_root=#{QuantRb.config.data_path} history_path=#{QuantRb::Data::DataSource.history_path}")
+QuantRb.logger.info("mode=explicit synthetic chain index")
 
 result = QuantRb::BacktestEngine.run(
   SyntheticSpxwIronCondorExample,
