@@ -63,6 +63,15 @@ module QuantRb
           metrics: metrics.to_h
         }
       end
+
+      def save(output_dir: BacktestOutputWriter::DEFAULT_DIR, format: :csv, name: nil)
+        BacktestOutputWriter.new(
+          self,
+          output_dir: output_dir,
+          format: format,
+          name: name
+        ).save
+      end
     end
   end
 end
