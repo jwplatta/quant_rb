@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "spec_helper"
+require "time"
 
 RSpec.describe QuantRb::Data::Index::OptionsChainIndex do
   let(:root_path) do
@@ -38,6 +39,14 @@ RSpec.describe QuantRb::Data::Index::OptionsChainIndex do
   describe "#available_dates" do
     it "returns distinct sample dates" do
       expect(index.available_dates).to eq([Date.new(2025, 12, 18)])
+    end
+  end
+
+  describe "initialization" do
+    it "raises when the configured root path is missing" do
+      expect do
+        described_class.new(root_path: "/tmp/definitely-missing-options-root", symbol: "SPXW")
+      end.to raise_error(ArgumentError, /Options chain root path not found/)
     end
   end
 end

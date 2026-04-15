@@ -56,6 +56,7 @@ module QuantRb
   require_relative "quant_rb/data/loaders/csv_options_chain"
   require_relative "quant_rb/data/series/candle_series"
   require_relative "quant_rb/data/index/options_chain_index"
+  require_relative "quant_rb/data/index/synthetic_options_chain_index"
   require_relative "quant_rb/data/synthetic/synthetic_chain_builder"
 
   # ── Engine ────────────────────────────────────────────────────────────────
