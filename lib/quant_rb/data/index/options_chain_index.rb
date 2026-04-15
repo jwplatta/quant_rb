@@ -16,7 +16,7 @@ module QuantRb
         def initialize(root_path:, symbol:)
           @root_path = root_path
           @symbol    = symbol
-          @index     = {}     # { sampled_at (Time) => { expiry_date (Date) => file_path } }
+          @index     = {}     # { expiry_date (Date) => [[sampled_at (Time), file_path], ...] }
           @cache     = {}     # { file_path => OptionsChain } — lazy loaded
           @sorted_times = []
           build_index!
@@ -28,12 +28,13 @@ module QuantRb
         def chains_at(target_time, expiry_filter: nil)
           return {} if @sorted_times.empty?
 
-          sampled_at = locf_lookup(target_time)
-          return {} unless sampled_at
-
           result = {}
-          @index.fetch(sampled_at, {}).each do |expiry, file_path|
+          @index.each do |expiry, samples|
+            next if expiry < target_time.to_date
             next unless matches_expiry_filter?(expiry, expiry_filter)
+
+            file_path = locf_file_for(samples, target_time)
+            next unless file_path
 
             result[expiry] = load_chain(file_path)
           end
@@ -75,22 +76,24 @@ module QuantRb
             next unless parsed
 
             sampled_at, expiry_date = parsed
-            @index[sampled_at] ||= {}
-            @index[sampled_at][expiry_date] = file_path
+            @index[expiry_date] ||= []
+            @index[expiry_date] << [sampled_at, file_path]
           end
 
-          @sorted_times = @index.keys.sort
+          @index.each_value { |samples| samples.sort_by!(&:first) }
+          @sorted_times = @index.values.flat_map { |samples| samples.map(&:first) }.uniq.sort
         end
 
-        def locf_lookup(target_time)
+        def locf_file_for(samples, target_time)
           lo  = 0
-          hi  = @sorted_times.size - 1
+          hi  = samples.size - 1
           res = nil
 
           while lo <= hi
             mid = (lo + hi) / 2
-            if @sorted_times[mid] <= target_time
-              res = @sorted_times[mid]
+            sampled_at, file_path = samples[mid]
+            if sampled_at <= target_time
+              res = file_path
               lo  = mid + 1
             else
               hi  = mid - 1
