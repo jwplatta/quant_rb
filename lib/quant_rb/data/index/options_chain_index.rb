@@ -31,10 +31,8 @@ module QuantRb
           sampled_at = locf_lookup(target_time)
           return {} unless sampled_at
 
-          expiry_map = @index[sampled_at]
           result = {}
-
-          expiry_map.each do |expiry, file_path|
+          @index.fetch(sampled_at, {}).each do |expiry, file_path|
             next unless matches_expiry_filter?(expiry, expiry_filter)
 
             result[expiry] = load_chain(file_path)
@@ -69,7 +67,7 @@ module QuantRb
         end
 
         def build_index!
-          return unless Dir.exist?(@root_path)
+          raise ArgumentError, "Options chain root path not found: #{@root_path}" unless Dir.exist?(@root_path)
 
           Dir.glob(File.join(@root_path, "**", "#{@symbol}_exp*.csv")).sort.each do |file_path|
             filename = File.basename(file_path)
