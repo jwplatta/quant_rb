@@ -1,0 +1,40 @@
+name: Release Gem
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          bundler-cache: true
+
+      - name: Verify tag matches gem version
+        run: |
+          VERSION=$(ruby -e 'require_relative "lib/quant_rb/version"; print QuantRb::VERSION')
+          if [ "${GITHUB_REF_NAME}" != "v${VERSION}" ]; then
+            echo "Tag ${GITHUB_REF_NAME} does not match gem version v${VERSION}"
+            exit 1
+          fi
+
+      - name: Run quant_rb test suite
+        run: bundle exec rspec spec/quant_rb
+
+      - name: Build gem
+        run: bundle exec rake build
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: pkg/*.gem
+          generate_release_notes: true
