@@ -8,17 +8,18 @@ Gem::Specification.new do |spec|
   spec.authors = ["Joseph Platta"]
   spec.email   = ["jwplatta@gmail.com"]
 
-  spec.summary     = "QuantConnect-inspired algorithmic trading and backtesting engine for Ruby"
-  spec.description = "A general-purpose event-driven backtesting engine for algorithmic strategies " \
-                     "across all asset classes (stocks, ETFs, indexes, options, futures). " \
-                     "Strategy code runs unchanged across backtesting, paper trading, and live trading " \
-                     "by swapping data source and broker adapters."
-  spec.homepage    = "https://github.com/jwplatta/quant_rb"
+  spec.summary     = "Event-driven backtesting engine for algorithmic trading strategies in Ruby"
+  spec.description = "quant_rb is a QuantConnect-inspired backtesting engine for Ruby. " \
+                     "Version #{QuantRb::VERSION} focuses on local-data backtesting for equities, indexes, " \
+                     "and options. Paper trading and live trading adapters are planned future work and are " \
+                     "not included in this first release."
+  spec.homepage    = "https://github.com/jwplatta/options_trader"
   spec.license     = "MIT"
   spec.required_ruby_version = ">= 3.1.0"
 
   spec.metadata["homepage_uri"]    = spec.homepage
   spec.metadata["source_code_uri"] = spec.homepage
+  spec.metadata["changelog_uri"]   = "#{spec.homepage}/blob/main/CHANGELOG.md"
 
   spec.files = Dir.chdir(__dir__) do
     `git ls-files -z`.split("\x0").reject do |f|
@@ -33,9 +34,8 @@ Gem::Specification.new do |spec|
   spec.add_runtime_dependency "dotenv", ">= 2.0"
 
   # Development dependencies
-  spec.add_development_dependency "factory_bot", "~> 6.4"
   spec.add_development_dependency "pry",         ">= 0.14"
+  spec.add_development_dependency "rake",        ">= 13.0"
   spec.add_development_dependency "rspec",       "~> 3.12"
   spec.add_development_dependency "rubocop",     ">= 1.50"
-  spec.add_development_dependency "timecop",     ">= 0.9"
 end

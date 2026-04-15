@@ -1,19 +1,8 @@
 # frozen_string_literal: true
 
-require 'rake'
+require "bundler/gem_tasks"
+require "rspec/core/rake_task"
 
-# Load tasks first before loading environment
-Dir.glob('lib/tasks/**/*.rake').each { |r| import r }
+RSpec::Core::RakeTask.new(:spec)
 
-# Only load environment when needed for specific tasks
-task :environment do
-  require_relative 'config/environment'
-end
-
-namespace :db do
-  task init: :environment
-  task migrate: :environment
-  task reset: :environment
-  task drop: :environment
-  task schema: :environment
-end
+task default: :spec
