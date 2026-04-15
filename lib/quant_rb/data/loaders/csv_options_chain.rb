@@ -34,7 +34,7 @@ module QuantRb
             underlying_price ||= option.underlying_price
             option.call? ? calls << option : puts_ << option
           rescue StandardError => e
-            warn "Warning: skipping malformed option row in #{@file_path}: #{e.message}"
+            QuantRb.logger.warn("Skipping malformed option row in #{@file_path}: #{e.message}")
           end
 
           QuantRb::DataObjects::OptionsChain.new(

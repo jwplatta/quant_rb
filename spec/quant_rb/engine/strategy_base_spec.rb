@@ -3,6 +3,15 @@
 require "spec_helper"
 
 RSpec.describe QuantRb::Engine::StrategyBase do
+  around do |example|
+    original_logger = QuantRb.logger
+    begin
+      example.run
+    ensure
+      QuantRb.logger = original_logger
+    end
+  end
+
   let(:portfolio) { QuantRb::Engine::Portfolio.new(initial_cash: 50_000) }
   let(:schedule) { QuantRb::Engine::Scheduler.new }
   let(:securities) { QuantRb::Engine::Securities.new }
@@ -58,5 +67,28 @@ RSpec.describe QuantRb::Engine::StrategyBase do
     end.and_return(QuantRb::Engine::OrderTicket.new(order_id: "2", status: :submitted))
 
     strategy.combo_limit_order([{ symbol: "LEG1", quantity: 1 }, { symbol: "LEG2", quantity: -1 }], 1, -1.25)
+  end
+
+  it "routes strategy log levels through the shared quant_rb logger" do
+    logger = instance_double(Logger, info: nil, debug: nil, warn: nil, error: nil)
+    QuantRb.logger = logger
+
+    strategy = strategy_class.build_for_engine(
+      portfolio: portfolio,
+      schedule: schedule,
+      securities: securities,
+      broker: broker
+    )
+    strategy.send(:set_time, Time.parse("2024-01-15 15:00:00 UTC"))
+
+    expect(logger).to receive(:info).with(include("[2024-01-15 15:00:00 UTC]"))
+    expect(logger).to receive(:debug).with(include("debug message"))
+    expect(logger).to receive(:warn).with(include("warn message"))
+    expect(logger).to receive(:error).with(include("error message"))
+
+    strategy.log("info message")
+    strategy.debug("debug message")
+    strategy.warn("warn message")
+    strategy.error("error message")
   end
 end

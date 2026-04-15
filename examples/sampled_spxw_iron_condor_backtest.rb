@@ -23,13 +23,12 @@ QuantRb.configure do |config|
   config.data_path = DATA_ROOT
   config.history_subpath = detect_history_subpath
   config.options_subpath = detect_options_subpath
+  config.log_level = ENV.fetch("QUANT_RB_LOG_LEVEL", "info")
 end
 
-puts "Running sampled SPXW iron condor example"
-puts "  data_root:      #{QuantRb.config.data_path}"
-puts "  history_path:   #{QuantRb::Data::DataSource.history_path}"
-puts "  options_path:   #{QuantRb::Data::DataSource.options_path}"
-puts "  mode:           sampled option chains"
+QuantRb.logger.info("Running sampled SPXW iron condor example")
+QuantRb.logger.info("data_root=#{QuantRb.config.data_path} history_path=#{QuantRb::Data::DataSource.history_path}")
+QuantRb.logger.info("options_path=#{QuantRb::Data::DataSource.options_path} mode=sampled option chains")
 
 result = QuantRb::BacktestEngine.run(SampledSpxwIronCondorExample)
 

@@ -2,6 +2,7 @@
 
 require_relative "quant_rb/version"
 require_relative "quant_rb/constants"
+require_relative "quant_rb/logging"
 
 begin
   require "dotenv"
@@ -40,6 +41,15 @@ module QuantRb
 
   def self.configure
     yield config
+    Logging.apply_config!
+  end
+
+  def self.logger
+    Logging.logger
+  end
+
+  def self.logger=(new_logger)
+    Logging.logger = new_logger
   end
 
   # ── Core data objects ─────────────────────────────────────────────────────

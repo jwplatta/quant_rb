@@ -24,7 +24,7 @@ module QuantRb
 
             candles << build_candle(row)
           rescue StandardError => e
-            warn "Warning: skipping malformed candle row in #{@file_path}: #{e.message}"
+            QuantRb.logger.warn("Skipping malformed candle row in #{@file_path}: #{e.message}")
           end
 
           candles.compact.sort_by(&:datetime)
