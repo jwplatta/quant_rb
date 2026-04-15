@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "spec_helper"
+require "tmpdir"
 
 RSpec.describe QuantRb::Reporting::BacktestResult do
   let(:trade) do
@@ -39,5 +40,16 @@ RSpec.describe QuantRb::Reporting::BacktestResult do
       total_return: 0.02
     )
     expect(result.to_h[:metrics]).to include(:total_trades, :sharpe_ratio)
+  end
+
+  it "saves summary and trade outputs through the reporting writer" do
+    Dir.mktmpdir do |dir|
+      paths = result.save(output_dir: dir, name: "saved_result")
+
+      expect(paths[:summary_path]).to eq(File.join(dir, "saved_result_summary.csv"))
+      expect(paths[:trades_path]).to eq(File.join(dir, "saved_result_trades.csv"))
+      expect(File).to exist(paths[:summary_path])
+      expect(File).to exist(paths[:trades_path])
+    end
   end
 end

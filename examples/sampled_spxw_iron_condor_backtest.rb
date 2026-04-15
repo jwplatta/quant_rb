@@ -31,9 +31,16 @@ QuantRb.logger.info("data_root=#{QuantRb.config.data_path} history_path=#{QuantR
 QuantRb.logger.info("options_path=#{QuantRb::Data::DataSource.options_path} mode=sampled option chains")
 
 result = QuantRb::BacktestEngine.run(SampledSpxwIronCondorExample)
+saved_outputs = result.save(
+  output_dir: ENV.fetch("QUANT_RB_BACKTEST_OUTPUT_DIR", QuantRb::Reporting::BacktestOutputWriter::DEFAULT_DIR),
+  format: ENV.fetch("QUANT_RB_BACKTEST_FORMAT", "csv"),
+  name: ENV["QUANT_RB_BACKTEST_NAME"]
+)
 
 puts
 puts result.summary
+puts "Saved summary: #{saved_outputs[:summary_path]}"
+puts "Saved trades:  #{saved_outputs[:trades_path]}"
 puts
 puts "Completed trades"
 result.trades.each do |trade|
