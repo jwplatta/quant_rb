@@ -95,6 +95,7 @@ module QuantRb
   require_relative "quant_rb/reporting/metrics"
   require_relative "quant_rb/reporting/backtest_result"
   require_relative "quant_rb/reporting/backtest_output_writer"
+  require_relative "quant_rb/reporting/progress_reporter"
 
   # ── Strategy base (last, depends on engine) ───────────────────────────────
 

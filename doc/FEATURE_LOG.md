@@ -6,12 +6,11 @@ It is intentionally lighter-weight than `doc/REWRITE_PLAN.md`. Use it for follow
 
 ## Backtest Tooling
 
-- Add an MCP server interface so Claude/Codex-style agents can launch and inspect `quant_rb` backtests programmatically.
-- Add a progress bar or similar progress reporting for long-running backtests.
+- [x] Add a progress bar or similar progress reporting for long-running backtests.
+- [ ] Add an MCP server interface so Claude/Codex-style agents can launch and inspect `quant_rb` backtests programmatically.
 
 ## Execution Realism
 
-- Add configurable transaction costs for backtests.
-- Add configurable slippage for backtests.
-- Improve synthetic options-chain execution realism with a configurable bid/ask spread model and a reasonable fill/slippage model for multi-leg options trades.
-
+- [ ] Add configurable transaction costs for backtests.
+- [ ] Add configurable slippage for backtests.
+- [ ] Improve synthetic options-chain execution realism with a configurable bid/ask spread model and a reasonable fill/slippage model for multi-leg options trades.
