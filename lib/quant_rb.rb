@@ -80,11 +80,14 @@ module QuantRb
   require_relative "quant_rb/engine/date_rules"
   require_relative "quant_rb/engine/time_rules"
   require_relative "quant_rb/engine/scheduler"
+  require_relative "quant_rb/engine/live_engine"
 
   # ── Brokers ───────────────────────────────────────────────────────────────
 
   require_relative "quant_rb/brokers/broker_adapter"
   require_relative "quant_rb/brokers/backtest_broker"
+  require_relative "quant_rb/brokers/schwab_broker"
+  require_relative "quant_rb/brokers/ib_broker"
 
   # ── Reporting ─────────────────────────────────────────────────────────────
 
