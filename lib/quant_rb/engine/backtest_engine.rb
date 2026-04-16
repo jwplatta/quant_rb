@@ -11,20 +11,22 @@ module QuantRb
     class BacktestEngine
       # Run a backtest for the given strategy class.
       # Returns a QuantRb::Reporting::BacktestResult.
-      def self.run(strategy_class, broker: nil, candle_series: nil, options_chain_index: nil)
+      def self.run(strategy_class, broker: nil, candle_series: nil, options_chain_index: nil, progress: :auto)
         new(
           strategy_class:       strategy_class,
           broker:               broker,
           candle_series:        candle_series,
-          options_chain_index:  options_chain_index
+          options_chain_index:  options_chain_index,
+          progress:             progress
         ).run
       end
 
-      def initialize(strategy_class:, broker: nil, candle_series: nil, options_chain_index: nil)
+      def initialize(strategy_class:, broker: nil, candle_series: nil, options_chain_index: nil, progress: :auto)
         @strategy_class      = strategy_class
         @broker              = broker
         @candle_series       = candle_series
         @options_chain_index = options_chain_index
+        @progress            = progress
       end
 
       def run
@@ -56,6 +58,12 @@ module QuantRb
 
         primary_series = candle_series_map.fetch(primary_key)
         candles = primary_series.to_a
+        progress_reporter = Reporting::ProgressReporter.new(
+          total: candles.size,
+          title: strategy.class.name || "Backtest",
+          enabled: @progress
+        )
+
         candles.each_with_index do |candle, idx|
           current_time = candle.datetime
           strategy.send(:set_time, current_time)
@@ -83,8 +91,11 @@ module QuantRb
           if next_date != current_date
             strategy.subscribed_symbols.each { |sym| strategy.on_end_of_day(sym) }
           end
+
+          progress_reporter.increment
         end
 
+        progress_reporter.finish
         strategy.on_end_of_algorithm
 
         Reporting::BacktestResult.new(

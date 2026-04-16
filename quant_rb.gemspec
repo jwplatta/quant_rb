@@ -32,6 +32,7 @@ Gem::Specification.new do |spec|
 
   # Runtime dependencies
   spec.add_runtime_dependency "dotenv", ">= 2.0"
+  spec.add_runtime_dependency "ruby-progressbar", ">= 1.13"
 
   # Development dependencies
   spec.add_development_dependency "pry",         ">= 0.14"

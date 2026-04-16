@@ -87,4 +87,28 @@ RSpec.describe QuantRb::Engine::BacktestEngine do
     expect(strategy.on_data_calls).to eq(3)
     expect(strategy.end_of_day_symbols).to include(:SPY)
   end
+
+  it "creates and advances a progress bar when stdout is a tty" do
+    progress_reporter = instance_double(QuantRb::Reporting::ProgressReporter, increment: nil, finish: nil)
+    expect(QuantRb::Reporting::ProgressReporter).to receive(:new).with(
+      total: 3,
+      title: kind_of(String),
+      enabled: :auto
+    ).and_return(progress_reporter)
+    expect(progress_reporter).to receive(:increment).exactly(3).times
+    expect(progress_reporter).to receive(:finish)
+
+    described_class.run(strategy_class)
+  end
+
+  it "allows callers to disable progress output explicitly" do
+    progress_reporter = instance_double(QuantRb::Reporting::ProgressReporter, increment: nil, finish: nil)
+    expect(QuantRb::Reporting::ProgressReporter).to receive(:new).with(
+      total: 3,
+      title: kind_of(String),
+      enabled: false
+    ).and_return(progress_reporter)
+
+    described_class.run(strategy_class, progress: false)
+  end
 end
