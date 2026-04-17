@@ -13,8 +13,9 @@ module QuantRb
     class BacktestBroker
       include BrokerAdapter
 
-      def initialize(fill_model: nil)
-        @fill_model    = fill_model || QuantRb::Engine::FillModel.new(model: :bid_ask)
+      def initialize(fill_model: nil, execution_cost_model: nil)
+        @fill_model = fill_model || QuantRb::Engine::FillModel.new(model: :bid_ask)
+        @execution_cost_model = execution_cost_model || QuantRb::Brokers::ExecutionCostModel.none
         @pending_orders = []
       end
 
@@ -37,7 +38,8 @@ module QuantRb
           next unless fill_price
 
           if fillable?(order, fill_price)
-            portfolio.record_fill(order, fill_price, slice.time)
+            transaction_costs = @execution_cost_model.estimate(order)
+            portfolio.record_fill(order, fill_price, slice.time, transaction_costs: transaction_costs)
             filled << order
           end
         end

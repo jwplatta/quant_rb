@@ -72,4 +72,79 @@ RSpec.describe QuantRb::Brokers::BacktestBroker do
     expect(portfolio.positions[order.id]).to be_nil
     expect(broker.pending_orders.map(&:id)).to include(order.id)
   end
+
+  it "applies execution costs to a filled iron condor" do
+    execution_cost_model = QuantRb::Brokers::ExecutionCostModel.schwab_spxw_options
+    broker = described_class.new(execution_cost_model: execution_cost_model)
+    short_put = QuantRb::DataObjects::Option.new(
+      symbol: "PUT_SHORT",
+      underlying_symbol: "SPX",
+      strike: 4900,
+      put_call: QuantRb::PUT,
+      underlying_price: 4950,
+      expiration_date: Date.new(2024, 1, 19),
+      bid: 1.60,
+      ask: 1.70,
+      mark: 1.65
+    )
+    long_put = QuantRb::DataObjects::Option.new(
+      symbol: "PUT_LONG",
+      underlying_symbol: "SPX",
+      strike: 4850,
+      put_call: QuantRb::PUT,
+      underlying_price: 4950,
+      expiration_date: Date.new(2024, 1, 19),
+      bid: 0.45,
+      ask: 0.55,
+      mark: 0.50
+    )
+    short_call = QuantRb::DataObjects::Option.new(
+      symbol: "CALL_SHORT",
+      underlying_symbol: "SPX",
+      strike: 5000,
+      put_call: QuantRb::CALL,
+      underlying_price: 4950,
+      expiration_date: Date.new(2024, 1, 19),
+      bid: 1.55,
+      ask: 1.65,
+      mark: 1.60
+    )
+    long_call = QuantRb::DataObjects::Option.new(
+      symbol: "CALL_LONG",
+      underlying_symbol: "SPX",
+      strike: 5050,
+      put_call: QuantRb::CALL,
+      underlying_price: 4950,
+      expiration_date: Date.new(2024, 1, 19),
+      bid: 0.40,
+      ask: 0.50,
+      mark: 0.45
+    )
+    chain = QuantRb::DataObjects::OptionsChain.new(
+      symbol: "SPXW",
+      call_opts: [short_call, long_call],
+      put_opts: [short_put, long_put]
+    )
+    slice = QuantRb::Engine::Slice.new(
+      time: time,
+      option_chains: { SPXW_options: { Date.new(2024, 1, 19) => chain } }
+    )
+    order = QuantRb::Engine::Order.new(
+      legs: [
+        { symbol: "PUT_SHORT", quantity: -1 },
+        { symbol: "PUT_LONG", quantity: 1 },
+        { symbol: "CALL_SHORT", quantity: -1 },
+        { symbol: "CALL_LONG", quantity: 1 }
+      ],
+      quantity: 1,
+      direction: :credit,
+      limit_price: 2.0
+    )
+
+    broker.submit_order(order)
+    broker.process_pending_orders(slice, portfolio)
+
+    expect(portfolio.positions.fetch(order.id).entry_price).to eq(2.1)
+    expect(portfolio.cash).to eq(5_205.12)
+  end
 end

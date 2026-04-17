@@ -85,6 +85,7 @@ module QuantRb
   # ── Brokers ───────────────────────────────────────────────────────────────
 
   require_relative "quant_rb/brokers/broker_adapter"
+  require_relative "quant_rb/brokers/execution_cost_model"
   require_relative "quant_rb/brokers/backtest_broker"
   require_relative "quant_rb/brokers/schwab_broker"
   require_relative "quant_rb/brokers/ib_broker"

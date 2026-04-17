@@ -5,7 +5,7 @@ module QuantRb
     # Simulates order fills for backtesting.
     #
     # model:    :mid (fill at midpoint), :bid_ask (conservative: sell at bid, buy at ask)
-    # slippage: additional per-contract cost applied to fills
+    # slippage: additional adverse per-contract price adjustment applied to fills
     #
     # TODO (Phase 3): Implement full fill simulation using slice data.
     #
@@ -34,7 +34,7 @@ module QuantRb
         candle = find_candle(slice, leg[:symbol])
         return nil unless candle
 
-        candle.close.to_f
+        apply_slippage(candle.close.to_f, order).round(4)
       end
 
       def simulate_combo_fill(order, slice)
@@ -49,7 +49,7 @@ module QuantRb
           net -= price.to_f * leg[:quantity].to_i
         end
 
-        (net - @slippage.to_f).round(4)
+        apply_slippage(net, order).round(4)
       end
 
       def leg_fill_price(opt, quantity)
@@ -75,6 +75,22 @@ module QuantRb
 
       def find_candle(slice, symbol_key)
         slice.bars[symbol_key.to_sym] || slice.bars[symbol_key.to_s]
+      end
+
+      def apply_slippage(base_price, order)
+        return base_price.to_f if @slippage.zero?
+
+        adverse_move =
+          case order.direction
+          when :credit, :sell
+            -@slippage.to_f
+          when :debit, :buy
+            @slippage.to_f
+          else
+            0.0
+          end
+
+        base_price.to_f + adverse_move
       end
     end
   end

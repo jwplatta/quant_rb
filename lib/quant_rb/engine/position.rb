@@ -4,10 +4,12 @@ module QuantRb
   module Engine
     # Represents a single open position in the portfolio.
     class Position
-      attr_reader :id, :order, :entry_time, :legs, :direction
+      attr_reader :id, :order, :entry_time, :legs, :direction,
+                  :entry_fees, :entry_commissions
       attr_accessor :entry_price, :quantity, :current_price
 
-      def initialize(id:, order:, quantity:, entry_price:, entry_time:, direction:, current_price: nil)
+      def initialize(id:, order:, quantity:, entry_price:, entry_time:, direction:, current_price: nil,
+                     entry_fees: 0.0, entry_commissions: 0.0)
         @id = id
         @order = order
         @quantity = quantity
@@ -16,6 +18,8 @@ module QuantRb
         @direction = direction
         @current_price = (current_price || entry_price).to_f
         @legs = Array(order&.legs).map(&:dup).freeze
+        @entry_fees = entry_fees.to_f
+        @entry_commissions = entry_commissions.to_f
       end
 
       def multi_leg?
