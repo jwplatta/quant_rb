@@ -22,7 +22,7 @@ module QuantRb
       end
 
       def record_fill(order, fill_price, fill_time, strategy_class: nil, transaction_costs: nil)
-        transaction_costs ||= QuantRb::Brokers::ExecutionCostModel::CostBreakdown.new(fees: 0.0, commissions: 0.0)
+        transaction_costs ||= QuantRb::Reality::CostBreakdown.new
         if order.multi_leg?
           record_multi_leg_fill(order, fill_price, fill_time, transaction_costs: transaction_costs)
         else
@@ -37,7 +37,7 @@ module QuantRb
       end
 
       def close_position(order_id, close_price, close_time, strategy_class: nil, notes: nil, transaction_costs: nil)
-        transaction_costs ||= QuantRb::Brokers::ExecutionCostModel::CostBreakdown.new(fees: 0.0, commissions: 0.0)
+        transaction_costs ||= QuantRb::Reality::CostBreakdown.new
         position = @positions.delete(order_id)
         return unless position
 

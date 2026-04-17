@@ -69,13 +69,25 @@ module QuantRb
   require_relative "quant_rb/data/index/synthetic_options_chain_index"
   require_relative "quant_rb/data/synthetic/synthetic_chain_builder"
 
+  # ── Reality modeling ──────────────────────────────────────────────────────
+
+  require_relative "quant_rb/reality/cost_breakdown"
+  require_relative "quant_rb/reality/slippage_model"
+  require_relative "quant_rb/reality/null_slippage_model"
+  require_relative "quant_rb/reality/constant_slippage_model"
+  require_relative "quant_rb/reality/transaction_fee_model"
+  require_relative "quant_rb/reality/zero_transaction_fee_model"
+  require_relative "quant_rb/reality/per_spread_transaction_fee_model"
+  require_relative "quant_rb/reality/fill_model"
+  require_relative "quant_rb/reality/optimistic_fill_model"
+  require_relative "quant_rb/reality/bid_ask_fill_model"
+
   # ── Engine ────────────────────────────────────────────────────────────────
 
   require_relative "quant_rb/engine/order"
   require_relative "quant_rb/engine/slice"
   require_relative "quant_rb/engine/portfolio"
   require_relative "quant_rb/engine/position"
-  require_relative "quant_rb/engine/fill_model"
   require_relative "quant_rb/engine/securities"
   require_relative "quant_rb/engine/date_rules"
   require_relative "quant_rb/engine/time_rules"
@@ -85,7 +97,6 @@ module QuantRb
   # ── Brokers ───────────────────────────────────────────────────────────────
 
   require_relative "quant_rb/brokers/broker_adapter"
-  require_relative "quant_rb/brokers/execution_cost_model"
   require_relative "quant_rb/brokers/backtest_broker"
   require_relative "quant_rb/brokers/schwab_broker"
   require_relative "quant_rb/brokers/ib_broker"
