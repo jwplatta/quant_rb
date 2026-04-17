@@ -44,4 +44,34 @@ RSpec.describe QuantRb::Engine::Portfolio do
     expect(portfolio.cash).to eq(10_070.0)
     expect(portfolio.trade_history.last.pnl).to eq(70.0)
   end
+
+  it "tracks gross pnl and transaction costs for a one-lot iron condor" do
+    fee_model = QuantRb::Reality::PerSpreadTransactionFeeModel.new(
+      option_fee_per_spread: 1.14,
+      option_commission_per_spread: 1.30
+    )
+    order = QuantRb::Engine::Order.new(
+      legs: [
+        { symbol: "PUT_SHORT", quantity: -1 },
+        { symbol: "PUT_LONG", quantity: 1 },
+        { symbol: "CALL_SHORT", quantity: -1 },
+        { symbol: "CALL_LONG", quantity: 1 }
+      ],
+      quantity: 1,
+      direction: :credit,
+      limit_price: 2.10,
+      submitted_at: time
+    )
+
+    portfolio.record_fill(order, 2.10, time, transaction_costs: fee_model.estimate(order))
+    portfolio.close_position(order.id, 1.20, time + 3600, transaction_costs: fee_model.estimate(order))
+
+    trade = portfolio.trade_history.last
+    expect(trade.gross_pnl).to eq(90.0)
+    expect(trade.total_fees).to eq(4.56)
+    expect(trade.total_commissions).to eq(5.2)
+    expect(trade.total_transaction_costs).to eq(9.76)
+    expect(trade.pnl).to eq(80.24)
+    expect(portfolio.cash).to eq(10_080.24)
+  end
 end

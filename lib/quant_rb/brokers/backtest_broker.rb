@@ -2,7 +2,7 @@
 
 module QuantRb
   module Brokers
-    # Simulates order execution for backtesting using a FillModel.
+    # Simulates order execution for backtesting using injected reality models.
     #
     # Fills are attempted on every call to #process_pending_orders (once per time step).
     # Limit orders fill if simulated fill price satisfies the limit condition.
@@ -13,8 +13,14 @@ module QuantRb
     class BacktestBroker
       include BrokerAdapter
 
-      def initialize(fill_model: nil)
-        @fill_model    = fill_model || QuantRb::Engine::FillModel.new(model: :bid_ask)
+      def initialize(
+        fill_model: QuantRb::Reality::BidAskFillModel.new,
+        slippage_model: QuantRb::Reality::NullSlippageModel.new,
+        transaction_fee_model: QuantRb::Reality::ZeroTransactionFeeModel.new
+      )
+        @fill_model = fill_model
+        @slippage_model = slippage_model
+        @transaction_fee_model = transaction_fee_model
         @pending_orders = []
       end
 
@@ -33,11 +39,15 @@ module QuantRb
         filled = []
 
         @pending_orders.each do |order|
-          fill_price = @fill_model.simulate_fill(order, slice)
+          raw_fill_price = @fill_model.simulate_fill(order, slice)
+          next unless raw_fill_price
+
+          fill_price = @slippage_model.adjust_price(raw_fill_price, order: order, slice: slice).round(4)
           next unless fill_price
 
           if fillable?(order, fill_price)
-            portfolio.record_fill(order, fill_price, slice.time)
+            transaction_costs = @transaction_fee_model.estimate(order, fill_price: fill_price, slice: slice)
+            portfolio.record_fill(order, fill_price, slice.time, transaction_costs: transaction_costs)
             filled << order
           end
         end

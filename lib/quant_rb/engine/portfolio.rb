@@ -21,30 +21,43 @@ module QuantRb
         cash + positions.values.sum(&:market_value)
       end
 
-      def record_fill(order, fill_price, fill_time, strategy_class: nil)
+      def record_fill(order, fill_price, fill_time, strategy_class: nil, transaction_costs: nil)
+        transaction_costs ||= QuantRb::Reality::CostBreakdown.new
         if order.multi_leg?
-          record_multi_leg_fill(order, fill_price, fill_time)
+          record_multi_leg_fill(order, fill_price, fill_time, transaction_costs: transaction_costs)
         else
-          record_single_leg_fill(order, fill_price, fill_time, strategy_class: strategy_class)
+          record_single_leg_fill(
+            order,
+            fill_price,
+            fill_time,
+            strategy_class: strategy_class,
+            transaction_costs: transaction_costs
+          )
         end
       end
 
-      def close_position(order_id, close_price, close_time, strategy_class: nil, notes: nil)
+      def close_position(order_id, close_price, close_time, strategy_class: nil, notes: nil, transaction_costs: nil)
+        transaction_costs ||= QuantRb::Reality::CostBreakdown.new
         position = @positions.delete(order_id)
         return unless position
 
-        @cash += if position.multi_leg?
-                   combo_close_cash_flow(position, close_price)
-                 else
-                   position.quantity * close_price.to_f
-                 end
+        adjust_cash(
+          if position.multi_leg?
+            combo_close_cash_flow(position, close_price)
+          else
+            position.quantity * close_price.to_f
+          end
+        )
+        adjust_cash(-transaction_costs.total)
 
         trade_history << build_trade_record(
           position: position,
           close_price: close_price,
           close_time: close_time,
           strategy_class: strategy_class,
-          notes: notes
+          notes: notes,
+          exit_fees: transaction_costs.fees,
+          exit_commissions: transaction_costs.commissions
         )
 
         position
@@ -63,7 +76,7 @@ module QuantRb
 
       private
 
-      def record_multi_leg_fill(order, fill_price, fill_time)
+      def record_multi_leg_fill(order, fill_price, fill_time, transaction_costs:)
         position = QuantRb::Engine::Position.new(
           id: order.id,
           order: order,
@@ -71,27 +84,38 @@ module QuantRb
           entry_price: fill_price,
           entry_time: fill_time,
           direction: order.credit? ? :credit : :debit,
-          current_price: fill_price
+          current_price: fill_price,
+          entry_fees: transaction_costs.fees,
+          entry_commissions: transaction_costs.commissions
         )
 
         @positions[position.id] = position
-        @cash += combo_open_cash_flow(order, fill_price)
+        adjust_cash(combo_open_cash_flow(order, fill_price))
+        adjust_cash(-transaction_costs.total)
       end
 
-      def record_single_leg_fill(order, fill_price, fill_time, strategy_class:)
+      def record_single_leg_fill(order, fill_price, fill_time, strategy_class:, transaction_costs:)
         symbol = order.symbol.to_sym
         signed_quantity = order.signed_quantity
 
-        @cash -= fill_price.to_f * signed_quantity
+        adjust_cash(-(fill_price.to_f * signed_quantity))
+        adjust_cash(-transaction_costs.total)
 
         existing = @positions[symbol]
         unless existing
-          @positions[symbol] = build_single_leg_position(symbol, order, signed_quantity, fill_price, fill_time)
+          @positions[symbol] = build_single_leg_position(
+            symbol,
+            order,
+            signed_quantity,
+            fill_price,
+            fill_time,
+            transaction_costs
+          )
           return
         end
 
         if same_direction?(existing.direction, signed_quantity)
-          scale_position(existing, signed_quantity, fill_price)
+          scale_position(existing, signed_quantity, fill_price, transaction_costs)
           return
         end
 
@@ -102,11 +126,12 @@ module QuantRb
           signed_quantity: signed_quantity,
           fill_price: fill_price,
           fill_time: fill_time,
-          strategy_class: strategy_class
+          strategy_class: strategy_class,
+          transaction_costs: transaction_costs
         )
       end
 
-      def build_single_leg_position(symbol, order, signed_quantity, fill_price, fill_time)
+      def build_single_leg_position(symbol, order, signed_quantity, fill_price, fill_time, transaction_costs)
         QuantRb::Engine::Position.new(
           id: symbol,
           order: order,
@@ -114,11 +139,13 @@ module QuantRb
           entry_price: fill_price,
           entry_time: fill_time,
           direction: signed_quantity.positive? ? :long : :short,
-          current_price: fill_price
+          current_price: fill_price,
+          entry_fees: transaction_costs.fees,
+          entry_commissions: transaction_costs.commissions
         )
       end
 
-      def scale_position(position, signed_quantity, fill_price)
+      def scale_position(position, signed_quantity, fill_price, transaction_costs)
         added_quantity = signed_quantity.abs
         total_quantity = position.quantity + added_quantity
         weighted_entry = ((position.entry_price * position.quantity) + (fill_price.to_f * added_quantity)) / total_quantity
@@ -126,9 +153,11 @@ module QuantRb
         position.entry_price = weighted_entry
         position.quantity = total_quantity
         position.current_price = fill_price.to_f
+        position.instance_variable_set(:@entry_fees, position.entry_fees + transaction_costs.fees)
+        position.instance_variable_set(:@entry_commissions, position.entry_commissions + transaction_costs.commissions)
       end
 
-      def close_against_position(symbol:, existing:, order:, signed_quantity:, fill_price:, fill_time:, strategy_class:)
+      def close_against_position(symbol:, existing:, order:, signed_quantity:, fill_price:, fill_time:, strategy_class:, transaction_costs:)
         closing_quantity = [existing.quantity, signed_quantity.abs].min
 
         trade_history << QuantRb::Reporting::TradeRecord.new(
@@ -141,7 +170,11 @@ module QuantRb
           exit_price: fill_price.to_f,
           entry_time: existing.entry_time,
           exit_time: fill_time,
-          legs: existing.legs
+          legs: existing.legs,
+          entry_fees: existing.entry_fees,
+          entry_commissions: existing.entry_commissions,
+          exit_fees: transaction_costs.fees,
+          exit_commissions: transaction_costs.commissions
         )
 
         remaining_existing = existing.quantity - closing_quantity
@@ -157,10 +190,17 @@ module QuantRb
         return unless incoming_remainder.positive?
 
         net_signed_quantity = signed_quantity.positive? ? incoming_remainder : -incoming_remainder
-        @positions[symbol] = build_single_leg_position(symbol, order, net_signed_quantity, fill_price, fill_time)
+        @positions[symbol] = build_single_leg_position(
+          symbol,
+          order,
+          net_signed_quantity,
+          fill_price,
+          fill_time,
+          transaction_costs
+        )
       end
 
-      def build_trade_record(position:, close_price:, close_time:, strategy_class:, notes:)
+      def build_trade_record(position:, close_price:, close_time:, strategy_class:, notes:, exit_fees:, exit_commissions:)
         QuantRb::Reporting::TradeRecord.new(
           id: position.id,
           strategy_class: strategy_class || infer_strategy_class(position.order),
@@ -172,7 +212,11 @@ module QuantRb
           entry_time: position.entry_time,
           exit_time: close_time,
           legs: position.legs,
-          notes: notes
+          notes: notes,
+          entry_fees: position.entry_fees,
+          entry_commissions: position.entry_commissions,
+          exit_fees: exit_fees,
+          exit_commissions: exit_commissions
         )
       end
 
@@ -198,6 +242,10 @@ module QuantRb
         return position.id unless position.multi_leg?
 
         position.legs.map { |leg| leg[:symbol] }.join(",")
+      end
+
+      def adjust_cash(amount)
+        @cash = (@cash + amount.to_f).round(4)
       end
     end
   end
