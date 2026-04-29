@@ -1,33 +1,58 @@
 # Repository Guidelines
 
+## Project Focus
+- Active development is centered on the `quant_rb` gem and the code under `lib/quant_rb/`.
+- Treat the `bots/` directory and other legacy `options_trader` code as reference material only. It exists to help with migration and design comparison, and it is expected to be removed.
+- When making implementation decisions, prefer `quant_rb` architecture, APIs, and tests over legacy bot patterns.
+
 ## Project Structure & Module Organization
-- Core library lives in `lib/options_trader/` with key areas: `automation/` (bot loop), `search/` (strategy discovery), `strategies/` (iron condor, spreads), `trades/` (state machine + order handling), `data_providers/` (Schwab/Polygon), `predictors/` (Greek Forge), `backtest/`, `indicators/`, plus `services/` and `workers/`.
-- Tests mirror the library under `spec/`; prefer placing fixtures in `spec/support/` or `data/` when heavier.
-- Database migrations reside in `db/migrate/`; environment bootstraps via `config/environment`.
-- Utility scripts live in `scripts/` and `bin/` (e.g., `bin/refresh_token.rb`, `bin/spx_9dte_sample_job.rb`); notebooks for exploration sit in `notebooks/`.
+- Core gem code lives in `lib/quant_rb/`.
+- Key areas include:
+  - `engine/` for the event-driven runtime, scheduling, portfolio, orders, and positions
+  - `data/` for loaders, indexes, synthetic chain builders, and market-data abstractions
+  - `data_objects/` for candles, options, quotes, and chains
+  - `reality/` for fill, slippage, and fee models
+  - `reporting/` for metrics, trade records, backtest outputs, and progress reporting
+  - `brokers/` for broker adapters and backtest broker behavior
+- Specs for the gem live under `spec/quant_rb/`; fixtures live under `spec/fixtures/quant_rb/`.
+- Runnable examples live in `examples/`; supporting design and migration notes live in `doc/`.
+- The `bots/` folder is legacy `options_trader` code. Do not extend it unless the task is explicitly about migration or reference extraction.
 
 ## Build, Test, and Development Commands
-- `bundle install` – install Ruby dependencies.
-- `bundle exec rake db:init db:migrate` – create and migrate the local database; add `db:reset` when you need a fresh schema.
-- `bundle exec rspec` – run the full test suite; append a path or `:line` to scope (e.g., `bundle exec rspec spec/trades/trade_spec.rb:42`).
-- `bundle exec rubocop` – lint/format with project rules from `rubocop.yml`.
-- `ruby spx_1DTE_bot.rb` or `ruby bin/spx_9dte_sample_job.rb` – run example bots once your `.env` is populated.
-- `docker-compose up` – start dependencies defined in `docker-compose.yml` (DB, services) when needed.
+- `bundle install` - install Ruby dependencies.
+- `bundle exec rspec` - run the full spec suite.
+- `bundle exec rspec spec/quant_rb` - run the active `quant_rb` specs only.
+- `bundle exec rubocop` - lint the codebase with project rules from `rubocop.yml`.
+- `bundle exec rake build` - build the gem package.
+- `ruby examples/spy_sma_crossover_backtest.rb` - run the equity example backtest.
+- `ruby examples/sampled_spxw_iron_condor_backtest.rb` - run the sampled options-chain example.
+- `ruby examples/synthetic_spxw_iron_condor_backtest.rb` - run the synthetic options-chain example.
 
 ## Coding Style & Naming Conventions
-- Ruby 3.x with two-space indentation; favor small, composable objects and explicit state transitions.
-- File names `snake_case.rb`; classes/modules `CamelCase`; methods/vars `snake_case`; constants `SCREAMING_SNAKE`.
-- Keep public APIs documented with brief comments; avoid broad mixins unless shared across multiple services.
-- Run `bundle exec rubocop` before commits to stay aligned with enforced cops.
+- Ruby 3.1+ with two-space indentation.
+- File names use `snake_case.rb`; classes and modules use `CamelCase`; methods and variables use `snake_case`; constants use `SCREAMING_SNAKE_CASE`.
+- Favor small, composable objects with explicit responsibilities and deterministic behavior.
+- Keep the public gem API and strategy-facing interfaces clear and stable; add brief comments where contracts are not obvious.
+- Avoid coupling new `quant_rb` code to legacy `bots/` implementations.
 
 ## Testing Guidelines
-- Framework: RSpec. Place specs beside corresponding lib paths (e.g., `lib/options_trader/trades/` → `spec/trades/`).
-- Name tests with `_spec.rb`; prefer focused examples (`it` blocks) and deterministic data builders over live API calls.
-- Cover trading state machines, strategy finders, and Schwab integrations; include regression cases for edge states (timeouts, zero-liquidity chains).
-- Use `bundle exec rspec --format documentation` locally when debugging; keep CI output concise by default.
+- Framework: RSpec.
+- Place specs alongside the active gem structure, for example `lib/quant_rb/engine/backtest_engine.rb` maps to `spec/quant_rb/engine/backtest_engine_spec.rb`.
+- Prefer deterministic fixtures and local test data over live API calls.
+- Prioritize coverage for backtest execution, scheduling, portfolio/order behavior, data loading, synthetic chain generation, and reporting.
+- Add regression coverage for edge cases such as missing bars, sparse option chains, fill-model assumptions, and output persistence.
+- Use `bundle exec rspec --format documentation` locally when debugging targeted failures.
+
+## Legacy Code Guidance
+- `bots/` and related legacy files are not the product surface. They are historical reference material during the `quant_rb` transition.
+- It is acceptable to inspect legacy code for behavior parity, naming ideas, or migration context.
+- New features, tests, and refactors should land in `lib/quant_rb/`, `spec/quant_rb/`, `examples/`, or relevant docs unless the task explicitly says otherwise.
+- If a change touches both `quant_rb` and legacy code, keep the active gem implementation as the source of truth and minimize churn in legacy files.
 
 ## Commit & Pull Request Guidelines
-- Commit messages follow the existing pattern: short imperative prefix with scope (`feature/high-risk-dates`, `fix/bot-loop-no-trade`, `refactor/state-machine-decision-tree`) plus PR reference when applicable.
-- Squash noisy WIP commits locally; keep diffs scoped to a single concern.
-- PRs should include: concise summary, testing notes (`bundle exec rspec`, `rubocop`), screenshots/log excerpts for behavioral changes, and links to related issues. Call out migration or config changes explicitly.
-- Keep secrets out of git (`.env`, `schwab_token.json`, API keys); use `.env` for local credentials and never log sensitive fields.
+- Keep diffs scoped to a single concern.
+- Prefer short imperative commit messages. Conventional commits such as `feat:`, `fix:`, `refactor:`, `docs:`, and `test:` are preferred.
+- Update `CHANGELOG.md` for user-visible gem changes. Skip changelog updates for internal-only refactors, tests, docs, or tooling.
+- Bump `lib/quant_rb/version.rb` only when preparing a release, and pair it with the corresponding changelog entry.
+- PRs should include a concise summary, relevant test commands, and notes about any behavior or data-layout changes.
+- Keep secrets and local state out of git, including `.env` files, account credentials, tokens, and generated backtest artifacts.
