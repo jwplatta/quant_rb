@@ -23,14 +23,13 @@ module QuantRb
         - The builder estimates an ATM volatility level from the available proxy inputs.
         - It shapes a simple synthetic volatility smile around anchor deltas.
         - It generates a strike grid around spot using the configured range and step size.
-        - It prices each strike with the selected pricing model and derives at least delta.
+        - It prices each strike with the selected pricing model and derives a full greek set.
         - It constructs synthetic bid/ask quotes from the modeled mark and runs the shared
           option-chain validator/repair pass before returning the chain.
 
         Shortcuts in this Stage 1 implementation:
         - The smile shape is heuristic rather than calibrated to a market-observed surface.
         - Bid/ask prices are derived from a simple spread heuristic, not from microstructure data.
-        - Gamma, theta, vega, and rho are not populated for synthetic chains yet.
         - The builder repairs the final chain for monotonicity/intrinsic-floor issues rather than
           solving a stricter arbitrage-free surface optimization problem.
       DOC
@@ -48,7 +47,7 @@ module QuantRb
           @risk_free_rate = risk_free_rate
           @pricing_model = pricing_model.to_sym
           @strike_grid = { step: 5.0, range_ratio: 0.20 }.merge((strike_grid || {}).transform_keys(&:to_sym))
-          @iv_map = iv_map || {}
+          @iv_map = normalize_iv_map(iv_map)
           @validator = validator || Validation::OptionChainValidator.new
         end
 
@@ -113,10 +112,15 @@ module QuantRb
 
         def validate_series_alignment!(target_time)
           [@spx_series, @vix_series].each do |series|
-            next if series&.at(target_time)
+            next if exact_candle_at(series, target_time)
 
             raise ArgumentError, "SyntheticChainBuilder input series are not aligned at #{target_time.utc}"
           end
+        end
+
+        def exact_candle_at(series, target_time)
+          candle = series&.at(target_time)
+          candle && candle.datetime == target_time
         end
 
         def compute_derived_state(target_time)
@@ -226,7 +230,7 @@ module QuantRb
               vol_pct = interpolate_vol(anchor_points, spot, strike)
               sigma = vol_pct / 100.0
               price = option_price(spot:, strike:, tau_years:, sigma:, contract_type:)
-              delta = option_delta(spot:, strike:, tau_years:, sigma:, contract_type:)
+              greeks = option_greeks(spot:, strike:, tau_years:, sigma:, contract_type:)
 
               build_option(
                 symbol: symbol,
@@ -236,7 +240,7 @@ module QuantRb
                 target_time: target_time,
                 underlying_price: spot,
                 mark: price,
-                delta: delta,
+                greeks: greeks,
                 volatility: vol_pct
               )
             end
@@ -258,7 +262,7 @@ module QuantRb
           strikes
         end
 
-        def build_option(symbol:, contract_type:, strike:, expiration_date:, target_time:, underlying_price:, mark:, delta:, volatility:)
+        def build_option(symbol:, contract_type:, strike:, expiration_date:, target_time:, underlying_price:, mark:, greeks:, volatility:)
           spread = [[mark * 0.02, 0.05].max, 1.00].min
           bid = [mark - (spread / 2.0), 0.01].max.round(4)
           ask = (bid + spread).round(4)
@@ -279,7 +283,11 @@ module QuantRb
             mark: mark.round(4),
             bid: bid,
             ask: ask,
-            delta: delta.round(6),
+            delta: greeks.fetch(:delta).round(6),
+            gamma: greeks.fetch(:gamma).round(6),
+            theta: greeks.fetch(:theta).round(6),
+            vega: greeks.fetch(:vega).round(6),
+            rho: greeks.fetch(:rho).round(6),
             timestamp: target_time,
             intrinsic: intrinsic.round(4),
             volatility: volatility.round(4)
@@ -324,6 +332,29 @@ module QuantRb
           end
         end
 
+        def option_greeks(spot:, strike:, tau_years:, sigma:, contract_type:)
+          put_call = contract_type == :call ? QuantRb::CALL : QuantRb::PUT
+          return binomial_greeks(spot:, strike:, tau_years:, sigma:, contract_type: put_call) if @pricing_model == :binomial
+
+          {
+            delta: Pricing::BlackScholes.delta(spot: spot, strike: strike, tau_years: tau_years, sigma: sigma, rate: @risk_free_rate, contract_type: put_call),
+            gamma: Pricing::BlackScholes.gamma(spot: spot, strike: strike, tau_years: tau_years, sigma: sigma, rate: @risk_free_rate),
+            theta: Pricing::BlackScholes.theta(spot: spot, strike: strike, tau_years: tau_years, sigma: sigma, rate: @risk_free_rate, contract_type: put_call),
+            vega: Pricing::BlackScholes.vega(spot: spot, strike: strike, tau_years: tau_years, sigma: sigma, rate: @risk_free_rate),
+            rho: Pricing::BlackScholes.rho(spot: spot, strike: strike, tau_years: tau_years, sigma: sigma, rate: @risk_free_rate, contract_type: put_call)
+          }
+        end
+
+        def binomial_greeks(spot:, strike:, tau_years:, sigma:, contract_type:)
+          {
+            delta: Pricing::CrrBinomial.delta(spot: spot, strike: strike, tau_years: tau_years, sigma: sigma, rate: @risk_free_rate, contract_type: contract_type),
+            gamma: Pricing::CrrBinomial.gamma(spot: spot, strike: strike, tau_years: tau_years, sigma: sigma, rate: @risk_free_rate, contract_type: contract_type),
+            theta: Pricing::CrrBinomial.theta(spot: spot, strike: strike, tau_years: tau_years, sigma: sigma, rate: @risk_free_rate, contract_type: contract_type),
+            vega: Pricing::CrrBinomial.vega(spot: spot, strike: strike, tau_years: tau_years, sigma: sigma, rate: @risk_free_rate, contract_type: contract_type),
+            rho: Pricing::CrrBinomial.rho(spot: spot, strike: strike, tau_years: tau_years, sigma: sigma, rate: @risk_free_rate, contract_type: contract_type)
+          }
+        end
+
         def select_vol_proxy(dte:, vix:, vix9d:, vix1d:)
           ticker = @iv_map.find { |threshold, _symbol| dte <= threshold }&.last
           case ticker
@@ -333,6 +364,24 @@ module QuantRb
           else
             vix&.to_f
           end
+        end
+
+        def normalize_iv_map(value)
+          return {} if value.nil?
+
+          value.each_with_object([]) do |(raw_key, ticker), entries|
+            threshold =
+              case raw_key.to_s.upcase
+              when /\A(\d+)DTE\z/
+                Regexp.last_match(1).to_i
+              when "ODTE", "0DTE"
+                0
+              else
+                raise ArgumentError, "Unsupported IV bucket #{raw_key.inspect}"
+              end
+
+            entries << [threshold, ticker]
+          end.sort_by(&:first).to_h
         end
 
         def inverse_normal_cdf(probability)
