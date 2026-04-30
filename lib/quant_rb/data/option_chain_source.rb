@@ -2,6 +2,27 @@
 
 module QuantRb
   module Data
+    <<~DOC
+      Public option-chain source interface for backtests.
+
+      In Stage 1 this class is intentionally load-bearing: it is the main orchestration layer
+      behind `add_index_option(...)` after strategy subscription config has been normalized.
+
+      Responsibilities:
+      - dispatch between synthetic, sampled-interpolated, and sampled-validated chain modes
+      - acquire raw option-chain rows through the Tickrake adapter
+      - index sampled snapshots by expiry and sampled time, then serve them with LOCF semantics
+      - normalize raw rows into `Option` and `OptionsChain` objects
+      - run sampled reconstruction steps when interpolation mode is enabled
+      - run shared validation and repair
+      - derive IV and greeks for reconstructed sampled chains
+      - delegate synthetic surface generation to `SyntheticChainBuilder`
+
+      Design note:
+      - This is more than a pass-through adapter in Stage 1. It is the integration seam for the
+        new pipeline, and may be split later into smaller loader/index/pipeline objects once the
+        mode-specific behavior stabilizes.
+    DOC
     class OptionChainSource
       def self.build(config:, start_date:, end_date:, adapter: nil, validator: nil)
         new(config:, start_date:, end_date:, adapter:, validator:)
