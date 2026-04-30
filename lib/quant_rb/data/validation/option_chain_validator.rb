@@ -3,6 +3,34 @@
 module QuantRb
   module Data
     module Validation
+      <<~DOC
+        Validates and repairs a vanilla option chain using a small set of practical no-arbitrage
+        constraints.
+
+        Assumptions:
+        - The chain contains plain-vanilla calls and puts sorted or sortable by strike.
+        - The underlying spot used on each option is consistent with the chain-level spot.
+        - The primary price field being validated is `mark`, with `bid` and `ask` treated as
+          supporting quote fields.
+
+        Validation rules in this Stage 1 implementation:
+        - An option mark should not be below intrinsic value.
+        - Call marks should be non-increasing as strike increases.
+        - Put marks should be non-decreasing as strike increases.
+        - Bid should not exceed ask.
+
+        Repair behavior:
+        - Marks are lifted to intrinsic value when needed.
+        - Extrinsic value is recomputed from repaired marks.
+        - Monotonicity is enforced by clamping each option against its nearest prior strike.
+        - Bid and ask are clamped back into a consistent relationship with the repaired mark.
+
+        Shortcuts and limits:
+        - This validator does not enforce put-call parity or a globally optimal arbitrage-free
+          surface.
+        - Repairs are local and greedy, not the result of a full optimization across the chain.
+        - IV and greek consistency are expected to be handled by later stages after price repair.
+      DOC
       class OptionChainValidator
         Violation = Struct.new(:type, :message, :option_symbol, keyword_init: true)
 

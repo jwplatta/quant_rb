@@ -5,6 +5,35 @@ require "date"
 module QuantRb
   module Data
     module Synthetic
+      <<~DOC
+        Builds a synthetic options chain from an underlying candle series and one or more
+        implied-volatility proxy series.
+
+        Assumptions:
+        - The underlying series and required volatility series are aligned to the backtest
+          timestamps that will request synthetic chains.
+        - Time to expiry is measured in years, while volatility proxies and pricing inputs are
+          treated as annualized values.
+        - `vix_series` acts as the default volatility source. `vix9d_series` and `vix1d_series`
+          are optional short-dated refinements.
+        - If an `iv_map` is provided, DTE bucket selection uses the configured proxy ticker and
+          falls back toward VIX when a shorter-dated proxy is missing.
+
+        Logic:
+        - The builder estimates an ATM volatility level from the available proxy inputs.
+        - It shapes a simple synthetic volatility smile around anchor deltas.
+        - It generates a strike grid around spot using the configured range and step size.
+        - It prices each strike with the selected pricing model and derives at least delta.
+        - It constructs synthetic bid/ask quotes from the modeled mark and runs the shared
+          option-chain validator/repair pass before returning the chain.
+
+        Shortcuts in this Stage 1 implementation:
+        - The smile shape is heuristic rather than calibrated to a market-observed surface.
+        - Bid/ask prices are derived from a simple spread heuristic, not from microstructure data.
+        - Gamma, theta, vega, and rho are not populated for synthetic chains yet.
+        - The builder repairs the final chain for monotonicity/intrinsic-floor issues rather than
+          solving a stricter arbitrage-free surface optimization problem.
+      DOC
       class SyntheticChainBuilder
         PUT_ANCHOR_DELTAS = [0.05, 0.10, 0.25].freeze
         CALL_ANCHOR_DELTAS = [0.45, 0.25, 0.20, 0.15, 0.10, 0.05, 0.02, 0.01].freeze
