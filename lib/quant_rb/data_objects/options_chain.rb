@@ -37,6 +37,10 @@ module QuantRb
         call_opts.size + put_opts.size
       end
 
+      def sampled_at
+        all_options.map(&:timestamp).compact.min
+      end
+
       def to_csv(dir: nil)
         options = all_options
         timestamp = Time.now.strftime("%Y%m%d%H%M%S")

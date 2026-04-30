@@ -134,21 +134,33 @@ module QuantRb
 
       def load_candle_series_map(strategy)
         strategy.subscribed_candle_symbols.each_with_object({}) do |(key, subscription), result|
-          result[key] = QuantRb::Data::Series::CandleLoader.load(
-            symbol: subscription.fetch(:symbol),
-            resolution: subscription.fetch(:resolution, :minute),
-            data_path: QuantRb::Data::DataSource.history_path,
-            start_date: strategy.start_date,
-            end_date: strategy.end_date
-          )
+          result[key] =
+            if subscription[:provider]
+              QuantRb::Data::Adapters::TickrakeAdapter.new.load_candle_series(
+                provider: subscription.fetch(:provider),
+                ticker: subscription.fetch(:symbol),
+                resolution: subscription.fetch(:resolution, :minute),
+                start_date: strategy.start_date,
+                end_date: strategy.end_date
+              )
+            else
+              QuantRb::Data::Series::CandleLoader.load(
+                symbol: subscription.fetch(:symbol),
+                resolution: subscription.fetch(:resolution, :minute),
+                data_path: QuantRb::Data::DataSource.history_path,
+                start_date: strategy.start_date,
+                end_date: strategy.end_date
+              )
+            end
         end
       end
 
       def load_option_chain_index_map(strategy)
         strategy.subscribed_option_chain_symbols.each_with_object({}) do |(key, subscription), result|
-          result[key] = QuantRb::Data::Index::OptionsChainIndex.new(
-            root_path: QuantRb::Data::DataSource.options_path,
-            symbol: subscription.fetch(:option_root)
+          result[key] = QuantRb::Data::OptionChainSource.build(
+            config: subscription.fetch(:config),
+            start_date: strategy.start_date,
+            end_date: strategy.end_date
           )
         end
       end
