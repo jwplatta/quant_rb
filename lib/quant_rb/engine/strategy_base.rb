@@ -57,28 +57,49 @@ module QuantRb
       # ── Symbol subscriptions ──────────────────────────────────────────────
 
       # Register an equity symbol. Returns a symbol key used to access data in slices.
-      def add_equity(symbol, resolution: :minute)
+      def add_equity(symbol, resolution: :minute, provider: nil)
         key = symbol.to_sym
-        subscriptions[:candles][key] = { symbol: symbol, resolution: resolution, type: :equity }
+        subscriptions[:candles][key] = { symbol: symbol, resolution: resolution, type: :equity, provider: provider }
         key
       end
 
       # Register an index symbol.
-      def add_index(symbol, resolution: :minute)
+      def add_index(symbol, resolution: :minute, provider: nil)
         key = symbol.to_sym
-        subscriptions[:candles][key] = { symbol: symbol, resolution: resolution, type: :index }
+        subscriptions[:candles][key] = { symbol: symbol, resolution: resolution, type: :index, provider: provider }
         key
       end
 
       # Register an options chain subscription for an underlying.
       # Optionally pass a block to configure expiry/strike filters.
-      def add_index_option(underlying, option_root, resolution: :minute, &filter)
+      def add_index_option(underlying, option_root, resolution: :minute, provider: nil, synthetic: false, interpolate: false, pricing_model: :black_scholes, iv: nil, validation: :repair, strike_grid: {}, **kwargs, &filter)
         key = :"#{option_root}_options"
+        chain_mode =
+          if synthetic
+            :synthetic
+          elsif interpolate
+            :sampled_interpolated
+          else
+            :sampled_validated
+          end
         subscriptions[:option_chains][key] = {
           underlying: underlying,
           option_root: option_root,
           resolution: resolution,
-          filter: filter
+          provider: provider,
+          filter: filter,
+          config: QuantRb::Data::OptionChainConfig.new(
+            underlying: underlying,
+            option_root: option_root,
+            resolution: resolution,
+            provider: provider,
+            chain_mode: chain_mode,
+            pricing_model: pricing_model,
+            iv_map: iv,
+            validation: validation,
+            strike_grid: strike_grid,
+            raw_options: kwargs
+          )
         }
         key
       end

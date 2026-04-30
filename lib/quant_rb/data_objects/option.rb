@@ -65,7 +65,7 @@ module QuantRb
         set_price_values(mark, intrinsic, extrinsic)
       end
 
-      attr_accessor :delta, :gamma, :theta, :vega, :rho, :mark, :intrinsic, :extrinsic, :bid, :ask
+      attr_accessor :delta, :gamma, :theta, :vega, :rho, :mark, :intrinsic, :extrinsic, :bid, :ask, :volatility
       attr_reader   :symbol, :underlying_symbol, :strike, :put_call, :underlying_price,
                     :expiration_date, :days_to_expiration, :open_interest, :total_volume,
                     :expiration_type, :settlement_type, :option_root,
