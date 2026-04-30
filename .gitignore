@@ -22,3 +22,6 @@ pkg
 /logs
 /trades
 !/bots/spec/fixtures/trades.json
+.gemini/skills
+.claude/skills
+.codex/skills
