@@ -62,12 +62,19 @@ module QuantRb
   # ── Data layer ────────────────────────────────────────────────────────────
 
   require_relative "quant_rb/data/data_source"
+  require_relative "quant_rb/data/option_chain_config"
+  require_relative "quant_rb/data/adapters/tickrake_adapter"
+  require_relative "quant_rb/data/pricing/black_scholes"
+  require_relative "quant_rb/data/pricing/crr_binomial"
+  require_relative "quant_rb/data/pricing/implied_volatility_solver"
+  require_relative "quant_rb/data/validation/option_chain_validator"
   require_relative "quant_rb/data/loaders/csv_candle"
   require_relative "quant_rb/data/loaders/csv_options_chain"
   require_relative "quant_rb/data/series/candle_series"
   require_relative "quant_rb/data/index/options_chain_index"
   require_relative "quant_rb/data/index/synthetic_options_chain_index"
   require_relative "quant_rb/data/synthetic/synthetic_chain_builder"
+  require_relative "quant_rb/data/option_chain_source"
 
   # ── Reality modeling ──────────────────────────────────────────────────────
 
