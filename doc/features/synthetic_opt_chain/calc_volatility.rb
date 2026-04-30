@@ -14,7 +14,7 @@ def calculate_minute_returns(price_data)
   returns
 end
 
-def standard_deviation(returns)
+def std(returns)
   mean = returns.sum / returns.length
   variance = returns.map { |r| (r - mean) ** 2 }.sum / (returns.length - 1)
   Math.sqrt(variance)

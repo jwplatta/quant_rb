@@ -11,6 +11,6 @@ It is intentionally lighter-weight than `doc/REWRITE_PLAN.md`. Use it for follow
 
 ## Execution Realism
 
-- [ ] Add configurable transaction costs for backtests.
-- [ ] Add configurable slippage for backtests.
+- [x] Add configurable transaction costs for backtests.
+- [x] Add configurable slippage for backtests.
 - [ ] Improve synthetic options-chain execution realism with a configurable bid/ask spread model and a reasonable fill/slippage model for multi-leg options trades.
