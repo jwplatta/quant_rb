@@ -6,7 +6,7 @@ module QuantRb
   module Data
     module Synthetic
       <<~DOC
-        Builds a synthetic options chain from an underlying candle series and one or more
+        Builds a synthetic options chain from an underlying candle series and a single
         implied-volatility proxy series.
 
         Assumptions:
@@ -14,10 +14,7 @@ module QuantRb
           timestamps that will request synthetic chains.
         - Time to expiry is measured in years, while volatility proxies and pricing inputs are
           treated as annualized values.
-        - `vix_series` acts as the default volatility source. `vix9d_series` and `vix1d_series`
-          are optional short-dated refinements.
-        - If an `iv_map` is provided, DTE bucket selection uses the configured proxy ticker and
-          falls back toward VIX when a shorter-dated proxy is missing.
+        - A single IV proxy series is used across all expirations in the generated chain.
 
         Logic:
         - The builder estimates an ATM volatility level from the available proxy inputs.
@@ -38,20 +35,21 @@ module QuantRb
         CALL_ANCHOR_DELTAS = [0.45, 0.25, 0.20, 0.15, 0.10, 0.05, 0.02, 0.01].freeze
         SECONDS_PER_YEAR = 365.25 * 24 * 60 * 60
 
-        def initialize(spx_series:, vix_series:, vix9d_series: nil, vix1d_series: nil, underlying_symbol: "SPX", risk_free_rate: 0.0, pricing_model: :black_scholes, strike_grid: {}, iv_map: {}, validator: nil)
-          @spx_series   = spx_series
-          @vix_series   = vix_series
-          @vix9d_series = vix9d_series
-          @vix1d_series = vix1d_series
+        def initialize(underlying_series:, iv_proxy_series:, underlying_symbol:, iv_proxy_symbol: "IV", risk_free_rate: 0.0, pricing_model: :black_scholes, strike_grid: {}, validator: nil)
+          @underlying_series = underlying_series
+          @iv_proxy_series = iv_proxy_series
           @underlying_symbol = underlying_symbol
+          @iv_proxy_symbol = iv_proxy_symbol
           @risk_free_rate = risk_free_rate
           @pricing_model = pricing_model.to_sym
           @strike_grid = { step: 5.0, range_ratio: 0.20 }.merge((strike_grid || {}).transform_keys(&:to_sym))
-          @iv_map = normalize_iv_map(iv_map)
           @validator = validator || Validation::OptionChainValidator.new
+          @underlying_candles = @underlying_series.to_a
+          @daily_candles = grouped_daily_candles(@underlying_candles)
+          @daily_dates = @daily_candles.keys.sort
         end
 
-        def build(target_time:, expiration_date:, symbol: "SPXW")
+        def build(target_time:, expiration_date:, symbol:)
           snapshot = build_snapshot(target_time, expiration_date)
           derived_state = compute_derived_state(target_time)
           atm_vol = compute_atm_vol(snapshot[:tau_years], derived_state, selected_vol_proxy: snapshot[:selected_vol_proxy])
@@ -84,22 +82,18 @@ module QuantRb
 
         def build_snapshot(target_time, expiration_date)
           validate_series_alignment!(target_time)
-          spx_candle = fetch_required_candle(@spx_series, target_time, @underlying_symbol)
-          vix_candle = fetch_required_candle(@vix_series, target_time, "VIX")
-          vix9d_candle = @vix9d_series&.at(target_time)
-          vix1d_candle = @vix1d_series&.at(target_time)
+
+          underlying_candle = fetch_required_candle(@underlying_series, target_time, @underlying_symbol)
+          iv_proxy_candle = fetch_required_candle(@iv_proxy_series, target_time, @iv_proxy_symbol)
 
           expiry_close = Time.utc(expiration_date.year, expiration_date.month, expiration_date.day, 20, 0, 0)
           tau_seconds = [expiry_close - target_time.getutc, 60.0].max
-          dte = (expiration_date - target_time.to_date).to_i
 
           {
-            spot: spx_candle.close.to_f,
-            vix: vix_candle.close.to_f,
-            vix9d: vix9d_candle&.close&.to_f,
-            vix1d: vix1d_candle&.close&.to_f,
+            spot: underlying_candle.close.to_f,
+            iv_proxy: iv_proxy_candle.close.to_f,
             tau_years: tau_seconds / SECONDS_PER_YEAR,
-            selected_vol_proxy: select_vol_proxy(dte:, vix: vix_candle.close, vix9d: vix9d_candle&.close, vix1d: vix1d_candle&.close)
+            selected_vol_proxy: iv_proxy_candle.close.to_f
           }
         end
 
@@ -111,7 +105,7 @@ module QuantRb
         end
 
         def validate_series_alignment!(target_time)
-          [@spx_series, @vix_series].each do |series|
+          [@underlying_series, @iv_proxy_series].each do |series|
             next if exact_candle_at(series, target_time)
 
             raise ArgumentError, "SyntheticChainBuilder input series are not aligned at #{target_time.utc}"
@@ -124,20 +118,18 @@ module QuantRb
         end
 
         def compute_derived_state(target_time)
-          spx_candles = @spx_series.to_a
-          current_candle = fetch_required_candle(@spx_series, target_time, @underlying_symbol)
+          current_candle = fetch_required_candle(@underlying_series, target_time, @underlying_symbol)
           current_day = current_candle.datetime.to_date
 
-          current_day_candles = spx_candles.select do |candle|
+          current_day_candles = (@daily_candles[current_day] || []).select do |candle|
             candle.datetime.to_date == current_day && candle.datetime <= target_time
           end
           prior_day = current_day - 1
-          prior_day_candles = spx_candles.select { |candle| candle.datetime.to_date == prior_day }
-          rolling_days = grouped_daily_candles(spx_candles).select { |date, _| date < current_day }.to_a.last(5).to_h
+          prior_day_candles = @daily_candles[prior_day] || []
+          rolling_day_dates = @daily_dates.take_while { |date| date < current_day }.last(5)
+          rolling_days = rolling_day_dates.to_h { |date| [date, @daily_candles.fetch(date)] }
 
-          short_vol_proxy = @vix1d_series&.at(target_time)&.close.to_f
-          short_vol_proxy = @vix9d_series&.at(target_time)&.close.to_f if short_vol_proxy.zero?
-          medium_vol_proxy = fetch_required_candle(@vix_series, target_time, "VIX").close.to_f
+          proxy_vol = fetch_required_candle(@iv_proxy_series, target_time, @iv_proxy_symbol).close.to_f
 
           prior_close = prior_day_candles.last&.close || current_candle.open
           overnight_open = current_day_candles.first&.open || current_candle.open
@@ -145,10 +137,10 @@ module QuantRb
           rolling_ranges = rolling_days.values.last(5).map { |day_candles| percent_range(day_candles) }.compact
 
           {
-            short_vol_proxy: short_vol_proxy.zero? ? medium_vol_proxy : short_vol_proxy,
-            medium_vol_proxy: medium_vol_proxy,
-            term_slope_abs: short_vol_proxy - medium_vol_proxy,
-            term_slope_ratio: medium_vol_proxy.zero? ? 1.0 : short_vol_proxy / medium_vol_proxy,
+            short_vol_proxy: proxy_vol,
+            medium_vol_proxy: proxy_vol,
+            term_slope_abs: 0.0,
+            term_slope_ratio: 1.0,
             prior_day_range_pct: prior_day_range || 0.0,
             rolling_range_pct: rolling_ranges.empty? ? (prior_day_range || 0.0) : rolling_ranges.sum / rolling_ranges.length,
             prior_return_pct: prior_close.to_f.zero? ? 0.0 : ((current_candle.close / prior_close) - 1.0) * 100.0,
@@ -353,35 +345,6 @@ module QuantRb
             vega: Pricing::CrrBinomial.vega(spot: spot, strike: strike, tau_years: tau_years, sigma: sigma, rate: @risk_free_rate, contract_type: contract_type),
             rho: Pricing::CrrBinomial.rho(spot: spot, strike: strike, tau_years: tau_years, sigma: sigma, rate: @risk_free_rate, contract_type: contract_type)
           }
-        end
-
-        def select_vol_proxy(dte:, vix:, vix9d:, vix1d:)
-          ticker = @iv_map.find { |threshold, _symbol| dte <= threshold }&.last
-          case ticker
-          when nil then nil
-          when /VIX1D/i then vix1d&.to_f || vix9d&.to_f || vix&.to_f
-          when /VIX9D/i then vix9d&.to_f || vix&.to_f
-          else
-            vix&.to_f
-          end
-        end
-
-        def normalize_iv_map(value)
-          return {} if value.nil?
-
-          value.each_with_object([]) do |(raw_key, ticker), entries|
-            threshold =
-              case raw_key.to_s.upcase
-              when /\A(\d+)DTE\z/
-                Regexp.last_match(1).to_i
-              when "ODTE", "0DTE"
-                0
-              else
-                raise ArgumentError, "Unsupported IV bucket #{raw_key.inspect}"
-              end
-
-            entries << [threshold, ticker]
-          end.sort_by(&:first).to_h
         end
 
         def inverse_normal_cdf(probability)

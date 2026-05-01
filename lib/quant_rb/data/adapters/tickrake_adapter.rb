@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require "tickrake"
+
 module QuantRb
   module Data
     module Adapters
@@ -45,18 +47,7 @@ module QuantRb
         private
 
         def build_loader
-          require_tickrake!
           Tickrake::DataLoader.new
-        end
-
-        def require_tickrake!
-          require "tickrake"
-        rescue LoadError
-          local_tickrake = File.expand_path("../../../../../tickrake/lib/tickrake", __dir__)
-          require local_tickrake if File.exist?("#{local_tickrake}.rb")
-          return if defined?(Tickrake::DataLoader)
-
-          raise
         end
 
         def normalize_frequency(resolution)

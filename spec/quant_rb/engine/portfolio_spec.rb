@@ -74,4 +74,40 @@ RSpec.describe QuantRb::Engine::Portfolio do
     expect(trade.pnl).to eq(80.24)
     expect(portfolio.cash).to eq(10_080.24)
   end
+
+  it "automatically settles expired option spreads when leg metadata is present" do
+    order = QuantRb::Engine::Order.new(
+      legs: [
+        { symbol: "SPXW_2024-01-19_P_4900", quantity: -1, expiration_date: Date.new(2024, 1, 19), strike: 4900.0, put_call: QuantRb::PUT, underlying_symbol: "SPX" },
+        { symbol: "SPXW_2024-01-19_P_4880", quantity: 1, expiration_date: Date.new(2024, 1, 19), strike: 4880.0, put_call: QuantRb::PUT, underlying_symbol: "SPX" }
+      ],
+      quantity: 1,
+      direction: :credit,
+      limit_price: 1.10,
+      submitted_at: time
+    )
+    portfolio.record_fill(order, 1.10, time)
+
+    expiry_time = Time.parse("2024-01-20 00:00:00 UTC")
+    slice = QuantRb::Engine::Slice.new(
+      time: expiry_time,
+      bars: {
+        SPX: QuantRb::DataObjects::Candle.new(
+          datetime: expiry_time,
+          open: 4890.0,
+          high: 4895.0,
+          low: 4875.0,
+          close: 4875.0,
+          volume: 0
+        )
+      }
+    )
+
+    portfolio.process_expirations(slice)
+
+    expect(portfolio.positions).to be_empty
+    expect(portfolio.trade_history.size).to eq(1)
+    expect(portfolio.trade_history.last.exit_price).to eq(20.0)
+    expect(portfolio.cash).to eq(8_110.0)
+  end
 end

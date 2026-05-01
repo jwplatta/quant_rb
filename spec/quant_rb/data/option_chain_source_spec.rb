@@ -23,7 +23,7 @@ RSpec.describe QuantRb::Data::OptionChainSource do
       provider: "test",
       chain_mode: :synthetic,
       pricing_model: :black_scholes,
-      iv_map: { "0DTE" => "VIX1D", "9DTE" => "VIX9D", "30DTE" => "VIX" },
+      iv_map: "VIX",
       validation: :repair,
       strike_grid: { step: 10.0, range_ratio: 0.05 }
     )
@@ -34,8 +34,6 @@ RSpec.describe QuantRb::Data::OptionChainSource do
         candle("2026-04-09T15:00:00Z", close: 5100.0)
       )
     )
-    allow(adapter).to receive(:load_candle_series).with(provider: "test", ticker: "VIX1D", resolution: :minute, start_date: Date.new(2026, 4, 9), end_date: Date.new(2026, 4, 9)).and_return(series(candle("2026-04-09T15:00:00Z", close: 15.0)))
-    allow(adapter).to receive(:load_candle_series).with(provider: "test", ticker: "VIX9D", resolution: :minute, start_date: Date.new(2026, 4, 9), end_date: Date.new(2026, 4, 9)).and_return(series(candle("2026-04-09T15:00:00Z", close: 16.0)))
     allow(adapter).to receive(:load_candle_series).with(provider: "test", ticker: "VIX", resolution: :minute, start_date: Date.new(2026, 4, 9), end_date: Date.new(2026, 4, 9)).and_return(series(candle("2026-04-09T15:00:00Z", close: 18.0)))
 
     source = described_class.build(config:, start_date: Date.new(2026, 4, 9), end_date: Date.new(2026, 4, 9), adapter: adapter)

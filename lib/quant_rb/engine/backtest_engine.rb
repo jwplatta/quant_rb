@@ -89,6 +89,8 @@ module QuantRb
           current_date = current_time.to_date
           next_date    = candles[idx + 1]&.datetime&.to_date
           if next_date != current_date
+            broker.cancel_all_pending_orders(reason: :end_of_day) if broker.respond_to?(:cancel_all_pending_orders)
+            broker.process_expirations(slice, portfolio, strategy_class: strategy.class) if broker.respond_to?(:process_expirations)
             strategy.subscribed_symbols.each { |sym| strategy.on_end_of_day(sym) }
           end
 

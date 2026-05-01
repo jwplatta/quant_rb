@@ -19,7 +19,7 @@ RSpec.describe QuantRb::Data::Synthetic::SyntheticChainBuilder do
     QuantRb::Data::Series::CandleSeries.new(candles)
   end
 
-  let(:spx_series) do
+  let(:underlying_series) do
     series(
       candle("2026-04-08T14:30:00Z", open: 5_060, high: 5_085, low: 5_040, close: 5_070),
       candle("2026-04-08T20:00:00Z", open: 5_070, high: 5_095, low: 5_060, close: 5_090),
@@ -28,33 +28,19 @@ RSpec.describe QuantRb::Data::Synthetic::SyntheticChainBuilder do
     )
   end
 
-  let(:vix_series) do
+  let(:iv_proxy_series) do
     series(
       candle("2026-04-08T14:30:00Z", open: 18.8, high: 19.0, low: 18.6, close: 18.9),
       candle("2026-04-09T17:00:00Z", open: 18.1, high: 18.5, low: 17.9, close: 18.3)
     )
   end
 
-  let(:vix9d_series) do
-    series(
-      candle("2026-04-08T14:30:00Z", open: 17.9, high: 18.1, low: 17.7, close: 18.0),
-      candle("2026-04-09T17:00:00Z", open: 16.8, high: 17.2, low: 16.6, close: 17.0)
-    )
-  end
-
-  let(:vix1d_series) do
-    series(
-      candle("2026-04-08T14:30:00Z", open: 16.9, high: 17.0, low: 16.5, close: 16.7),
-      candle("2026-04-09T17:00:00Z", open: 15.8, high: 16.1, low: 15.6, close: 15.9)
-    )
-  end
-
   let(:builder) do
     described_class.new(
-      spx_series: spx_series,
-      vix_series: vix_series,
-      vix9d_series: vix9d_series,
-      vix1d_series: vix1d_series
+      underlying_series: underlying_series,
+      iv_proxy_series: iv_proxy_series,
+      underlying_symbol: "SPX",
+      iv_proxy_symbol: "VIX"
     )
   end
 
@@ -98,10 +84,10 @@ RSpec.describe QuantRb::Data::Synthetic::SyntheticChainBuilder do
 
     it "supports binomial pricing mode and still populates greeks" do
       binomial_builder = described_class.new(
-        spx_series: spx_series,
-        vix_series: vix_series,
-        vix9d_series: vix9d_series,
-        vix1d_series: vix1d_series,
+        underlying_series: underlying_series,
+        iv_proxy_series: iv_proxy_series,
+        underlying_symbol: "SPX",
+        iv_proxy_symbol: "VIX",
         pricing_model: :binomial
       )
 
@@ -116,37 +102,13 @@ RSpec.describe QuantRb::Data::Synthetic::SyntheticChainBuilder do
       expect(atm_call.rho).not_to be_nil
     end
 
-    it "uses DTE-specific IV proxies when configured" do
-      vix_only_builder = described_class.new(
-        spx_series: spx_series,
-        vix_series: vix_series,
-        vix9d_series: vix9d_series,
-        vix1d_series: vix1d_series,
-        iv_map: { "0DTE" => "VIX1D", "9DTE" => "VIX9D", "30DTE" => "VIX" }
-      )
-
-      zero_dte_chain = vix_only_builder.build(
-        target_time: target_time,
-        expiration_date: Date.new(2026, 4, 9),
-        symbol: "SPXW"
-      )
-      longer_dte_chain = vix_only_builder.build(
-        target_time: target_time,
-        expiration_date: Date.new(2026, 4, 20),
-        symbol: "SPXW"
-      )
-
-      zero_dte_atm = zero_dte_chain.call_opts.min_by { |option| (option.strike - zero_dte_chain.underlying_price).abs }
-      longer_dte_atm = longer_dte_chain.call_opts.min_by { |option| (option.strike - longer_dte_chain.underlying_price).abs }
-
-      expect(zero_dte_atm.volatility).to be < longer_dte_atm.volatility
-    end
-
     it "raises an informative error when required series are not aligned" do
       misaligned_vix = series(candle("2026-04-09T16:59:00Z", open: 18.1, high: 18.5, low: 17.9, close: 18.3))
       misaligned_builder = described_class.new(
-        spx_series: spx_series,
-        vix_series: misaligned_vix
+        underlying_series: underlying_series,
+        iv_proxy_series: misaligned_vix,
+        underlying_symbol: "SPX",
+        iv_proxy_symbol: "VIX"
       )
 
       expect do

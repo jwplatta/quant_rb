@@ -21,23 +21,17 @@ RSpec.describe QuantRb::Data::Index::SyntheticOptionsChainIndex do
 
   let(:builder) do
     QuantRb::Data::Synthetic::SyntheticChainBuilder.new(
-      spx_series: series(
+      underlying_series: series(
         candle("2025-12-17T20:00:00Z", close: 5_130.0, open: 5_120.0),
         candle("2025-12-18T14:30:00Z", close: 5_145.0, open: 5_140.0),
         candle("2025-12-18T15:00:00Z", close: 5_150.0, open: 5_145.0)
       ),
-      vix_series: series(
+      iv_proxy_series: series(
         candle("2025-12-17T20:00:00Z", close: 18.0),
         candle("2025-12-18T15:00:00Z", close: 17.5)
       ),
-      vix9d_series: series(
-        candle("2025-12-17T20:00:00Z", close: 17.0),
-        candle("2025-12-18T15:00:00Z", close: 16.3)
-      ),
-      vix1d_series: series(
-        candle("2025-12-17T20:00:00Z", close: 16.0),
-        candle("2025-12-18T15:00:00Z", close: 15.2)
-      )
+      underlying_symbol: "SPX",
+      iv_proxy_symbol: "VIX"
     )
   end
 
@@ -57,7 +51,7 @@ RSpec.describe QuantRb::Data::Index::SyntheticOptionsChainIndex do
     it "returns no chain until the synthetic builder has enough input data" do
       incomplete_builder = instance_double(QuantRb::Data::Synthetic::SyntheticChainBuilder)
       allow(incomplete_builder).to receive(:build).and_raise(
-        ArgumentError, "SyntheticChainBuilder requires VIX9D candle data"
+        ArgumentError, "SyntheticChainBuilder requires VIX candle data"
       )
 
       index = described_class.new(symbol: "SPXW", synthetic_builder: incomplete_builder)
