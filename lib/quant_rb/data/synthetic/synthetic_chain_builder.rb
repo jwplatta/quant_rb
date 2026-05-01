@@ -31,8 +31,16 @@ module QuantRb
           solving a stricter arbitrage-free surface optimization problem.
       DOC
       class SyntheticChainBuilder
-        PUT_ANCHOR_DELTAS = [0.05, 0.10, 0.25].freeze
-        CALL_ANCHOR_DELTAS = [0.45, 0.25, 0.20, 0.15, 0.10, 0.05, 0.02, 0.01].freeze
+        PUT_ANCHOR_DELTAS = [
+          0.45, 0.40, 0.35, 0.30, 0.25,
+          0.20, 0.15, 0.12, 0.10, 0.08,
+          0.06, 0.05, 0.04, 0.03, 0.02, 0.01
+        ].freeze
+        CALL_ANCHOR_DELTAS = [
+          0.49, 0.45, 0.40, 0.35, 0.30, 0.25,
+          0.20, 0.15, 0.12, 0.10, 0.08,
+          0.06, 0.05, 0.04, 0.03, 0.02, 0.01
+        ].freeze
         SECONDS_PER_YEAR = 365.25 * 24 * 60 * 60
 
         def initialize(underlying_series:, iv_proxy_series:, underlying_symbol:, iv_proxy_symbol: "IV", risk_free_rate: 0.0, pricing_model: :black_scholes, strike_grid: {}, validator: nil)
@@ -298,10 +306,73 @@ module QuantRb
           return points.first[:vol] if x <= points.first[:x]
           return points.last[:vol] if x >= points.last[:x]
 
-          left, right = points.each_cons(2).find { |a, b| x >= a[:x] && x <= b[:x] }
-          weight = (x - left[:x]) / (right[:x] - left[:x])
-          vol = left[:vol] + weight * (right[:vol] - left[:vol])
+          xs = points.map { |point| point[:x] }
+          ys = points.map { |point| point[:vol] }
+          slopes = monotone_cubic_slopes(xs, ys)
+          index = segment_index(xs, x)
+          vol = cubic_hermite_value(xs, ys, slopes, index, x)
           vol.clamp(5.0, 200.0)
+        end
+
+        def monotone_cubic_slopes(xs, ys)
+          return [0.0] if xs.length == 1
+
+          deltas = xs.each_cons(2).zip(ys.each_cons(2)).map do |(x0, x1), (y0, y1)|
+            (y1 - y0) / (x1 - x0)
+          end
+
+          slopes = Array.new(xs.length, 0.0)
+          slopes[0] = deltas.first
+          slopes[-1] = deltas.last
+
+          (1...(xs.length - 1)).each do |index|
+            left = deltas[index - 1]
+            right = deltas[index]
+            if left.zero? || right.zero? || (left.positive? != right.positive?)
+              slopes[index] = 0.0
+            else
+              slopes[index] = (2.0 * left * right) / (left + right)
+            end
+          end
+
+          deltas.each_with_index do |delta, index|
+            next if delta.zero?
+
+            a = slopes[index] / delta
+            b = slopes[index + 1] / delta
+            scale = (a * a) + (b * b)
+            next unless scale > 9.0
+
+            factor = 3.0 / Math.sqrt(scale)
+            slopes[index] = factor * a * delta
+            slopes[index + 1] = factor * b * delta
+          end
+
+          slopes
+        end
+
+        def segment_index(xs, x)
+          xs.each_cons(2).with_index.find { |(left, right), _index| x >= left && x <= right }&.last || 0
+        end
+
+        def cubic_hermite_value(xs, ys, slopes, index, x)
+          x0 = xs[index]
+          x1 = xs[index + 1]
+          y0 = ys[index]
+          y1 = ys[index + 1]
+          m0 = slopes[index]
+          m1 = slopes[index + 1]
+          h = x1 - x0
+          t = (x - x0) / h
+          t2 = t * t
+          t3 = t2 * t
+
+          h00 = (2 * t3) - (3 * t2) + 1
+          h10 = t3 - (2 * t2) + t
+          h01 = (-2 * t3) + (3 * t2)
+          h11 = t3 - t2
+
+          (h00 * y0) + (h10 * h * m0) + (h01 * y1) + (h11 * h * m1)
         end
 
         def option_price(spot:, strike:, tau_years:, sigma:, contract_type:)
