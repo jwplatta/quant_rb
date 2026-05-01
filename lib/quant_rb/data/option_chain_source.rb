@@ -59,8 +59,6 @@ module QuantRb
         expiry_dates = candidate_expiries(target_time, expiry_filter)
         expiry_dates.each_with_object({}) do |expiry, result|
           result[expiry] = synthetic_builder.build(target_time:, expiration_date: expiry, symbol: @config.option_root)
-        rescue ArgumentError
-          nil
         end
       end
 
@@ -83,25 +81,21 @@ module QuantRb
             start_date: @start_date,
             end_date: @end_date
           )
-          iv_series_map = @config.iv_map.values.uniq.each_with_object({}) do |ticker, map|
-            map[ticker] = @adapter.load_candle_series(
-              provider: @config.provider,
-              ticker: ticker,
-              resolution: @config.resolution,
-              start_date: @start_date,
-              end_date: @end_date
-            )
-          end
+          iv_proxy_series = @adapter.load_candle_series(
+            provider: @config.provider,
+            ticker: @config.iv_proxy,
+            resolution: @config.resolution,
+            start_date: @start_date,
+            end_date: @end_date
+          )
 
           Synthetic::SyntheticChainBuilder.new(
-            spx_series: underlying_series,
-            vix_series: iv_series_map[@config.iv_proxy_for_dte(30)] || iv_series_map.values.first,
-            vix9d_series: iv_series_map[@config.iv_proxy_for_dte(9)],
-            vix1d_series: iv_series_map[@config.iv_proxy_for_dte(0)],
+            underlying_series: underlying_series,
+            iv_proxy_series: iv_proxy_series,
             underlying_symbol: @config.underlying,
+            iv_proxy_symbol: @config.iv_proxy,
             pricing_model: @config.pricing_model,
             strike_grid: @config.strike_grid,
-            iv_map: @config.iv_map,
             validator: @validator
           )
         end

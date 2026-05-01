@@ -53,6 +53,35 @@ module QuantRb
           down = price(spot: spot - step_size, strike: strike, tau_years: tau_years, sigma: sigma, rate: rate, contract_type: contract_type)
           (up - down) / (2.0 * step_size)
         end
+
+        def gamma(spot:, strike:, tau_years:, sigma:, rate:, contract_type:, step_size: 0.5)
+          up = price(spot: spot + step_size, strike: strike, tau_years: tau_years, sigma: sigma, rate: rate, contract_type: contract_type)
+          mid = price(spot: spot, strike: strike, tau_years: tau_years, sigma: sigma, rate: rate, contract_type: contract_type)
+          down = price(spot: spot - step_size, strike: strike, tau_years: tau_years, sigma: sigma, rate: rate, contract_type: contract_type)
+          (up - (2.0 * mid) + down) / (step_size**2)
+        end
+
+        def theta(spot:, strike:, tau_years:, sigma:, rate:, contract_type:, day_step: 1.0 / 365.25)
+          return 0.0 if tau_years <= day_step
+
+          current = price(spot: spot, strike: strike, tau_years: tau_years, sigma: sigma, rate: rate, contract_type: contract_type)
+          later = price(spot: spot, strike: strike, tau_years: tau_years - day_step, sigma: sigma, rate: rate, contract_type: contract_type)
+          (later - current) / day_step
+        end
+
+        def vega(spot:, strike:, tau_years:, sigma:, rate:, contract_type:, sigma_step: 0.01)
+          up_sigma = sigma + sigma_step
+          down_sigma = [sigma - sigma_step, 0.0001].max
+          up = price(spot: spot, strike: strike, tau_years: tau_years, sigma: up_sigma, rate: rate, contract_type: contract_type)
+          down = price(spot: spot, strike: strike, tau_years: tau_years, sigma: down_sigma, rate: rate, contract_type: contract_type)
+          (up - down) / (up_sigma - down_sigma)
+        end
+
+        def rho(spot:, strike:, tau_years:, sigma:, rate:, contract_type:, rate_step: 0.0001)
+          up = price(spot: spot, strike: strike, tau_years: tau_years, sigma: sigma, rate: rate + rate_step, contract_type: contract_type)
+          down = price(spot: spot, strike: strike, tau_years: tau_years, sigma: sigma, rate: rate - rate_step, contract_type: contract_type)
+          (up - down) / (2.0 * rate_step)
+        end
       end
     end
   end

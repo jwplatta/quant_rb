@@ -38,7 +38,7 @@ module QuantRb
       # - set_start_date / set_end_date / set_cash store config for BacktestEngine
       # - add_equity / add_index / add_index_option register subscriptions
       # - schedule exposes Scheduler instance
-      # - combo_limit_order / market_order delegate to broker
+      # - combo_limit_order / market_order delegate to b
 
       # ── Configuration helpers (called inside user's initialize) ───────────
 

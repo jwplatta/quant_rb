@@ -74,6 +74,26 @@ module QuantRb
         end
       end
 
+      def process_expirations(slice, strategy_class: nil)
+        positions.keys.each do |position_id|
+          position = positions[position_id]
+          next unless position&.option_position?
+          next unless expiration_due?(position, slice.time)
+
+          spot = expiration_spot(position, slice)
+          next if spot.nil?
+
+          settlement_price = option_settlement_price(position, spot)
+          close_position(
+            position.id,
+            settlement_price,
+            slice.time,
+            strategy_class: strategy_class,
+            notes: "Automatic option expiration settlement"
+          )
+        end
+      end
+
       private
 
       def record_multi_leg_fill(order, fill_price, fill_time, transaction_costs:)
@@ -86,7 +106,9 @@ module QuantRb
           direction: order.credit? ? :credit : :debit,
           current_price: fill_price,
           entry_fees: transaction_costs.fees,
-          entry_commissions: transaction_costs.commissions
+          entry_commissions: transaction_costs.commissions,
+          expiration_date: infer_expiration_date(order.legs),
+          underlying_symbol: infer_underlying_symbol(order.legs)
         )
 
         @positions[position.id] = position
@@ -141,7 +163,9 @@ module QuantRb
           direction: signed_quantity.positive? ? :long : :short,
           current_price: fill_price,
           entry_fees: transaction_costs.fees,
-          entry_commissions: transaction_costs.commissions
+          entry_commissions: transaction_costs.commissions,
+          expiration_date: infer_expiration_date(order.legs),
+          underlying_symbol: infer_underlying_symbol(order.legs)
         )
       end
 
@@ -246,6 +270,49 @@ module QuantRb
 
       def adjust_cash(amount)
         @cash = (@cash + amount.to_f).round(4)
+      end
+
+      def infer_expiration_date(legs)
+        dates = Array(legs).map { |leg| leg[:expiration_date] }.compact.uniq
+        dates.one? ? dates.first : nil
+      end
+
+      def infer_underlying_symbol(legs)
+        Array(legs).map { |leg| leg[:underlying_symbol] }.compact.uniq.first
+      end
+
+      def expiration_due?(position, current_time)
+        return false unless position.expiration_date
+
+        current_time.to_date >= position.expiration_date
+      end
+
+      def expiration_spot(position, slice)
+        symbol = position.underlying_symbol
+        return nil if symbol.to_s.empty?
+
+        candle = slice.bars[symbol.to_sym] || slice.bars[symbol.to_s]
+        candle&.close&.to_f
+      end
+
+      def option_settlement_price(position, spot)
+        signed_leg_value = position.legs.sum do |leg|
+          leg[:quantity].to_i * intrinsic_value_for_leg(leg, spot)
+        end
+
+        position.direction == :credit ? -signed_leg_value : signed_leg_value
+      end
+
+      def intrinsic_value_for_leg(leg, spot)
+        strike = leg[:strike].to_f
+        case leg[:put_call].to_s.upcase
+        when QuantRb::CALL
+          [spot - strike, 0.0].max
+        when QuantRb::PUT
+          [strike - spot, 0.0].max
+        else
+          0.0
+        end
       end
     end
   end

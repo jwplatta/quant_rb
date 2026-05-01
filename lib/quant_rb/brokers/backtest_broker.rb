@@ -34,6 +34,14 @@ module QuantRb
         QuantRb::Engine::OrderTicket.new(order_id: ticket_id, status: :cancelled)
       end
 
+      def cancel_all_pending_orders(reason: nil)
+        cancelled = @pending_orders.map do |order|
+          QuantRb::Engine::OrderTicket.new(order_id: order.id, status: :cancelled)
+        end
+        @pending_orders.clear
+        cancelled
+      end
+
       def process_pending_orders(slice, portfolio)
         portfolio.mark_to_market(slice)
         filled = []
@@ -53,6 +61,10 @@ module QuantRb
         end
 
         @pending_orders -= filled
+      end
+
+      def process_expirations(slice, portfolio, strategy_class: nil)
+        portfolio.process_expirations(slice, strategy_class: strategy_class)
       end
 
       def get_quotes(_symbols)

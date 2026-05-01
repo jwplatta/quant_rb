@@ -111,4 +111,119 @@ RSpec.describe QuantRb::Engine::BacktestEngine do
 
     described_class.run(strategy_class, progress: false)
   end
+
+  it "automatically settles option spreads on the expiration day's final bar" do
+    strategy = Class.new(QuantRb::Strategy) do
+      def initialize
+        set_start_date(2024, 1, 18)
+        set_end_date(2024, 1, 19)
+        set_cash(10_000)
+        @spx = add_index("SPX", resolution: :"5min")
+        @spxw = add_index_option("SPX", "SPXW", resolution: :"5min")
+        @opened = false
+      end
+
+      def on_data(_slice)
+        return if @opened
+        return unless time == Time.parse("2024-01-18 20:55:00 UTC")
+
+        combo_limit_order(
+          [
+            { symbol: "SPXW_2024-01-19_P_4900", quantity: -1, expiration_date: Date.new(2024, 1, 19), strike: 4900.0, put_call: QuantRb::PUT, underlying_symbol: "SPX" },
+            { symbol: "SPXW_2024-01-19_P_4880", quantity: 1, expiration_date: Date.new(2024, 1, 19), strike: 4880.0, put_call: QuantRb::PUT, underlying_symbol: "SPX" }
+          ],
+          1,
+          1.00
+        )
+        @opened = true
+      end
+    end
+
+    candles = QuantRb::Data::Series::CandleSeries.new([
+      QuantRb::DataObjects::Candle.new(datetime: Time.parse("2024-01-18 20:55:00 UTC"), open: 4950.0, high: 4955.0, low: 4945.0, close: 4950.0, volume: 0),
+      QuantRb::DataObjects::Candle.new(datetime: Time.parse("2024-01-19 20:55:00 UTC"), open: 4875.0, high: 4880.0, low: 4870.0, close: 4875.0, volume: 0)
+    ])
+    short_put = QuantRb::DataObjects::Option.new(symbol: "SPXW_2024-01-19_P_4900", underlying_symbol: "SPX", strike: 4900.0, put_call: QuantRb::PUT, underlying_price: 4950.0, expiration_date: Date.new(2024, 1, 19), bid: 1.60, ask: 1.70, mark: 1.65)
+    long_put = QuantRb::DataObjects::Option.new(symbol: "SPXW_2024-01-19_P_4880", underlying_symbol: "SPX", strike: 4880.0, put_call: QuantRb::PUT, underlying_price: 4950.0, expiration_date: Date.new(2024, 1, 19), bid: 0.45, ask: 0.55, mark: 0.50)
+    chain = QuantRb::DataObjects::OptionsChain.new(symbol: "SPXW", put_opts: [short_put, long_put])
+    option_index = instance_double("OptionIndex")
+    allow(option_index).to receive(:chains_at).and_return({ Date.new(2024, 1, 19) => chain })
+
+    result = described_class.run(
+      strategy,
+      candle_series: { SPX: candles },
+      options_chain_index: { SPXW_options: option_index },
+      progress: false
+    )
+
+    expect(result.trades.size).to eq(1)
+    expect(result.trades.first.exit_time).to eq(Time.parse("2024-01-19 20:55:00 UTC"))
+    expect(result.trades.first.exit_price).to eq(20.0)
+  end
+
+  it "cancels unfilled orders at end of day so later sessions can submit again" do
+    strategy = Class.new(QuantRb::Strategy) do
+      def initialize
+        set_start_date(2024, 1, 18)
+        set_end_date(2024, 1, 19)
+        set_cash(10_000)
+        @spx = add_index("SPX", resolution: :"5min")
+        @spxw = add_index_option("SPX", "SPXW", resolution: :"5min")
+        @submitted = []
+      end
+
+      def on_data(_slice)
+        return unless time.hour == 20 && time.min == 55
+
+        @submitted << time
+        combo_limit_order(
+          [
+            { symbol: "SPXW_2024-01-19_P_4900", quantity: -1, expiration_date: Date.new(2024, 1, 19), strike: 4900.0, put_call: QuantRb::PUT, underlying_symbol: "SPX" },
+            { symbol: "SPXW_2024-01-19_P_4880", quantity: 1, expiration_date: Date.new(2024, 1, 19), strike: 4880.0, put_call: QuantRb::PUT, underlying_symbol: "SPX" }
+          ],
+          1,
+          99.0
+        )
+      end
+
+      def submitted_times
+        @submitted
+      end
+    end
+
+    instrumented_strategy = Class.new(strategy) do
+      class << self
+        attr_accessor :instance
+      end
+
+      def self.build_for_engine(**kwargs)
+        self.instance = super
+      end
+    end
+
+    candles = QuantRb::Data::Series::CandleSeries.new([
+      QuantRb::DataObjects::Candle.new(datetime: Time.parse("2024-01-18 20:55:00 UTC"), open: 4950.0, high: 4955.0, low: 4945.0, close: 4950.0, volume: 0),
+      QuantRb::DataObjects::Candle.new(datetime: Time.parse("2024-01-19 20:55:00 UTC"), open: 4950.0, high: 4955.0, low: 4945.0, close: 4950.0, volume: 0)
+    ])
+    short_put = QuantRb::DataObjects::Option.new(symbol: "SPXW_2024-01-19_P_4900", underlying_symbol: "SPX", strike: 4900.0, put_call: QuantRb::PUT, underlying_price: 4950.0, expiration_date: Date.new(2024, 1, 19), bid: 1.60, ask: 1.70, mark: 1.65)
+    long_put = QuantRb::DataObjects::Option.new(symbol: "SPXW_2024-01-19_P_4880", underlying_symbol: "SPX", strike: 4880.0, put_call: QuantRb::PUT, underlying_price: 4950.0, expiration_date: Date.new(2024, 1, 19), bid: 0.45, ask: 0.55, mark: 0.50)
+    chain = QuantRb::DataObjects::OptionsChain.new(symbol: "SPXW", put_opts: [short_put, long_put])
+    option_index = instance_double("OptionIndex")
+    allow(option_index).to receive(:chains_at).and_return({ Date.new(2024, 1, 19) => chain })
+
+    broker = QuantRb::Brokers::BacktestBroker.new
+    described_class.run(
+      instrumented_strategy,
+      broker: broker,
+      candle_series: { SPX: candles },
+      options_chain_index: { SPXW_options: option_index },
+      progress: false
+    )
+
+    expect(instrumented_strategy.instance.submitted_times).to eq([
+      Time.parse("2024-01-18 20:55:00 UTC"),
+      Time.parse("2024-01-19 20:55:00 UTC")
+    ])
+    expect(broker.pending_orders).to be_empty
+  end
 end
