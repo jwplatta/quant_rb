@@ -75,6 +75,32 @@ RSpec.describe QuantRb::Engine::StrategyBase do
     expect(subscriptions[strategy.interpolated_key][:config].chain_mode).to eq(:sampled_interpolated)
   end
 
+  it "preserves explicit raw option config for interpolated chains" do
+    strategy_class = Class.new(described_class) do
+      attr_reader :interpolated_key
+
+      def initialize
+        @interpolated_key = add_index_option(
+          "SPX",
+          "SPXW_INT",
+          provider: "massive",
+          interpolate: true,
+          raw_options: { underlying_provider: "ibkr-paper" }
+        )
+      end
+    end
+
+    strategy = strategy_class.build_for_engine(
+      portfolio: portfolio,
+      schedule: schedule,
+      securities: securities,
+      broker: broker
+    )
+
+    config = strategy.subscribed_option_chain_symbols[strategy.interpolated_key][:config]
+    expect(config.raw_options[:underlying_provider]).to eq("ibkr-paper")
+  end
+
   it "normalizes debit combo limits to positive prices" do
     strategy = strategy_class.build_for_engine(
       portfolio: portfolio,

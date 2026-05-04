@@ -44,6 +44,34 @@ RSpec.describe QuantRb::Data::OptionChainSource do
     expect(chains.values.first.put_opts).not_to be_empty
   end
 
+  it "preloads sampled underlying candles without eagerly loading option rows" do
+    config = QuantRb::Data::OptionChainConfig.new(
+      underlying: "SPX",
+      option_root: "SPXW",
+      resolution: :minute,
+      provider: "test",
+      chain_mode: :sampled_interpolated,
+      pricing_model: :black_scholes,
+      iv_map: nil,
+      validation: :repair,
+      strike_grid: { step: 5.0, range_ratio: 0.01 },
+      raw_options: { underlying_provider: "test" }
+    )
+    rows = [
+      { "symbol" => "P1", "contract_type" => "PUT", "strike" => 5100.0, "open" => 14.0, "high" => 16.0, "low" => 13.0, "close" => 15.0, "underlying_price" => nil, "expiration_date" => Date.new(2026, 4, 10), "metadata" => { "sampled_at" => Time.parse("2026-04-09T15:00:00Z"), "expiration_date" => Date.new(2026, 4, 10) } }
+    ]
+    allow(adapter).to receive(:load_option_chain_rows).and_return(rows)
+    allow(adapter).to receive(:load_candle_series).with(provider: "test", ticker: "SPX", resolution: :minute, start_date: Date.new(2026, 4, 9), end_date: Date.new(2026, 4, 9)).and_return(
+      series(candle("2026-04-09T15:00:00Z", close: 5105.0))
+    )
+
+    source = described_class.build(config:, start_date: Date.new(2026, 4, 9), end_date: Date.new(2026, 4, 9), adapter: adapter)
+
+    expect(source.preload!).to equal(source)
+    expect(adapter).to have_received(:load_candle_series).once
+    expect(adapter).not_to have_received(:load_option_chain_rows)
+  end
+
   it "reconstructs sampled interpolated chains and populates greeks" do
     config = QuantRb::Data::OptionChainConfig.new(
       underlying: "SPX",
@@ -323,6 +351,39 @@ RSpec.describe QuantRb::Data::OptionChainSource do
 
     expect(downside_call.volatility).to be > upside_call.volatility
     expect(downside_put.volatility).to be > upside_put.volatility
+  end
+
+  it "returns generated chains that remain convex by strike after repair" do
+    config = QuantRb::Data::OptionChainConfig.new(
+      underlying: "SPX",
+      option_root: "SPXW",
+      resolution: :minute,
+      provider: "test",
+      chain_mode: :sampled_interpolated,
+      pricing_model: :black_scholes,
+      iv_map: nil,
+      validation: :repair,
+      strike_grid: { step: 5.0, range_ratio: 0.01 }
+    )
+    sampled_at = Time.parse("2026-04-09T15:00:00Z")
+    expiry = Date.new(2026, 4, 10)
+    rows = [
+      { "symbol" => "SPXW  260410C05100000", "contract_type" => "CALL", "mark" => 21.0, "bid" => 20.5, "ask" => 21.5, "strike" => 5100.0, "underlying_price" => 5105.0, "expiration_date" => expiry, "metadata" => { "sampled_at" => sampled_at, "expiration_date" => expiry } },
+      { "symbol" => "SPXW  260410P05100000", "contract_type" => "PUT", "mark" => 16.0, "bid" => 15.5, "ask" => 16.5, "strike" => 5100.0, "underlying_price" => 5105.0, "expiration_date" => expiry, "metadata" => { "sampled_at" => sampled_at, "expiration_date" => expiry } },
+      { "symbol" => "SPXW  260410C05110000", "contract_type" => "CALL", "mark" => 15.5, "bid" => 15.0, "ask" => 16.0, "strike" => 5110.0, "underlying_price" => 5105.0, "expiration_date" => expiry, "metadata" => { "sampled_at" => sampled_at, "expiration_date" => expiry } },
+      { "symbol" => "SPXW  260410P05110000", "contract_type" => "PUT", "mark" => 20.5, "bid" => 20.0, "ask" => 21.0, "strike" => 5110.0, "underlying_price" => 5105.0, "expiration_date" => expiry, "metadata" => { "sampled_at" => sampled_at, "expiration_date" => expiry } }
+    ]
+    allow(adapter).to receive(:load_option_chain_rows).and_return(rows)
+
+    source = described_class.build(config:, start_date: Date.new(2026, 4, 9), end_date: Date.new(2026, 4, 9), adapter: adapter)
+    chain = source.chains_at(sampled_at, expiry_filter: expiry).fetch(expiry)
+
+    [chain.call_opts, chain.put_opts].each do |options|
+      options.each_cons(3) do |left, middle, right|
+        upper_bound = left.mark + ((right.mark - left.mark) * ((middle.strike - left.strike) / (right.strike - left.strike).to_f))
+        expect(middle.mark).to be <= upper_bound + 1e-4
+      end
+    end
   end
 
   it "reuses the same reconstructed chain when multiple target times map to the same sampled snapshot" do

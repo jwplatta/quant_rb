@@ -74,6 +74,7 @@ module QuantRb
       # Optionally pass a block to configure expiry/strike filters.
       def add_index_option(underlying, option_root, resolution: :minute, provider: nil, synthetic: false, interpolate: false, pricing_model: :black_scholes, iv: nil, validation: :repair, strike_grid: {}, **kwargs, &filter)
         key = :"#{option_root}_options"
+        raw_options = kwargs.delete(:raw_options) || {}
         chain_mode =
           if synthetic
             :synthetic
@@ -98,7 +99,7 @@ module QuantRb
             iv_map: iv,
             validation: validation,
             strike_grid: strike_grid,
-            raw_options: kwargs
+            raw_options: raw_options.merge(kwargs)
           )
         }
         key

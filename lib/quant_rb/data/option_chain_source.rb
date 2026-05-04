@@ -36,7 +36,10 @@ module QuantRb
         @validator = validator || Validation::OptionChainValidator.new
         @cache = {}
         @sample_index = nil
-        @sample_row_index = nil
+        @sample_row_index = Hash.new { |h, k| h[k] = [] }
+        @sample_row_enumerator = nil
+        @sample_row_exhausted = false
+        @sample_row_lookahead = nil
       end
 
       def chains_at(target_time, expiry_filter: nil)
@@ -47,10 +50,17 @@ module QuantRb
         end
       end
 
+      def preload!
+        return self if @config.synthetic?
+
+        sampled_underlying_series
+        self
+      end
+
       def available_dates
         return (@start_date..@end_date).to_a if @config.synthetic?
 
-        ensure_sample_row_index!
+        consume_all_sample_rows!
         @sample_row_index.values.flat_map { |samples| samples.map(&:first).map(&:to_date) }.uniq.sort
       end
 
@@ -64,7 +74,8 @@ module QuantRb
       end
 
       def sampled_chains_at(target_time, expiry_filter:)
-        ensure_sample_row_index!
+        ensure_sample_row_stream!
+        consume_sample_rows_through!(target_time)
         matching_expiries = @sample_row_index.keys.select do |expiry|
           expiry >= target_time.to_date && matches_expiry_filter?(expiry, expiry_filter)
         end
@@ -104,10 +115,15 @@ module QuantRb
         end
       end
 
-      def ensure_sample_row_index!
-        return if @sample_row_index
+      def ensure_sample_row_stream!
+        return if @sample_row_enumerator || @sample_row_exhausted
 
-        rows = @adapter.load_option_chain_rows(
+        # TODO: Amortize sampled option-row loading over the life of the backtest by chunking the
+        # stream into smaller date windows instead of opening one long-running enumerator across the
+        # full backtest range at first use.
+        QuantRb.logger.info("Loading sampled option data for backtest slices. This can take a bit before the first options-enabled bars run.")
+        QuantRb.logger.info("Loading sampled option rows provider=#{@config.provider} underlying=#{@config.underlying} option_root=#{@config.option_root} resolution=#{@config.resolution}")
+        @sample_row_enumerator = @adapter.load_option_chain_rows(
           provider: @config.provider,
           ticker: @config.underlying,
           option_root: @config.option_root,
@@ -115,17 +131,77 @@ module QuantRb
           start_date: @start_date,
           end_date: @end_date
         )
+        @sample_row_enumerator = @sample_row_enumerator.to_enum unless @sample_row_enumerator.respond_to?(:next)
+        @sample_row_count = 0
+      end
 
-        grouped = rows.group_by do |row|
-          metadata = row.fetch("metadata")
-          [metadata.fetch("expiration_date"), metadata.fetch("sampled_at")]
+      def consume_sample_rows_through!(target_time)
+        ensure_sample_row_stream!
+        return if @sample_row_exhausted
+
+        loop do
+          row = next_sample_row
+          break unless row
+
+          sampled_at = row.fetch("metadata").fetch("sampled_at")
+          if sampled_at > target_time
+            @sample_row_lookahead = row
+            break
+          end
+
+          store_sample_row(row)
+        end
+      end
+
+      def consume_all_sample_rows!
+        ensure_sample_row_stream!
+        return if @sample_row_exhausted
+
+        store_sample_row(@sample_row_lookahead) if @sample_row_lookahead
+        @sample_row_lookahead = nil
+        while (row = next_sample_row)
+          store_sample_row(row)
+        end
+        @sample_row_exhausted = true
+        log_sample_row_load_complete
+      end
+
+      def next_sample_row
+        return nil if @sample_row_exhausted
+
+        if @sample_row_lookahead
+          row = @sample_row_lookahead
+          @sample_row_lookahead = nil
+          return row
         end
 
-        @sample_row_index = grouped.each_with_object(Hash.new { |h, k| h[k] = [] }) do |((expiry, sampled_at), snapshot_rows), index|
-          index[expiry] << [sampled_at, snapshot_rows]
-        end
+        @sample_row_enumerator.next
+      rescue StopIteration
+        @sample_row_exhausted = true
+        log_sample_row_load_complete
+        nil
+      end
 
-        @sample_row_index.each_value { |samples| samples.sort_by!(&:first) }
+      def store_sample_row(row)
+        return unless row
+
+        metadata = row.fetch("metadata")
+        expiry = metadata.fetch("expiration_date")
+        sampled_at = metadata.fetch("sampled_at")
+        samples = @sample_row_index[expiry]
+        if samples.empty? || samples.last.first != sampled_at
+          samples << [sampled_at, [row]]
+        else
+          samples.last.last << row
+        end
+        @sample_row_count += 1
+      end
+
+      def log_sample_row_load_complete
+        return if @sample_row_load_logged
+
+        QuantRb.logger.info("Loaded #{@sample_row_count || 0} sampled option rows provider=#{@config.provider} option_root=#{@config.option_root}")
+        @sample_row_load_logged = true
       end
 
       def build_chain_from_rows(rows, sampled_at:, expiry:)
@@ -252,7 +328,8 @@ module QuantRb
           points.sum { |_x, vol| vol } / points.size.to_f
         end
 
-        grouped.sort_by(&:first)
+        points = grouped.sort_by(&:first)
+        { points: points, slopes: monotone_cubic_slopes(points) }
       end
 
       def preferred_vol_anchors(options, spot)
@@ -321,7 +398,7 @@ module QuantRb
       end
 
       def apply_unified_vol_curve!(options, curve, spot)
-        return if curve.empty?
+        return if curve[:points].empty?
 
         options.each do |option|
           x = log_moneyness(option.strike, spot)
@@ -573,14 +650,20 @@ module QuantRb
       end
 
       def interpolate_curve_value(curve, x_value)
-        return curve.first.last if curve.length == 1
+        points = curve.fetch(:points)
+        slopes = curve.fetch(:slopes)
+        return points.first.last if points.length == 1
 
         left = nil
         right = nil
-        curve.each do |x, value|
+        left_index = nil
+        right_index = nil
+        points.each_with_index do |(x, value), index|
           left = [x, value] if x <= x_value
+          left_index = index if x <= x_value
           if x >= x_value
             right = [x, value]
+            right_index = index
             break
           end
         end
@@ -589,8 +672,60 @@ module QuantRb
         return right.last if right && left.nil?
         return left.last if left.first == right.first
 
-        weight = (x_value - left.first).to_f / (right.first - left.first)
-        left.last + (weight * (right.last - left.last))
+        hermite_interpolate(
+          left_x: left.first,
+          left_y: left.last,
+          left_slope: slopes.fetch(left_index),
+          right_x: right.first,
+          right_y: right.last,
+          right_slope: slopes.fetch(right_index),
+          x_value: x_value
+        )
+      end
+
+      def monotone_cubic_slopes(points)
+        return [0.0] if points.length == 1
+
+        xs = points.map(&:first)
+        ys = points.map(&:last)
+        deltas = []
+        widths = []
+
+        (0...points.length - 1).each do |index|
+          width = xs[index + 1] - xs[index]
+          widths << width
+          deltas << ((ys[index + 1] - ys[index]) / width.to_f)
+        end
+
+        slopes = Array.new(points.length, 0.0)
+        slopes[0] = deltas.first
+        slopes[-1] = deltas.last
+
+        (1...points.length - 1).each do |index|
+          if deltas[index - 1].zero? || deltas[index].zero? || (deltas[index - 1] <=> 0) != (deltas[index] <=> 0)
+            slopes[index] = 0.0
+            next
+          end
+
+          weight_left = (2.0 * widths[index]) + widths[index - 1]
+          weight_right = widths[index] + (2.0 * widths[index - 1])
+          slopes[index] = (weight_left + weight_right) / ((weight_left / deltas[index - 1]) + (weight_right / deltas[index]))
+        end
+
+        slopes
+      end
+
+      def hermite_interpolate(left_x:, left_y:, left_slope:, right_x:, right_y:, right_slope:, x_value:)
+        interval = right_x - left_x
+        t = (x_value - left_x).to_f / interval.to_f
+        t2 = t * t
+        t3 = t2 * t
+        h00 = (2.0 * t3) - (3.0 * t2) + 1.0
+        h10 = t3 - (2.0 * t2) + t
+        h01 = (-2.0 * t3) + (3.0 * t2)
+        h11 = t3 - t2
+
+        (h00 * left_y) + (h10 * interval * left_slope) + (h01 * right_y) + (h11 * interval * right_slope)
       end
 
       def time_to_expiry_years(expiration_date, sampled_at)

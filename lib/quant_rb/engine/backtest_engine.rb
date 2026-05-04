@@ -159,11 +159,13 @@ module QuantRb
 
       def load_option_chain_index_map(strategy)
         strategy.subscribed_option_chain_symbols.each_with_object({}) do |(key, subscription), result|
-          result[key] = QuantRb::Data::OptionChainSource.build(
+          source = QuantRb::Data::OptionChainSource.build(
             config: subscription.fetch(:config),
             start_date: strategy.start_date,
             end_date: strategy.end_date
           )
+          source.preload! if source.respond_to?(:preload!)
+          result[key] = source
         end
       end
 
