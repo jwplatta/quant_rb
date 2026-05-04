@@ -1,6 +1,6 @@
 GIT
   remote: https://github.com/jwplatta/tickrake.git
-  revision: 14b76609fb6e5289a0f21e89d4357fc1d021fc9b
+  revision: d917bc9176a2c9e78601ecb4e536d6435b76f8dc
   specs:
     tickrake (0.3.0)
       ib-api (~> 972.5)
