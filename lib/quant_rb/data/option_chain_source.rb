@@ -36,7 +36,7 @@ module QuantRb
         @validator = validator || Validation::OptionChainValidator.new
         @cache = {}
         @sample_index = nil
-        build_sample_index! unless @config.synthetic?
+        @sample_row_index = nil
       end
 
       def chains_at(target_time, expiry_filter: nil)
@@ -50,7 +50,8 @@ module QuantRb
       def available_dates
         return (@start_date..@end_date).to_a if @config.synthetic?
 
-        @sample_index.values.flat_map { |samples| samples.map(&:first).map(&:to_date) }.uniq.sort
+        ensure_sample_row_index!
+        @sample_row_index.values.flat_map { |samples| samples.map(&:first).map(&:to_date) }.uniq.sort
       end
 
       private
@@ -63,11 +64,13 @@ module QuantRb
       end
 
       def sampled_chains_at(target_time, expiry_filter:)
-        @sample_index.each_with_object({}) do |(expiry, samples), result|
-          next if expiry < target_time.to_date
-          next unless matches_expiry_filter?(expiry, expiry_filter)
+        ensure_sample_row_index!
+        matching_expiries = @sample_row_index.keys.select do |expiry|
+          expiry >= target_time.to_date && matches_expiry_filter?(expiry, expiry_filter)
+        end
 
-          chain = locf_chain_for(samples, target_time)
+        matching_expiries.each_with_object({}) do |expiry, result|
+          chain = locf_chain_for_expiry(expiry, target_time)
           result[expiry] = chain if chain
         end
       end
@@ -101,7 +104,9 @@ module QuantRb
         end
       end
 
-      def build_sample_index!
+      def ensure_sample_row_index!
+        return if @sample_row_index
+
         rows = @adapter.load_option_chain_rows(
           provider: @config.provider,
           ticker: @config.underlying,
@@ -116,67 +121,83 @@ module QuantRb
           [metadata.fetch("expiration_date"), metadata.fetch("sampled_at")]
         end
 
-        @sample_index = grouped.each_with_object(Hash.new { |h, k| h[k] = [] }) do |((expiry, sampled_at), snapshot_rows), index|
-          chain = build_chain_from_rows(snapshot_rows, sampled_at: sampled_at, expiry: expiry)
-          index[expiry] << [sampled_at, chain]
+        @sample_row_index = grouped.each_with_object(Hash.new { |h, k| h[k] = [] }) do |((expiry, sampled_at), snapshot_rows), index|
+          index[expiry] << [sampled_at, snapshot_rows]
         end
 
-        @sample_index.each_value { |samples| samples.sort_by!(&:first) }
+        @sample_row_index.each_value { |samples| samples.sort_by!(&:first) }
       end
 
       def build_chain_from_rows(rows, sampled_at:, expiry:)
         options = rows.map { |row| build_option(row, sampled_at:) }.compact
+        underlying_price = options.map(&:underlying_price).compact.first || sampled_underlying_price_at(sampled_at)
+        ensure_underlying_price!(underlying_price, sampled_at)
+        options.each { |option| hydrate_underlying_price!(option, underlying_price) }
         calls = options.select(&:call?).sort_by(&:strike)
         puts_ = options.select(&:put?).sort_by(&:strike)
-        underlying_price = options.map(&:underlying_price).compact.first
         chain = QuantRb::DataObjects::OptionsChain.new(symbol: @config.option_root, underlying_price: underlying_price, call_opts: calls, put_opts: puts_)
 
-        process_chain!(chain, expiry:)
+        process_chain!(chain, expiry:, sampled_at:)
       end
 
-      def process_chain!(chain, expiry:)
-        reconstruct_chain!(chain, expiry:) if @config.sampled_interpolated?
-
+      def process_chain!(chain, expiry:, sampled_at:)
+        reconstruct_chain!(chain, expiry:, sampled_at:) if @config.sampled_interpolated?
         @validator.repair(chain) if @config.validation == :repair
-        enrich_chain!(chain) if @config.sampled_interpolated?
+        enrich_chain!(chain, sampled_at:) if @config.sampled_interpolated?
         chain
       end
 
-      def reconstruct_chain!(chain, expiry:)
-        all_by_side = [chain.call_opts, chain.put_opts]
-        all_by_side.each do |options|
+      def reconstruct_chain!(chain, expiry:, sampled_at:)
+        spot = chain.underlying_price
+        [chain.call_opts, chain.put_opts].each do |options|
           next if options.empty?
 
           infer_missing_marks!(options)
-          target_strikes = target_strikes_for(chain.underlying_price, options.map(&:strike))
-          fill_missing_strikes!(options, target_strikes, expiry:, underlying_price: chain.underlying_price)
-          interpolate_missing_marks!(options)
         end
+
+        tau_years = time_to_expiry_years(expiry, sampled_at)
+        all_options = chain.all_options
+        infer_observed_volatilities!(all_options, tau_years)
+        target_strikes = target_strikes_for(spot, all_options.map(&:strike))
+        fill_missing_strikes!(chain.call_opts, target_strikes, expiry:, sampled_at:, underlying_price: spot)
+        fill_missing_strikes!(chain.put_opts, target_strikes, expiry:, sampled_at:, underlying_price: spot)
+        all_options = chain.all_options
+        unified_curve = build_unified_vol_curve(all_options, spot)
+        apply_unified_vol_curve!(all_options, unified_curve, spot)
+        reprice_options!(chain.call_opts, tau_years)
+        reprice_options!(chain.put_opts, tau_years)
       end
 
-      def enrich_chain!(chain)
+      def enrich_chain!(chain, sampled_at:)
+        tau_by_expiry = {}
         chain.all_options.each do |option|
           next unless option.mark
 
-          tau_years = [[option.days_to_expiration, 0].max, 1].max / 365.25
-          sigma = Pricing::ImpliedVolatilitySolver.solve(
-            market_price: option.mark,
-            spot: option.underlying_price,
-            strike: option.strike,
-            tau_years: tau_years,
-            rate: 0.0,
-            contract_type: option.put_call,
-            pricing_model: @config.pricing_model
-          )
+          hydrate_option_prices!(option)
+          tau_years = (tau_by_expiry[option.expiration_date] ||= time_to_expiry_years(option.expiration_date, sampled_at))
+          sigma = option.volatility ? option.volatility.to_f / 100.0 : inferred_sigma_for(option, tau_years)
           option.volatility = sigma ? (sigma * 100.0).round(4) : option.volatility
           next unless sigma
 
-          option.delta = compute_delta(option, tau_years, sigma)
-          option.gamma = Pricing::BlackScholes.gamma(spot: option.underlying_price, strike: option.strike, tau_years: tau_years, sigma: sigma, rate: 0.0)
-          option.theta = Pricing::BlackScholes.theta(spot: option.underlying_price, strike: option.strike, tau_years: tau_years, sigma: sigma, rate: 0.0, contract_type: option.put_call)
-          option.vega = Pricing::BlackScholes.vega(spot: option.underlying_price, strike: option.strike, tau_years: tau_years, sigma: sigma, rate: 0.0)
-          option.rho = Pricing::BlackScholes.rho(spot: option.underlying_price, strike: option.strike, tau_years: tau_years, sigma: sigma, rate: 0.0, contract_type: option.put_call)
+          greeks = compute_greeks(option, tau_years, sigma)
+          option.delta = greeks.fetch(:delta)
+          option.gamma = greeks.fetch(:gamma)
+          option.theta = greeks.fetch(:theta)
+          option.vega = greeks.fetch(:vega)
+          option.rho = greeks.fetch(:rho)
         end
+      end
+
+      def inferred_sigma_for(option, tau_years)
+        Pricing::ImpliedVolatilitySolver.solve(
+          market_price: option.mark,
+          spot: option.underlying_price,
+          strike: option.strike,
+          tau_years: tau_years,
+          rate: 0.0,
+          contract_type: option.put_call,
+          pricing_model: @config.pricing_model
+        )
       end
 
       def compute_delta(option, tau_years, sigma)
@@ -188,23 +209,193 @@ module QuantRb
         end
       end
 
+      def compute_greeks(option, tau_years, sigma)
+        if @config.pricing_model == :binomial
+          {
+            delta: Pricing::CrrBinomial.delta(spot: option.underlying_price, strike: option.strike, tau_years: tau_years, sigma: sigma, rate: 0.0, contract_type: option.put_call),
+            gamma: Pricing::CrrBinomial.gamma(spot: option.underlying_price, strike: option.strike, tau_years: tau_years, sigma: sigma, rate: 0.0, contract_type: option.put_call),
+            theta: Pricing::CrrBinomial.theta(spot: option.underlying_price, strike: option.strike, tau_years: tau_years, sigma: sigma, rate: 0.0, contract_type: option.put_call),
+            vega: Pricing::CrrBinomial.vega(spot: option.underlying_price, strike: option.strike, tau_years: tau_years, sigma: sigma, rate: 0.0, contract_type: option.put_call),
+            rho: Pricing::CrrBinomial.rho(spot: option.underlying_price, strike: option.strike, tau_years: tau_years, sigma: sigma, rate: 0.0, contract_type: option.put_call)
+          }
+        else
+          {
+            delta: Pricing::BlackScholes.delta(spot: option.underlying_price, strike: option.strike, tau_years: tau_years, sigma: sigma, rate: 0.0, contract_type: option.put_call),
+            gamma: Pricing::BlackScholes.gamma(spot: option.underlying_price, strike: option.strike, tau_years: tau_years, sigma: sigma, rate: 0.0),
+            theta: Pricing::BlackScholes.theta(spot: option.underlying_price, strike: option.strike, tau_years: tau_years, sigma: sigma, rate: 0.0, contract_type: option.put_call),
+            vega: Pricing::BlackScholes.vega(spot: option.underlying_price, strike: option.strike, tau_years: tau_years, sigma: sigma, rate: 0.0),
+            rho: Pricing::BlackScholes.rho(spot: option.underlying_price, strike: option.strike, tau_years: tau_years, sigma: sigma, rate: 0.0, contract_type: option.put_call)
+          }
+        end
+      end
+
       def infer_missing_marks!(options)
         options.each do |option|
-          next if option.mark
+          estimate_quote_from_observed_prices!(option)
+        end
+      end
 
-          prices = [option.open, option.high, option.low, option.close].compact
-          option.mark = prices.sum / prices.size if prices.any?
+      def infer_observed_volatilities!(options, tau_years)
+        options.each do |option|
           next unless option.mark
 
-          option.bid = option.mark if option.bid.nil?
-          option.ask = option.mark if option.ask.nil?
+          sigma = inferred_sigma_for(option, tau_years)
+          option.volatility = (sigma * 100.0).round(4) if sigma
         end
+      end
+
+      def build_unified_vol_curve(options, spot)
+        observed_points = preferred_vol_anchors(options, spot)
+        observed_points = fallback_vol_anchors(options, spot) if observed_points.empty?
+
+        grouped = observed_points.group_by(&:first).transform_values do |points|
+          points.sum { |_x, vol| vol } / points.size.to_f
+        end
+
+        grouped.sort_by(&:first)
+      end
+
+      def preferred_vol_anchors(options, spot)
+        otm_points = options.filter_map do |option|
+          next unless option.volatility
+          next unless spot.to_f.positive? && option.strike.to_f.positive?
+          next unless otm_anchor_option?(option, spot)
+
+          [log_moneyness(option.strike, spot), option.volatility.to_f]
+        end
+
+        return otm_points if otm_points.empty?
+
+        augmented_points = otm_points.dup
+        atm_option = nearest_atm_option(options, spot)
+        if atm_option&.volatility
+          augmented_points << [log_moneyness(atm_option.strike, spot), atm_option.volatility.to_f]
+        end
+
+        ensure_side_coverage!(augmented_points, options, spot, negative_side: true)
+        ensure_side_coverage!(augmented_points, options, spot, negative_side: false)
+        augmented_points
+      end
+
+      def fallback_vol_anchors(options, spot)
+        options.filter_map do |option|
+          next unless option.volatility
+          next unless spot.to_f.positive? && option.strike.to_f.positive?
+
+          [log_moneyness(option.strike, spot), option.volatility.to_f]
+        end
+      end
+
+      def otm_anchor_option?(option, spot)
+        (option.put? && option.strike.to_f <= spot.to_f) || (option.call? && option.strike.to_f >= spot.to_f)
+      end
+
+      def nearest_atm_option(options, spot)
+        nearest = nil
+        options.each do |option|
+          next unless option.volatility && option.strike.to_f.positive?
+
+          if nearest.nil? || (option.strike.to_f - spot.to_f).abs < (nearest.strike.to_f - spot.to_f).abs
+            nearest = option
+          end
+        end
+        nearest
+      end
+
+      def ensure_side_coverage!(points, options, spot, negative_side:)
+        has_side = points.any? { |x, _vol| negative_side ? x <= 0.0 : x >= 0.0 }
+        return if has_side
+
+        candidate = nil
+        options.each do |option|
+          next unless option.volatility && option.strike.to_f.positive?
+          next unless negative_side ? option.strike.to_f <= spot.to_f : option.strike.to_f >= spot.to_f
+
+          if candidate.nil? || (option.strike.to_f - spot.to_f).abs < (candidate.strike.to_f - spot.to_f).abs
+            candidate = option
+          end
+        end
+        return unless candidate
+
+        points << [log_moneyness(candidate.strike, spot), candidate.volatility.to_f]
+      end
+
+      def apply_unified_vol_curve!(options, curve, spot)
+        return if curve.empty?
+
+        options.each do |option|
+          x = log_moneyness(option.strike, spot)
+          option.volatility = interpolate_curve_value(curve, x)&.round(4)
+        end
+      end
+
+      def estimate_quote_from_observed_prices!(option)
+        if option.bid && option.ask
+          option.mark ||= option.mid
+          return
+        end
+
+        midpoint = estimated_mark_for(option)
+        return unless midpoint
+
+        option.mark = midpoint
+        spread = estimated_spread_for(option, midpoint)
+        half_spread = spread / 2.0
+
+        option.bid ||= [midpoint - half_spread, 0.0].max.round(4)
+        option.ask ||= [midpoint + half_spread, option.bid].max.round(4)
+      end
+
+      def estimated_mark_for(option)
+        return option.mid if option.bid && option.ask
+        return option.bid if option.bid
+        return option.ask if option.ask
+
+        prices = [option.open, option.high, option.low, option.close].compact
+        return weighted_ohlc_midpoint(prices, option) if prices.any?
+
+        nil
+      end
+
+      def weighted_ohlc_midpoint(prices, option)
+        return prices.sum / prices.size unless [option.open, option.high, option.low, option.close].all?
+
+        ((option.open + option.high + option.low + (2.0 * option.close)) / 5.0).round(4)
+      end
+
+      def estimated_spread_for(option, midpoint)
+        observed = [option.open, option.high, option.low, option.close].compact
+        range_based = if option.high && option.low
+          (option.high - option.low).abs * 0.35
+        else
+          0.0
+        end
+        variance_based = if observed.size >= 2
+          mean = observed.sum / observed.size.to_f
+          variance = observed.sum { |value| (value - mean)**2 } / observed.size.to_f
+          Math.sqrt(variance)
+        else
+          0.0
+        end
+
+        spread = [range_based, variance_based, 0.05].max
+        [spread.round(4), [midpoint.abs * 0.75, 5.0].min].min
       end
 
       def target_strikes_for(spot, existing_strikes)
         step = @config.strike_grid[:step].to_f
-        min = existing_strikes.min || (spot * 0.8)
-        max = existing_strikes.max || (spot * 1.2)
+        range_ratio = @config.strike_grid[:range_ratio].to_f
+        range_ratio = 0.20 if range_ratio <= 0.0
+        downside_ratio = range_ratio * 1.5
+        upside_ratio = range_ratio
+        configured_min = [spot * (1.0 - downside_ratio), step].max
+        configured_max = spot * (1.0 + upside_ratio)
+        observed_min = existing_strikes.compact.select(&:positive?).min
+        min = [observed_min || configured_min, configured_min].min
+        max = [existing_strikes.max || configured_max, configured_max].max
+        min = (min / step).floor * step
+        max = (max / step).ceil * step
+        min = step if min <= 0.0
         current = min
         strikes = []
         while current <= max
@@ -214,20 +405,22 @@ module QuantRb
         strikes
       end
 
-      def fill_missing_strikes!(options, target_strikes, expiry:, underlying_price:)
+      def fill_missing_strikes!(options, target_strikes, expiry:, sampled_at:, underlying_price:)
         existing = options.each_with_object({}) { |option, memo| memo[option.strike] = option }
         target_strikes.each do |strike|
           next if existing[strike]
 
           contract_type = options.first&.put_call || QuantRb::CALL
+          neighbors = neighboring_options(existing.values, strike)
           options << QuantRb::DataObjects::Option.new(
-            symbol: "#{@config.option_root}_#{expiry}_#{contract_type[0]}_#{strike}",
+            symbol: generated_option_symbol(strike:, expiry:, contract_type:, neighbors:),
             underlying_symbol: @config.underlying,
             strike: strike,
             put_call: contract_type,
             underlying_price: underlying_price,
             expiration_date: expiry,
-            days_to_expiration: [expiry - @start_date, 0].max,
+            days_to_expiration: [expiry - sampled_at.to_date, 0].max,
+            timestamp: sampled_at,
             mark: nil,
             bid: nil,
             ask: nil
@@ -236,26 +429,173 @@ module QuantRb
         options.sort_by!(&:strike)
       end
 
-      def interpolate_missing_marks!(options)
+      def sampled_underlying_series
+        @sampled_underlying_series ||= @adapter.load_candle_series(
+          provider: sampled_underlying_provider,
+          ticker: @config.underlying,
+          resolution: @config.resolution,
+          start_date: @start_date,
+          end_date: @end_date
+        )
+      end
+
+      def sampled_underlying_price_at(sampled_at)
+        sampled_underlying_series.at(sampled_at)&.close&.to_f
+      end
+
+      def sampled_underlying_provider
+        @config.raw_options[:underlying_provider] || @config.provider
+      end
+
+      def ensure_underlying_price!(underlying_price, sampled_at)
+        return unless underlying_price.nil?
+
+        raise ArgumentError,
+              "No underlying price for #{@config.underlying} at or before #{sampled_at.utc} " \
+              "using provider #{sampled_underlying_provider.inspect} and resolution #{@config.resolution.inspect}"
+      end
+
+      def hydrate_underlying_price!(option, underlying_price)
+        return if option.underlying_price || underlying_price.nil?
+
+        option.instance_variable_set(:@underlying_price, underlying_price)
+      end
+
+      def reprice_options!(options, tau_years)
         options.each_with_index do |option, index|
-          next if option.mark
+          next unless option.volatility
 
-          left = options[0...index].reverse.find(&:mark)
-          right = options[(index + 1)..].find(&:mark)
-          option.mark =
-            if left && right
-              weight = (option.strike - left.strike).to_f / (right.strike - left.strike)
-              left.mark + (weight * (right.mark - left.mark))
-            elsif left
-              left.mark
-            elsif right
-              right.mark
-            end
-          next unless option.mark
-
-          option.bid ||= option.mark
-          option.ask ||= option.mark
+          sigma = option.volatility.to_f / 100.0
+          option.mark = theoretical_price_for(option, tau_years, sigma).round(4)
+          left = nearest_left_quoted_option(options, index)
+          right = nearest_right_quoted_option(options, index)
+          spread = repriced_spread_for(option, left, right)
+          half_spread = spread / 2.0
+          option.bid = [option.mark - half_spread, 0.0].max.round(4)
+          option.ask = [option.mark + half_spread, option.bid].max.round(4)
+          hydrate_option_prices!(option)
         end
+      end
+
+      def nearest_left_quoted_option(options, index)
+        pointer = index - 1
+        while pointer >= 0
+          option = options[pointer]
+          return option if option.bid && option.ask
+
+          pointer -= 1
+        end
+        nil
+      end
+
+      def nearest_right_quoted_option(options, index)
+        pointer = index + 1
+        while pointer < options.length
+          option = options[pointer]
+          return option if option.bid && option.ask
+
+          pointer += 1
+        end
+        nil
+      end
+
+      def hydrate_option_prices!(option)
+        ensure_underlying_price!(option.underlying_price, option.timestamp || Time.utc(option.expiration_date.year, option.expiration_date.month, option.expiration_date.day))
+        option.intrinsic = Pricing::BlackScholes.intrinsic_value(
+          spot: option.underlying_price,
+          strike: option.strike,
+          contract_type: option.put_call
+        )
+        option.extrinsic = [option.mark.to_f - option.intrinsic.to_f, 0.0].max if option.mark
+        if option.mark && (option.bid.nil? || option.ask.nil?)
+          spread = [option.mark.abs * 0.02, 0.05].max.round(4)
+          half_spread = spread / 2.0
+          option.bid ||= [option.mark - half_spread, 0.0].max.round(4)
+          option.ask ||= [option.mark + half_spread, option.bid].max.round(4)
+        end
+      end
+
+      def neighboring_options(options, strike)
+        sorted = options.sort_by(&:strike)
+        left = sorted.select { |option| option.strike < strike }.last
+        right = sorted.find { |option| option.strike > strike }
+        [left, right].compact
+      end
+
+      def repriced_spread_for(option, left, right)
+        observed_spread = estimated_spread_for(option, option.mark)
+        return observed_spread if sampled_quote_observation?(option)
+
+        spreads = [left, right].compact.filter_map do |neighbor|
+          next if neighbor.bid.nil? || neighbor.ask.nil?
+
+          (neighbor.ask - neighbor.bid).abs
+        end
+
+        if spreads.empty?
+          observed_spread
+        else
+          [[spreads.sum / spreads.size.to_f, 0.05].max, [option.mark.to_f.abs * 0.75, 5.0].min].min.round(4)
+        end
+      end
+
+      def sampled_quote_observation?(option)
+        option.bid || option.ask || option.open || option.high || option.low || option.close
+      end
+
+      def theoretical_price_for(option, tau_years, sigma)
+        case @config.pricing_model
+        when :binomial
+          Pricing::CrrBinomial.price(
+            spot: option.underlying_price,
+            strike: option.strike,
+            tau_years: tau_years,
+            sigma: sigma,
+            rate: 0.0,
+            contract_type: option.put_call
+          )
+        else
+          Pricing::BlackScholes.price(
+            spot: option.underlying_price,
+            strike: option.strike,
+            tau_years: tau_years,
+            sigma: sigma,
+            rate: 0.0,
+            contract_type: option.put_call
+          )
+        end
+      end
+
+      def log_moneyness(strike, spot)
+        raise ArgumentError, "Cannot compute log moneyness with non-positive strike=#{strike.inspect} spot=#{spot.inspect}" if strike.to_f <= 0.0 || spot.to_f <= 0.0
+
+        Math.log(strike.to_f / spot.to_f)
+      end
+
+      def interpolate_curve_value(curve, x_value)
+        return curve.first.last if curve.length == 1
+
+        left = nil
+        right = nil
+        curve.each do |x, value|
+          left = [x, value] if x <= x_value
+          if x >= x_value
+            right = [x, value]
+            break
+          end
+        end
+
+        return left.last if left && right.nil?
+        return right.last if right && left.nil?
+        return left.last if left.first == right.first
+
+        weight = (x_value - left.first).to_f / (right.first - left.first)
+        left.last + (weight * (right.last - left.last))
+      end
+
+      def time_to_expiry_years(expiration_date, sampled_at)
+        expiry_close = Time.utc(expiration_date.year, expiration_date.month, expiration_date.day, 20, 0, 0)
+        [[expiry_close - sampled_at.getutc, 60.0].max / Synthetic::SyntheticChainBuilder::SECONDS_PER_YEAR, (1.0 / 365.25)].max
       end
 
       def build_option(row, sampled_at:)
@@ -299,9 +639,40 @@ module QuantRb
         "#{@config.option_root}_#{expiry}_#{row["put_call"] || row["contract_type"]}_#{row["strike"]}_#{sampled_at.to_i}"
       end
 
+      def generated_option_symbol(strike:, expiry:, contract_type:, neighbors:)
+        template = neighbors.find { |option| option.symbol&.match?(/\d{6}[CP]\d{8}\z/) }&.symbol
+        return occ_like_option_symbol(strike:, expiry:, contract_type:, template:) if template
+
+        occ_like_option_symbol(strike:, expiry:, contract_type:)
+      end
+
+      def occ_like_option_symbol(strike:, expiry:, contract_type:, template: nil)
+        prefix =
+          if template && (match = template.match(/\A(?<prefix>.*?)(?<date>\d{6})(?<type>[CP])\d{8}\z/))
+            match[:prefix]
+          else
+            @config.option_root.ljust(6)
+          end
+
+        "#{prefix}#{expiry.strftime("%y%m%d")}#{contract_type == QuantRb::CALL ? 'C' : 'P'}#{format("%08d", (strike.to_f * 1000).round)}"
+      end
+
       def locf_chain_for(samples, target_time)
         entry = samples.reverse.find { |sampled_at, _chain| sampled_at <= target_time }
         entry&.last
+      end
+
+      def locf_chain_for_expiry(expiry, target_time)
+        @sample_index ||= {}
+        expiry_cache = (@sample_index[expiry] ||= {})
+        raw_samples = @sample_row_index.fetch(expiry, [])
+        entry = raw_samples.reverse.find { |sampled_at, _snapshot_rows| sampled_at <= target_time }
+        return nil unless entry
+
+        sampled_at, snapshot_rows = entry
+        return expiry_cache[sampled_at] if expiry_cache.key?(sampled_at)
+
+        expiry_cache[sampled_at] = build_chain_from_rows(snapshot_rows, sampled_at: sampled_at, expiry: expiry)
       end
 
       def candidate_expiries(target_time, expiry_filter)
@@ -322,6 +693,7 @@ module QuantRb
 
         expiry == expiry_filter
       end
+
     end
   end
 end

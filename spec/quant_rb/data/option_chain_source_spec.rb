@@ -54,7 +54,7 @@ RSpec.describe QuantRb::Data::OptionChainSource do
       pricing_model: :black_scholes,
       iv_map: nil,
       validation: :repair,
-      strike_grid: { step: 5.0 }
+      strike_grid: { step: 5.0, range_ratio: 0.01 }
     )
     sampled_at = Time.parse("2026-04-09T15:00:00Z")
     expiry = Date.new(2026, 4, 10)
@@ -70,8 +70,136 @@ RSpec.describe QuantRb::Data::OptionChainSource do
     chain = source.chains_at(sampled_at, expiry_filter: expiry).fetch(expiry)
 
     expect(chain.call_opts.map(&:strike)).to include(5105.0)
+    expect(chain.call_opts.map(&:strike).min).to be <= 5030.0
+    expect(chain.call_opts.map(&:strike).max).to be >= 5160.0
     expect(chain.all_options.all? { |opt| !opt.mark.nil? }).to be(true)
     expect(chain.all_options.any? { |opt| !opt.delta.nil? }).to be(true)
+    interpolated = chain.call_opts.find { |opt| opt.strike == 5105.0 }
+    expect(interpolated.days_to_expiration).to eq(1)
+    expect(interpolated.intrinsic).not_to be_nil
+    expect(interpolated.extrinsic).not_to be_nil
+    expect(interpolated.bid).to be < interpolated.ask
+    expect(interpolated.symbol).to match(/\ASPXW\s+\d{6}C\d{8}\z/)
+  end
+
+  it "hydrates interpolated sampled chains with binomial greeks when configured" do
+    config = QuantRb::Data::OptionChainConfig.new(
+      underlying: "SPX",
+      option_root: "SPXW",
+      resolution: :minute,
+      provider: "test",
+      chain_mode: :sampled_interpolated,
+      pricing_model: :binomial,
+      iv_map: nil,
+      validation: :repair,
+      strike_grid: { step: 5.0 }
+    )
+    sampled_at = Time.parse("2026-04-09T15:00:00Z")
+    expiry = Date.new(2026, 4, 10)
+    rows = [
+      { "symbol" => "C1", "contract_type" => "CALL", "strike" => 5100.0, "open" => 20.0, "high" => 22.0, "low" => 18.0, "close" => 21.0, "underlying_price" => 5105.0, "expiration_date" => expiry, "metadata" => { "sampled_at" => sampled_at, "expiration_date" => expiry } },
+      { "symbol" => "C2", "contract_type" => "CALL", "strike" => 5110.0, "open" => 15.0, "high" => 16.0, "low" => 14.0, "close" => 15.5, "underlying_price" => 5105.0, "expiration_date" => expiry, "metadata" => { "sampled_at" => sampled_at, "expiration_date" => expiry } }
+    ]
+    allow(adapter).to receive(:load_option_chain_rows).and_return(rows)
+
+    source = described_class.build(config:, start_date: Date.new(2026, 4, 9), end_date: Date.new(2026, 4, 9), adapter: adapter)
+    chain = source.chains_at(sampled_at, expiry_filter: expiry).fetch(expiry)
+    interpolated = chain.call_opts.find { |opt| opt.strike == 5105.0 }
+
+    expect(interpolated.delta).not_to be_nil
+    expect(interpolated.gamma).not_to be_nil
+    expect(interpolated.theta).not_to be_nil
+    expect(interpolated.vega).not_to be_nil
+    expect(interpolated.rho).not_to be_nil
+  end
+
+  it "derives bid and ask around an OHLC midpoint for sampled interpolated chains" do
+    config = QuantRb::Data::OptionChainConfig.new(
+      underlying: "SPX",
+      option_root: "SPXW",
+      resolution: :minute,
+      provider: "test",
+      chain_mode: :sampled_interpolated,
+      pricing_model: :black_scholes,
+      iv_map: nil,
+      validation: :repair,
+      strike_grid: { step: 10.0 }
+    )
+    sampled_at = Time.parse("2026-04-09T15:00:00Z")
+    expiry = Date.new(2026, 4, 10)
+    rows = [
+      { "symbol" => "P1", "contract_type" => "PUT", "strike" => 5100.0, "open" => 14.0, "high" => 16.0, "low" => 13.0, "close" => 15.0, "underlying_price" => 5105.0, "expiration_date" => expiry, "metadata" => { "sampled_at" => sampled_at, "expiration_date" => expiry } },
+      { "symbol" => "P2", "contract_type" => "PUT", "strike" => 5110.0, "open" => 18.0, "high" => 21.0, "low" => 17.0, "close" => 20.0, "underlying_price" => 5105.0, "expiration_date" => expiry, "metadata" => { "sampled_at" => sampled_at, "expiration_date" => expiry } }
+    ]
+    allow(adapter).to receive(:load_option_chain_rows).and_return(rows)
+
+    source = described_class.build(config:, start_date: Date.new(2026, 4, 9), end_date: Date.new(2026, 4, 9), adapter: adapter)
+    chain = source.chains_at(sampled_at, expiry_filter: expiry).fetch(expiry)
+
+    option = chain.put_opts.find { |opt| opt.strike == 5100.0 }
+    expect(option.mark).to eq(14.6)
+    expect(option.bid).to be < option.ask
+    expect(option.bid).to be < option.mark
+    expect(option.ask).to be > option.mark
+  end
+
+  it "falls back to underlying candle data when sampled rows omit underlying_price" do
+    config = QuantRb::Data::OptionChainConfig.new(
+      underlying: "SPX",
+      option_root: "SPXW",
+      resolution: :minute,
+      provider: "test",
+      chain_mode: :sampled_interpolated,
+      pricing_model: :black_scholes,
+      iv_map: nil,
+      validation: :repair,
+      strike_grid: { step: 10.0 }
+    )
+    sampled_at = Time.parse("2026-04-09T15:00:00Z")
+    expiry = Date.new(2026, 4, 10)
+    rows = [
+      { "symbol" => "P1", "contract_type" => "PUT", "strike" => 5100.0, "open" => 14.0, "high" => 16.0, "low" => 13.0, "close" => 15.0, "underlying_price" => nil, "expiration_date" => expiry, "metadata" => { "sampled_at" => sampled_at, "expiration_date" => expiry } },
+      { "symbol" => "P2", "contract_type" => "PUT", "strike" => 5110.0, "open" => 18.0, "high" => 21.0, "low" => 17.0, "close" => 20.0, "underlying_price" => nil, "expiration_date" => expiry, "metadata" => { "sampled_at" => sampled_at, "expiration_date" => expiry } }
+    ]
+    allow(adapter).to receive(:load_option_chain_rows).and_return(rows)
+    allow(adapter).to receive(:load_candle_series).with(provider: "test", ticker: "SPX", resolution: :minute, start_date: Date.new(2026, 4, 9), end_date: Date.new(2026, 4, 9)).and_return(
+      series(candle("2026-04-09T15:00:00Z", close: 5105.0))
+    )
+
+    source = described_class.build(config:, start_date: Date.new(2026, 4, 9), end_date: Date.new(2026, 4, 9), adapter: adapter)
+    chain = source.chains_at(sampled_at, expiry_filter: expiry).fetch(expiry)
+
+    expect(chain.underlying_price).to eq(5105.0)
+    expect(chain.put_opts.all? { |option| option.underlying_price == 5105.0 }).to be(true)
+  end
+
+  it "raises a clear error when no underlying candle exists at or before the sampled timestamp" do
+    config = QuantRb::Data::OptionChainConfig.new(
+      underlying: "SPX",
+      option_root: "SPXW",
+      resolution: :minute,
+      provider: "test",
+      chain_mode: :sampled_interpolated,
+      pricing_model: :black_scholes,
+      iv_map: nil,
+      validation: :repair,
+      strike_grid: { step: 10.0 }
+    )
+    sampled_at = Time.parse("2026-04-09T15:00:00Z")
+    expiry = Date.new(2026, 4, 10)
+    rows = [
+      { "symbol" => "P1", "contract_type" => "PUT", "strike" => 5100.0, "open" => 14.0, "high" => 16.0, "low" => 13.0, "close" => 15.0, "underlying_price" => nil, "expiration_date" => expiry, "metadata" => { "sampled_at" => sampled_at, "expiration_date" => expiry } }
+    ]
+    allow(adapter).to receive(:load_option_chain_rows).and_return(rows)
+    allow(adapter).to receive(:load_candle_series).with(provider: "test", ticker: "SPX", resolution: :minute, start_date: Date.new(2026, 4, 9), end_date: Date.new(2026, 4, 9)).and_return(
+      series(candle("2026-04-09T15:01:00Z", close: 5105.0))
+    )
+
+    source = described_class.build(config:, start_date: Date.new(2026, 4, 9), end_date: Date.new(2026, 4, 9), adapter: adapter)
+
+    expect do
+      source.chains_at(sampled_at, expiry_filter: expiry)
+    end.to raise_error(ArgumentError, /at or before/)
   end
 
   it "returns complete sampled chains without adding strikes in validated mode" do
@@ -100,5 +228,127 @@ RSpec.describe QuantRb::Data::OptionChainSource do
     expect(chain.call_opts.map(&:strike)).to eq([5100.0])
     expect(chain.put_opts.map(&:strike)).to eq([5100.0])
     expect(chain.call_opts.first.delta).to eq(0.51)
+  end
+
+  it "uses neighboring spreads for generated strikes instead of collapsing bid and ask to mark" do
+    config = QuantRb::Data::OptionChainConfig.new(
+      underlying: "SPX",
+      option_root: "SPXW",
+      resolution: :minute,
+      provider: "test",
+      chain_mode: :sampled_interpolated,
+      pricing_model: :black_scholes,
+      iv_map: nil,
+      validation: :repair,
+      strike_grid: { step: 5.0, range_ratio: 0.01 }
+    )
+    sampled_at = Time.parse("2026-04-09T15:00:00Z")
+    expiry = Date.new(2026, 4, 10)
+    rows = [
+      { "symbol" => "SPXW  260410C05100000", "contract_type" => "CALL", "strike" => 5100.0, "mark" => 21.0, "bid" => 20.5, "ask" => 21.5, "underlying_price" => 5105.0, "expiration_date" => expiry, "metadata" => { "sampled_at" => sampled_at, "expiration_date" => expiry } },
+      { "symbol" => "SPXW  260410C05110000", "contract_type" => "CALL", "strike" => 5110.0, "mark" => 15.5, "bid" => 15.0, "ask" => 16.0, "underlying_price" => 5105.0, "expiration_date" => expiry, "metadata" => { "sampled_at" => sampled_at, "expiration_date" => expiry } }
+    ]
+    allow(adapter).to receive(:load_option_chain_rows).and_return(rows)
+
+    source = described_class.build(config:, start_date: Date.new(2026, 4, 9), end_date: Date.new(2026, 4, 9), adapter: adapter)
+    chain = source.chains_at(sampled_at, expiry_filter: expiry).fetch(expiry)
+    interpolated = chain.call_opts.find { |opt| opt.strike == 5105.0 }
+
+    expect(interpolated.bid).to be < interpolated.mark
+    expect(interpolated.ask).to be > interpolated.mark
+    expect(interpolated.ask - interpolated.bid).to be > 0.05
+    expect(interpolated.symbol).to eq("SPXW  260410C05105000")
+  end
+
+  it "reprices calls and puts from one shared vol smile so parity is approximately respected" do
+    config = QuantRb::Data::OptionChainConfig.new(
+      underlying: "SPX",
+      option_root: "SPXW",
+      resolution: :minute,
+      provider: "test",
+      chain_mode: :sampled_interpolated,
+      pricing_model: :black_scholes,
+      iv_map: nil,
+      validation: :repair,
+      strike_grid: { step: 10.0, range_ratio: 0.01 }
+    )
+    sampled_at = Time.parse("2026-04-09T15:00:00Z")
+    expiry = Date.new(2026, 4, 10)
+    rows = [
+      { "symbol" => "SPXW  260410C05100000", "contract_type" => "CALL", "strike" => 5100.0, "mark" => 21.0, "bid" => 20.5, "ask" => 21.5, "underlying_price" => 5105.0, "expiration_date" => expiry, "metadata" => { "sampled_at" => sampled_at, "expiration_date" => expiry } },
+      { "symbol" => "SPXW  260410P05100000", "contract_type" => "PUT", "strike" => 5100.0, "mark" => 16.0, "bid" => 15.5, "ask" => 16.5, "underlying_price" => 5105.0, "expiration_date" => expiry, "metadata" => { "sampled_at" => sampled_at, "expiration_date" => expiry } },
+      { "symbol" => "SPXW  260410C05110000", "contract_type" => "CALL", "strike" => 5110.0, "mark" => 15.5, "bid" => 15.0, "ask" => 16.0, "underlying_price" => 5105.0, "expiration_date" => expiry, "metadata" => { "sampled_at" => sampled_at, "expiration_date" => expiry } },
+      { "symbol" => "SPXW  260410P05110000", "contract_type" => "PUT", "strike" => 5110.0, "mark" => 20.5, "bid" => 20.0, "ask" => 21.0, "underlying_price" => 5105.0, "expiration_date" => expiry, "metadata" => { "sampled_at" => sampled_at, "expiration_date" => expiry } }
+    ]
+    allow(adapter).to receive(:load_option_chain_rows).and_return(rows)
+
+    source = described_class.build(config:, start_date: Date.new(2026, 4, 9), end_date: Date.new(2026, 4, 9), adapter: adapter)
+    chain = source.chains_at(sampled_at, expiry_filter: expiry).fetch(expiry)
+    strike = 5100.0
+    call_option = chain.call_opts.find { |opt| opt.strike == strike }
+    put_option = chain.put_opts.find { |opt| opt.strike == strike }
+    parity_residual = (call_option.mark - put_option.mark) - (chain.underlying_price - strike)
+
+    expect(parity_residual.abs).to be < 0.15
+  end
+
+  it "prefers OTM puts and OTM calls as smile anchors" do
+    config = QuantRb::Data::OptionChainConfig.new(
+      underlying: "SPX",
+      option_root: "SPXW",
+      resolution: :minute,
+      provider: "test",
+      chain_mode: :sampled_interpolated,
+      pricing_model: :black_scholes,
+      iv_map: nil,
+      validation: :repair,
+      strike_grid: { step: 10.0, range_ratio: 0.01 }
+    )
+    sampled_at = Time.parse("2026-04-09T15:00:00Z")
+    expiry = Date.new(2026, 4, 10)
+    rows = [
+      { "symbol" => "SPXW  260410P05080000", "contract_type" => "PUT", "strike" => 5080.0, "mark" => 13.0, "bid" => 12.5, "ask" => 13.5, "underlying_price" => 5105.0, "expiration_date" => expiry, "metadata" => { "sampled_at" => sampled_at, "expiration_date" => expiry } },
+      { "symbol" => "SPXW  260410P05120000", "contract_type" => "PUT", "strike" => 5120.0, "mark" => 24.0, "bid" => 23.5, "ask" => 24.5, "underlying_price" => 5105.0, "expiration_date" => expiry, "metadata" => { "sampled_at" => sampled_at, "expiration_date" => expiry } },
+      { "symbol" => "SPXW  260410C05080000", "contract_type" => "CALL", "strike" => 5080.0, "mark" => 31.0, "bid" => 30.5, "ask" => 31.5, "underlying_price" => 5105.0, "expiration_date" => expiry, "metadata" => { "sampled_at" => sampled_at, "expiration_date" => expiry } },
+      { "symbol" => "SPXW  260410C05120000", "contract_type" => "CALL", "strike" => 5120.0, "mark" => 14.0, "bid" => 13.5, "ask" => 14.5, "underlying_price" => 5105.0, "expiration_date" => expiry, "metadata" => { "sampled_at" => sampled_at, "expiration_date" => expiry } }
+    ]
+    allow(adapter).to receive(:load_option_chain_rows).and_return(rows)
+
+    source = described_class.build(config:, start_date: Date.new(2026, 4, 9), end_date: Date.new(2026, 4, 9), adapter: adapter)
+    chain = source.chains_at(sampled_at, expiry_filter: expiry).fetch(expiry)
+    downside_call = chain.call_opts.find { |opt| opt.strike == 5090.0 }
+    upside_call = chain.call_opts.find { |opt| opt.strike == 5110.0 }
+    downside_put = chain.put_opts.find { |opt| opt.strike == 5090.0 }
+    upside_put = chain.put_opts.find { |opt| opt.strike == 5110.0 }
+
+    expect(downside_call.volatility).to be > upside_call.volatility
+    expect(downside_put.volatility).to be > upside_put.volatility
+  end
+
+  it "reuses the same reconstructed chain when multiple target times map to the same sampled snapshot" do
+    config = QuantRb::Data::OptionChainConfig.new(
+      underlying: "SPX",
+      option_root: "SPXW",
+      resolution: :minute,
+      provider: "test",
+      chain_mode: :sampled_interpolated,
+      pricing_model: :black_scholes,
+      iv_map: nil,
+      validation: :repair,
+      strike_grid: { step: 10.0, range_ratio: 0.01 }
+    )
+    sampled_at = Time.parse("2026-04-09T15:00:00Z")
+    expiry = Date.new(2026, 4, 10)
+    rows = [
+      { "symbol" => "SPXW  260410P05100000", "contract_type" => "PUT", "strike" => 5100.0, "open" => 14.0, "high" => 16.0, "low" => 13.0, "close" => 15.0, "underlying_price" => 5105.0, "expiration_date" => expiry, "metadata" => { "sampled_at" => sampled_at, "expiration_date" => expiry } },
+      { "symbol" => "SPXW  260410C05110000", "contract_type" => "CALL", "strike" => 5110.0, "open" => 15.0, "high" => 16.0, "low" => 14.0, "close" => 15.5, "underlying_price" => 5105.0, "expiration_date" => expiry, "metadata" => { "sampled_at" => sampled_at, "expiration_date" => expiry } }
+    ]
+    allow(adapter).to receive(:load_option_chain_rows).and_return(rows)
+
+    source = described_class.build(config:, start_date: Date.new(2026, 4, 9), end_date: Date.new(2026, 4, 9), adapter: adapter)
+    first = source.chains_at(sampled_at, expiry_filter: expiry).fetch(expiry)
+    second = source.chains_at(sampled_at + 30, expiry_filter: expiry).fetch(expiry)
+
+    expect(first.object_id).to eq(second.object_id)
   end
 end
