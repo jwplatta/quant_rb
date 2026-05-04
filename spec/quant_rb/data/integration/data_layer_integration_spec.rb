@@ -25,23 +25,7 @@ RSpec.describe "QuantRb data layer integration", :integration do
     expect(candle.close).to be_a(Float)
   end
 
-  it "loads a real SPXW options chain with populated greeks" do
-    file_path = Dir.glob(File.join(options_path, "SPXW_exp*.csv")).sort.first
-    chain = QuantRb::Data::Loaders::CsvOptionsChain.load(file_path)
-
-    expect(chain).to be_a(QuantRb::DataObjects::OptionsChain)
-    expect(chain).not_to be_empty
-
-    option = chain.all_options.find { |opt| !opt.delta.nil? && !opt.gamma.nil? && !opt.theta.nil? && !opt.vega.nil? && !opt.rho.nil? }
-    expect(option).not_to be_nil
-    expect(option.delta).to be_a(Float)
-    expect(option.gamma).to be_a(Float)
-    expect(option.theta).to be_a(Float)
-    expect(option.vega).to be_a(Float)
-    expect(option.rho).to be_a(Float)
-  end
-
-  it "indexes real SPXW chain files and returns locf chains at a sampled time" do
+  it "loads sampled SPXW chains through the tickrake-backed option chain source" do
     file_path = Dir.glob(File.join(options_path, "SPXW_exp*.csv")).sort.first
     filename = File.basename(file_path)
     match = filename.match(/\ASPXW_exp(?<expiry>\d{4}-\d{2}-\d{2})_(?<sample_date>\d{4}-\d{2}-\d{2})_(?<sample_time>\d{2}-\d{2}-\d{2})\.csv\z/)
@@ -49,12 +33,28 @@ RSpec.describe "QuantRb data layer integration", :integration do
 
     sample_time = QuantRb::Data::OptionChainSampleTime.parse_filename_timestamp(match[:sample_date], match[:sample_time]) + 1
     expiry = Date.parse(match[:expiry])
-
-    index = QuantRb::Data::Index::OptionsChainIndex.new(root_path: options_path, symbol: "SPXW")
-    chains = index.chains_at(sample_time)
+    source = QuantRb::Data::OptionChainSource.build(
+      config: QuantRb::Data::OptionChainConfig.new(
+        underlying: "SPX",
+        option_root: "SPXW",
+        resolution: :minute,
+        provider: "schwab",
+        chain_mode: :sampled_validated,
+        pricing_model: :black_scholes,
+        iv_map: nil,
+        validation: :repair,
+        strike_grid: {},
+        market_timezone: "America/Chicago"
+      ),
+      start_date: sample_time.to_date,
+      end_date: sample_time.to_date
+    )
+    chains = source.chains_at(sample_time)
 
     expect(chains).not_to be_empty
     expect(chains[expiry]).to be_a(QuantRb::DataObjects::OptionsChain)
     expect(chains[expiry].all_options).not_to be_empty
+    option = chains[expiry].all_options.find { |opt| !opt.delta.nil? && !opt.gamma.nil? && !opt.theta.nil? && !opt.vega.nil? && !opt.rho.nil? }
+    expect(option).not_to be_nil
   end
 end

@@ -5,8 +5,8 @@ module QuantRb
     # Drives the backtesting loop. Iterates over candle time steps, builds slices,
     # fires scheduled callbacks, and dispatches event hooks to the strategy.
     #
-    # TODO (Phase 4): Wire in real Data layer (CandleLoader, OptionsChainIndex).
-    #                 Current implementation is a skeleton with stub data sources.
+    # TODO (Phase 4): Continue tightening the real data-layer integration.
+    #                 Current implementation still supports injected data sources for tests.
     #
     class BacktestEngine
       # Run a backtest for the given strategy class.

@@ -48,8 +48,9 @@ For each candle in the primary series:
 3. Those bars are pushed into the `Securities` registry so scheduled callbacks and strategy code can
    inspect current market state.
 4. The scheduler fires any callbacks due at that time.
-5. Option chains are loaded for every subscribed option root using `OptionsChainIndex#chains_at`.
-   This uses per-expiry LOCF, but excludes expirations that are already before the slice date.
+5. Option chains are loaded for every subscribed option root using `OptionChainSource#chains_at`
+   through the Tickrake-backed sampled/synthetic pipeline. Sampled chains use per-expiry LOCF and
+   market-timezone-aware expiration filtering.
 6. The engine builds a `Slice` containing:
    - `bars`: the candle data keyed by subscribed symbol
    - `option_chains`: hashes of expiry date to `OptionsChain`
