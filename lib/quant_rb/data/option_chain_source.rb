@@ -14,7 +14,8 @@ module QuantRb
       - index sampled snapshots by expiry and sampled time, then serve them with LOCF semantics
       - normalize raw rows into `Option` and `OptionsChain` objects
       - run sampled reconstruction steps when interpolation mode is enabled
-      - run shared validation and repair
+      - run shared validation and repair for synthetic and sampled-interpolated chains
+      - preserve complete sampled chains as pass-through snapshots in sampled-validated mode
       - derive IV and greeks for reconstructed sampled chains
       - delegate synthetic surface generation to `SyntheticChainBuilder`
 
@@ -61,7 +62,7 @@ module QuantRb
         return (@start_date..@end_date).to_a if @config.synthetic?
 
         consume_all_sample_rows!
-        @sample_row_index.values.flat_map { |samples| samples.map(&:first).map(&:to_date) }.uniq.sort
+        @sample_row_index.values.flat_map { |samples| samples.map(&:first).map { |time| market_date_for(time) } }.uniq.sort
       end
 
       private
@@ -77,7 +78,7 @@ module QuantRb
         ensure_sample_row_stream!
         consume_sample_rows_through!(target_time)
         matching_expiries = @sample_row_index.keys.select do |expiry|
-          expiry >= target_time.to_date && matches_expiry_filter?(expiry, expiry_filter)
+          expiry >= market_date_for(target_time) && matches_expiry_filter?(expiry, expiry_filter)
         end
 
         matching_expiries.each_with_object({}) do |expiry, result|
@@ -217,6 +218,8 @@ module QuantRb
       end
 
       def process_chain!(chain, expiry:, sampled_at:)
+        return chain if @config.sampled_validated?
+
         reconstruct_chain!(chain, expiry:, sampled_at:) if @config.sampled_interpolated?
         @validator.repair(chain) if @config.validation == :repair
         enrich_chain!(chain, sampled_at:) if @config.sampled_interpolated?
@@ -496,7 +499,7 @@ module QuantRb
             put_call: contract_type,
             underlying_price: underlying_price,
             expiration_date: expiry,
-            days_to_expiration: [expiry - sampled_at.to_date, 0].max,
+            days_to_expiration: [QuantRb::MarketTime.days_to_expiration(expiry, sampled_at, @config.market_timezone).to_i, 0].max,
             timestamp: sampled_at,
             mark: nil,
             bid: nil,
@@ -730,7 +733,10 @@ module QuantRb
 
       def time_to_expiry_years(expiration_date, sampled_at)
         expiry_close = Time.utc(expiration_date.year, expiration_date.month, expiration_date.day, 20, 0, 0)
-        [[expiry_close - sampled_at.getutc, 60.0].max / Synthetic::SyntheticChainBuilder::SECONDS_PER_YEAR, (1.0 / 365.25)].max
+        market_days = QuantRb::MarketTime.days_to_expiration(expiration_date, sampled_at, @config.market_timezone).to_i
+        day_floor = market_days.negative? ? 0.0 : market_days.to_f
+        floor_seconds = [day_floor * 86_400.0, 60.0].max
+        [[expiry_close - sampled_at.getutc, floor_seconds].max / Synthetic::SyntheticChainBuilder::SECONDS_PER_YEAR, (1.0 / 365.25)].max
       end
 
       def build_option(row, sampled_at:)
@@ -747,7 +753,7 @@ module QuantRb
           put_call: put_call,
           underlying_price: row["underlying_price"],
           expiration_date: expiration,
-          days_to_expiration: (expiration - sampled_at.to_date).to_i,
+          days_to_expiration: QuantRb::MarketTime.days_to_expiration(expiration, sampled_at, @config.market_timezone).to_i,
           mark: row["mark"],
           bid: row["bid"],
           ask: row["ask"],
@@ -812,12 +818,16 @@ module QuantRb
 
       def candidate_expiries(target_time, expiry_filter)
         dates = []
-        date = target_time.to_date
+        date = market_date_for(target_time)
         while dates.length < 30
           dates << date unless date.saturday? || date.sunday?
           date += 1
         end
         dates.select { |expiry| matches_expiry_filter?(expiry, expiry_filter) }
+      end
+
+      def market_date_for(time)
+        QuantRb::MarketTime.market_date(time, @config.market_timezone)
       end
 
       def matches_expiry_filter?(expiry, expiry_filter)

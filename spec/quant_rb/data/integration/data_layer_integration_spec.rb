@@ -47,7 +47,7 @@ RSpec.describe "QuantRb data layer integration", :integration do
     match = filename.match(/\ASPXW_exp(?<expiry>\d{4}-\d{2}-\d{2})_(?<sample_date>\d{4}-\d{2}-\d{2})_(?<sample_time>\d{2}-\d{2}-\d{2})\.csv\z/)
     raise "Unexpected fixture filename: #{filename}" unless match
 
-    sample_time = Time.parse("#{match[:sample_date]} #{match[:sample_time].tr('-', ':')}") + 1
+    sample_time = QuantRb::Data::OptionChainSampleTime.parse_filename_timestamp(match[:sample_date], match[:sample_time]) + 1
     expiry = Date.parse(match[:expiry])
 
     index = QuantRb::Data::Index::OptionsChainIndex.new(root_path: options_path, symbol: "SPXW")

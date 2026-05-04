@@ -5,10 +5,12 @@ require "spec_helper"
 RSpec.describe QuantRb::Engine::StrategyBase do
   around do |example|
     original_logger = QuantRb.logger
+    original_config = QuantRb.config.dup
     begin
       example.run
     ensure
       QuantRb.logger = original_logger
+      QuantRb.instance_variable_set(:@config, original_config)
     end
   end
 
@@ -99,6 +101,28 @@ RSpec.describe QuantRb::Engine::StrategyBase do
 
     config = strategy.subscribed_option_chain_symbols[strategy.interpolated_key][:config]
     expect(config.raw_options[:underlying_provider]).to eq("ibkr-paper")
+  end
+
+  it "propagates a configured market timezone into option chain subscriptions" do
+    strategy_class = Class.new(described_class) do
+      attr_reader :option_key
+
+      def initialize
+        set_market_timezone("America/Chicago")
+        @option_key = add_index_option("SPX", "SPXW", provider: "schwab")
+      end
+    end
+
+    strategy = strategy_class.build_for_engine(
+      portfolio: portfolio,
+      schedule: schedule,
+      securities: securities,
+      broker: broker
+    )
+
+    config = strategy.subscribed_option_chain_symbols[strategy.option_key][:config]
+    expect(strategy.market_timezone).to eq("America/Chicago")
+    expect(config.market_timezone).to eq("America/Chicago")
   end
 
   it "normalizes debit combo limits to positive prices" do

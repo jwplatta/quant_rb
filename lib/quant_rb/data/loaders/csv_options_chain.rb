@@ -11,12 +11,13 @@ module QuantRb
       class CsvOptionsChain
         FILENAME_PATTERN = /\A(?<symbol>.+?)_exp(?<expiry>\d{4}-\d{2}-\d{2})_(?<sample_date>\d{4}-\d{2}-\d{2})_(?<sample_time>\d{2}-\d{2}-\d{2})\.csv\z/.freeze
 
-        def self.load(file_path)
-          new(file_path).load
+        def self.load(file_path, market_timezone: nil)
+          new(file_path, market_timezone: market_timezone).load
         end
 
-        def initialize(file_path)
+        def initialize(file_path, market_timezone: nil)
           @file_path = file_path
+          @market_timezone = market_timezone || QuantRb.config.market_timezone
         end
 
         def load
@@ -61,7 +62,7 @@ module QuantRb
             put_call:           contract_type,
             underlying_price:   parse_float(row["underlying_price"]),
             expiration_date:    expiration,
-            days_to_expiration: metadata[:sampled_at] ? (expiration - metadata[:sampled_at].to_date).to_i : 0,
+            days_to_expiration: metadata[:sampled_at] ? QuantRb::MarketTime.days_to_expiration(expiration, metadata[:sampled_at], @market_timezone).to_i : 0,
             mark:               parse_float(row["mark"]),
             bid:                parse_float(row["bid"]),
             ask:                parse_float(row["ask"]),
@@ -105,7 +106,7 @@ module QuantRb
 
           {
             symbol: match[:symbol],
-            sampled_at: Time.parse("#{match[:sample_date]} #{match[:sample_time].tr('-', ':')}")
+            sampled_at: QuantRb::Data::OptionChainSampleTime.parse_filename_timestamp(match[:sample_date], match[:sample_time])
           }
         end
 

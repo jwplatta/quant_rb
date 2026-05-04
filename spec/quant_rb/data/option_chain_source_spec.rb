@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require "csv"
 require "spec_helper"
 
 RSpec.describe QuantRb::Data::OptionChainSource do
@@ -9,6 +10,40 @@ RSpec.describe QuantRb::Data::OptionChainSource do
 
   def series(*candles)
     QuantRb::Data::Series::CandleSeries.new(candles)
+  end
+
+  def fixture_option_rows(filename)
+    path = QUANT_RB_FIXTURES_ROOT.join("options", "schwab", filename)
+    match = File.basename(path).match(/\ASPXW_exp(?<expiry>\d{4}-\d{2}-\d{2})_(?<sample_date>\d{4}-\d{2}-\d{2})_(?<sample_time>\d{2}-\d{2}-\d{2})\.csv\z/)
+    raise "Unexpected fixture filename: #{filename}" unless match
+
+    sampled_at = QuantRb::Data::OptionChainSampleTime.parse_filename_timestamp(match[:sample_date], match[:sample_time])
+    expiry = Date.parse(match[:expiry])
+
+    CSV.foreach(path, headers: true).map do |row|
+      row.to_h.merge(
+        "strike" => row["strike"].to_f,
+        "expiration_date" => expiry,
+        "mark" => row["mark"].to_f,
+        "bid" => row["bid"].to_f,
+        "ask" => row["ask"].to_f,
+        "underlying_price" => row["underlying_price"].to_f,
+        "delta" => row["delta"].to_f,
+        "gamma" => row["gamma"].to_f,
+        "theta" => row["theta"].to_f,
+        "vega" => row["vega"].to_f,
+        "rho" => row["rho"].to_f,
+        "volatility" => row["volatility"].to_f,
+        "open_interest" => row["open_interest"].to_i,
+        "total_volume" => row["total_volume"].to_i,
+        "intrinsic_value" => row["intrinsic_value"].to_f,
+        "extrinsic_value" => row["extrinsic_value"].to_f,
+        "metadata" => {
+          "sampled_at" => sampled_at,
+          "expiration_date" => expiry
+        }
+      )
+    end
   end
 
   let(:adapter) do
@@ -256,6 +291,130 @@ RSpec.describe QuantRb::Data::OptionChainSource do
     expect(chain.call_opts.map(&:strike)).to eq([5100.0])
     expect(chain.put_opts.map(&:strike)).to eq([5100.0])
     expect(chain.call_opts.first.delta).to eq(0.51)
+  end
+
+  it "preserves complete sampled values in validated mode without invoking repair" do
+    config = QuantRb::Data::OptionChainConfig.new(
+      underlying: "SPX",
+      option_root: "SPXW",
+      resolution: :minute,
+      provider: "test",
+      chain_mode: :sampled_validated,
+      pricing_model: :black_scholes,
+      iv_map: nil,
+      validation: :repair,
+      strike_grid: { step: 5.0 }
+    )
+    sampled_at = Time.parse("2026-04-09T15:00:00Z")
+    expiry = Date.new(2026, 4, 10)
+    rows = [
+      {
+        "symbol" => "SPXW  260410C05100000",
+        "contract_type" => "CALL",
+        "strike" => 5100.0,
+        "mark" => 20.0,
+        "bid" => 19.5,
+        "ask" => 20.5,
+        "underlying_price" => 5105.0,
+        "expiration_date" => expiry,
+        "delta" => 0.51,
+        "gamma" => 0.012,
+        "theta" => -0.78,
+        "vega" => 1.11,
+        "rho" => 0.07,
+        "volatility" => 19.8,
+        "intrinsic_value" => 5.0,
+        "extrinsic_value" => 15.0,
+        "metadata" => { "sampled_at" => sampled_at, "expiration_date" => expiry }
+      }
+    ]
+    validator = instance_double(QuantRb::Data::Validation::OptionChainValidator)
+    allow(validator).to receive(:repair)
+    allow(adapter).to receive(:load_option_chain_rows).and_return(rows)
+
+    source = described_class.build(
+      config: config,
+      start_date: Date.new(2026, 4, 9),
+      end_date: Date.new(2026, 4, 9),
+      adapter: adapter,
+      validator: validator
+    )
+    chain = source.chains_at(sampled_at, expiry_filter: expiry).fetch(expiry)
+    option = chain.call_opts.fetch(0)
+
+    expect(validator).not_to have_received(:repair)
+    expect(option.mark).to eq(20.0)
+    expect(option.bid).to eq(19.5)
+    expect(option.ask).to eq(20.5)
+    expect(option.delta).to eq(0.51)
+    expect(option.gamma).to eq(0.012)
+    expect(option.theta).to eq(-0.78)
+    expect(option.vega).to eq(1.11)
+    expect(option.rho).to eq(0.07)
+    expect(option.volatility).to eq(19.8)
+    expect(option.intrinsic).to eq(5.0)
+    expect(option.extrinsic).to eq(15.0)
+  end
+
+  it "uses per-expiry locf in validated mode without regenerating chains" do
+    config = QuantRb::Data::OptionChainConfig.new(
+      underlying: "SPX",
+      option_root: "SPXW",
+      resolution: :minute,
+      provider: "test",
+      chain_mode: :sampled_validated,
+      pricing_model: :black_scholes,
+      iv_map: nil,
+      validation: :repair,
+      strike_grid: { step: 5.0 }
+    )
+    first_sampled_at = Time.parse("2026-04-09T15:00:00Z")
+    second_sampled_at = Time.parse("2026-04-09T15:05:00Z")
+    expiry = Date.new(2026, 4, 10)
+    rows = [
+      { "symbol" => "C1", "contract_type" => "CALL", "strike" => 5100.0, "mark" => 20.0, "bid" => 19.5, "ask" => 20.5, "underlying_price" => 5105.0, "expiration_date" => expiry, "metadata" => { "sampled_at" => first_sampled_at, "expiration_date" => expiry } },
+      { "symbol" => "P1", "contract_type" => "PUT", "strike" => 5100.0, "mark" => 15.0, "bid" => 14.5, "ask" => 15.5, "underlying_price" => 5105.0, "expiration_date" => expiry, "metadata" => { "sampled_at" => first_sampled_at, "expiration_date" => expiry } },
+      { "symbol" => "C1", "contract_type" => "CALL", "strike" => 5100.0, "mark" => 21.0, "bid" => 20.5, "ask" => 21.5, "underlying_price" => 5108.0, "expiration_date" => expiry, "metadata" => { "sampled_at" => second_sampled_at, "expiration_date" => expiry } },
+      { "symbol" => "P1", "contract_type" => "PUT", "strike" => 5100.0, "mark" => 14.0, "bid" => 13.5, "ask" => 14.5, "underlying_price" => 5108.0, "expiration_date" => expiry, "metadata" => { "sampled_at" => second_sampled_at, "expiration_date" => expiry } }
+    ]
+    allow(adapter).to receive(:load_option_chain_rows).and_return(rows)
+
+    source = described_class.build(config:, start_date: Date.new(2026, 4, 9), end_date: Date.new(2026, 4, 9), adapter: adapter)
+    first = source.chains_at(first_sampled_at + 30, expiry_filter: expiry).fetch(expiry)
+    second = source.chains_at(second_sampled_at + 30, expiry_filter: expiry).fetch(expiry)
+
+    expect(first.call_opts.first.mark).to eq(20.0)
+    expect(second.call_opts.first.mark).to eq(21.0)
+    expect(source.chains_at(first_sampled_at + 59, expiry_filter: expiry).fetch(expiry).object_id).to eq(first.object_id)
+  end
+
+  it "normalizes complete schwab sampled fixtures without adding or mutating contracts" do
+    config = QuantRb::Data::OptionChainConfig.new(
+      underlying: "SPX",
+      option_root: "SPXW",
+      resolution: :minute,
+      provider: "schwab",
+      chain_mode: :sampled_validated,
+      pricing_model: :black_scholes,
+      iv_map: nil,
+      validation: :repair,
+      strike_grid: { step: 5.0 }
+    )
+    rows = fixture_option_rows("SPXW_exp2025-12-18_2025-12-18_13-50-58.csv")
+    sampled_at = rows.first.dig("metadata", "sampled_at")
+    expiry = rows.first.fetch("expiration_date")
+    allow(adapter).to receive(:load_option_chain_rows).and_return(rows)
+
+    source = described_class.build(config:, start_date: Date.new(2025, 12, 18), end_date: Date.new(2025, 12, 18), adapter: adapter)
+    chain = source.chains_at(sampled_at, expiry_filter: expiry).fetch(expiry)
+
+    expect(chain.call_opts.map(&:symbol)).to eq([rows.first.fetch("symbol")])
+    expect(chain.put_opts.map(&:symbol)).to eq([rows.last.fetch("symbol")])
+    expect(chain.call_opts.map(&:strike)).to eq([6000.0])
+    expect(chain.put_opts.map(&:strike)).to eq([5900.0])
+    expect(chain.call_opts.first.volatility).to eq(0.23)
+    expect(chain.put_opts.first.delta).to eq(-0.28)
+    expect(chain.underlying_price).to eq(6005.0)
   end
 
   it "uses neighboring spreads for generated strikes instead of collapsing bid and ask to mark" do

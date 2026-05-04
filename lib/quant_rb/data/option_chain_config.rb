@@ -7,9 +7,10 @@ module QuantRb
       VALID_PRICING_MODELS = %i[black_scholes binomial].freeze
 
       attr_reader :underlying, :option_root, :resolution, :provider, :chain_mode,
-                  :pricing_model, :iv_proxy, :validation, :strike_grid, :raw_options
+                  :pricing_model, :iv_proxy, :validation, :strike_grid, :raw_options,
+                  :market_timezone
 
-      def initialize(underlying:, option_root:, resolution:, provider:, chain_mode:, pricing_model:, iv_map:, validation:, strike_grid:, raw_options: {})
+      def initialize(underlying:, option_root:, resolution:, provider:, chain_mode:, pricing_model:, iv_map:, validation:, strike_grid:, raw_options: {}, market_timezone: nil)
         @underlying = underlying
         @option_root = option_root
         @resolution = resolution
@@ -20,6 +21,7 @@ module QuantRb
         @validation = validation&.to_sym || :repair
         @strike_grid = default_strike_grid.merge((strike_grid || {}).transform_keys(&:to_sym))
         @raw_options = raw_options || {}
+        @market_timezone = market_timezone || QuantRb.config.market_timezone
 
         validate!
       end

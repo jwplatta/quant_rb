@@ -4,6 +4,16 @@ require "spec_helper"
 require "time"
 
 RSpec.describe QuantRb::Data::Index::OptionsChainIndex do
+  around do |example|
+    original_config = QuantRb.config.dup
+    begin
+      QuantRb.configure { |config| config.market_timezone = "America/Chicago" }
+      example.run
+    ensure
+      QuantRb.instance_variable_set(:@config, original_config)
+    end
+  end
+
   let(:root_path) do
     QUANT_RB_FIXTURES_ROOT.join("options", "schwab")
   end
@@ -12,7 +22,7 @@ RSpec.describe QuantRb::Data::Index::OptionsChainIndex do
 
   describe "#chains_at" do
     it "returns the latest available sample for each expiry at or before the target time" do
-      chains = index.chains_at(Time.parse("2025-12-18 13:52:00"))
+      chains = index.chains_at(Time.parse("2025-12-18 19:52:00 UTC"))
 
       expect(chains.keys).to eq([Date.new(2025, 12, 18), Date.new(2025, 12, 19)])
       expect(chains.fetch(Date.new(2025, 12, 18)).underlying_price).to eq(6005.0)
@@ -20,7 +30,7 @@ RSpec.describe QuantRb::Data::Index::OptionsChainIndex do
     end
 
     it "uses locf independently per expiry when only an earlier sample exists" do
-      chains = index.chains_at(Time.parse("2025-12-18 13:46:00"))
+      chains = index.chains_at(Time.parse("2025-12-18 19:46:00 UTC"))
 
       expect(chains.keys).to eq([Date.new(2025, 12, 18)])
       expect(chains.fetch(Date.new(2025, 12, 18)).underlying_price).to eq(5988.0)
@@ -39,7 +49,7 @@ RSpec.describe QuantRb::Data::Index::OptionsChainIndex do
       mixed_root = QUANT_RB_FIXTURES_ROOT.join("options", "per_expiry_locf")
       mixed_index = described_class.new(root_path: mixed_root, symbol: "SPXW")
 
-      chains = mixed_index.chains_at(Time.parse("2026-04-13 14:50:00"))
+      chains = mixed_index.chains_at(Time.parse("2026-04-13 20:50:00 UTC"))
 
       expect(chains.keys).to eq([Date.new(2026, 4, 14), Date.new(2026, 4, 15)])
       expect(chains.fetch(Date.new(2026, 4, 14)).underlying_price).to eq(6820.16)

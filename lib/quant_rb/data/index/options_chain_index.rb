@@ -13,9 +13,10 @@ module QuantRb
 
         # root_path: directory containing the chain CSV files
         # symbol:    e.g. "SPXW"
-        def initialize(root_path:, symbol:)
+        def initialize(root_path:, symbol:, market_timezone: nil)
           @root_path = root_path
           @symbol    = symbol
+          @market_timezone = market_timezone || QuantRb.config.market_timezone
           @index     = {}     # { expiry_date (Date) => [[sampled_at (Time), file_path], ...] }
           @cache     = {}     # { file_path => OptionsChain } — lazy loaded
           @sorted_times = []
@@ -30,7 +31,7 @@ module QuantRb
 
           result = {}
           @index.each do |expiry, samples|
-            next if expiry < target_time.to_date
+            next if expiry < QuantRb::MarketTime.market_date(target_time, @market_timezone)
             next unless matches_expiry_filter?(expiry, expiry_filter)
 
             file_path = locf_file_for(samples, target_time)
@@ -43,7 +44,7 @@ module QuantRb
         end
 
         def available_dates
-          @sorted_times.map { |t| t.to_date }.uniq.sort
+          @sorted_times.map { |t| QuantRb::MarketTime.market_date(t, @market_timezone) }.uniq.sort
         end
 
         def size
@@ -58,9 +59,7 @@ module QuantRb
           return nil unless match[:symbol] == @symbol
 
           expiry_date = Date.parse(match[:expiry])
-          sample_date = match[:sample_date]
-          sample_time = match[:sample_time].tr("-", ":")
-          sampled_at = Time.parse("#{sample_date} #{sample_time}")
+          sampled_at = QuantRb::Data::OptionChainSampleTime.parse_filename_timestamp(match[:sample_date], match[:sample_time])
 
           [sampled_at, expiry_date]
         rescue Date::Error, ArgumentError
@@ -104,7 +103,7 @@ module QuantRb
         end
 
         def load_chain(file_path)
-          @cache[file_path] ||= QuantRb::Data::Loaders::CsvOptionsChain.load(file_path)
+          @cache[file_path] ||= QuantRb::Data::Loaders::CsvOptionsChain.load(file_path, market_timezone: @market_timezone)
         end
 
         def matches_expiry_filter?(expiry, expiry_filter)

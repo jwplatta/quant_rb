@@ -3,6 +3,7 @@
 require_relative "quant_rb/version"
 require_relative "quant_rb/constants"
 require_relative "quant_rb/logging"
+require_relative "quant_rb/market_time"
 
 begin
   require "dotenv"
@@ -22,6 +23,7 @@ module QuantRb
     :data_path,
     :options_subpath,
     :history_subpath,
+    :market_timezone,
     :log_level,
     keyword_init: true
   ) do
@@ -29,6 +31,7 @@ module QuantRb
       data_path:        ENV.fetch("QUANT_RB_DATA_PATH", "~/.tickrake/data"),
       options_subpath:  ENV.fetch("QUANT_RB_OPTIONS_SUBPATH", "options/schwab"),
       history_subpath:  ENV.fetch("QUANT_RB_HISTORY_SUBPATH", "history/schwab"),
+      market_timezone:  ENV.fetch("QUANT_RB_MARKET_TIMEZONE", "UTC"),
       log_level:        :info
     )
       super
@@ -62,6 +65,7 @@ module QuantRb
   # ── Data layer ────────────────────────────────────────────────────────────
 
   require_relative "quant_rb/data/data_source"
+  require_relative "quant_rb/data/option_chain_sample_time"
   require_relative "quant_rb/data/option_chain_config"
   require_relative "quant_rb/data/adapters/tickrake_adapter"
   require_relative "quant_rb/data/pricing/black_scholes"

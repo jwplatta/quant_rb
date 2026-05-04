@@ -86,8 +86,8 @@ module QuantRb
           broker.process_pending_orders(slice, portfolio)
 
           # End-of-day callbacks
-          current_date = current_time.to_date
-          next_date    = candles[idx + 1]&.datetime&.to_date
+          current_date = QuantRb::MarketTime.market_date(current_time)
+          next_date    = candles[idx + 1]&.datetime && QuantRb::MarketTime.market_date(candles[idx + 1].datetime)
           if next_date != current_date
             broker.cancel_all_pending_orders(reason: :end_of_day) if broker.respond_to?(:cancel_all_pending_orders)
             broker.process_expirations(slice, portfolio, strategy_class: strategy.class) if broker.respond_to?(:process_expirations)

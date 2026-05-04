@@ -6,10 +6,12 @@ require "tmpdir"
 RSpec.describe QuantRb::Data::Loaders::CsvOptionsChain do
   around do |example|
     original_logger = QuantRb.logger
+    original_config = QuantRb.config.dup
     begin
       example.run
     ensure
       QuantRb.logger = original_logger
+      QuantRb.instance_variable_set(:@config, original_config)
     end
   end
 
@@ -19,6 +21,7 @@ RSpec.describe QuantRb::Data::Loaders::CsvOptionsChain do
 
   describe ".load" do
     it "parses a chain csv into options with greeks and metadata" do
+      QuantRb.configure { |config| config.market_timezone = "America/Chicago" }
       chain = described_class.load(fixture_path)
 
       expect(chain).to be_a(QuantRb::DataObjects::OptionsChain)
@@ -37,7 +40,7 @@ RSpec.describe QuantRb::Data::Loaders::CsvOptionsChain do
       expect(call.rho).to eq(0.09)
       expect(call.expiration_date).to eq(Date.new(2025, 12, 18))
       expect(call.days_to_expiration).to eq(0)
-      expect(call.timestamp).to eq(Time.parse("2025-12-18 13:50:58"))
+      expect(call.timestamp).to eq(Time.utc(2025, 12, 18, 19, 50, 58))
     end
 
     it "logs malformed rows through QuantRb.logger" do
