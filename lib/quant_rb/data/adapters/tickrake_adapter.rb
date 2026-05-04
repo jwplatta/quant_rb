@@ -40,8 +40,9 @@ module QuantRb
             start_date: start_date,
             end_date: end_date,
             frequency: normalize_frequency(resolution),
-            include_metadata: include_metadata
-          ).to_a
+            include_metadata: include_metadata,
+            order: :sample_time_asc
+          )
         end
 
         private

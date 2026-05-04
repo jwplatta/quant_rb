@@ -226,4 +226,31 @@ RSpec.describe QuantRb::Engine::BacktestEngine do
     ])
     expect(broker.pending_orders).to be_empty
   end
+
+  it "preloads option chain sources when loading subscribed option data" do
+    strategy = Class.new(QuantRb::Strategy) do
+      def initialize
+        set_start_date(2024, 1, 2)
+        set_end_date(2024, 1, 2)
+        set_cash(10_000)
+        @spx = add_index("SPX", resolution: :minute)
+        @spxw = add_index_option("SPX", "SPXW", resolution: :minute, provider: "test", interpolate: true)
+      end
+
+      def on_data(_slice); end
+    end
+
+    candles = QuantRb::Data::Series::CandleSeries.new([
+      QuantRb::DataObjects::Candle.new(datetime: Time.parse("2024-01-02 14:30:00 UTC"), open: 4950.0, high: 4955.0, low: 4945.0, close: 4950.0, volume: 0)
+    ])
+    source = instance_double(QuantRb::Data::OptionChainSource, preload!: nil, chains_at: {})
+    expect(QuantRb::Data::OptionChainSource).to receive(:build).and_return(source)
+    expect(source).to receive(:preload!).once
+
+    described_class.run(
+      strategy,
+      candle_series: { SPX: candles },
+      progress: false
+    )
+  end
 end
