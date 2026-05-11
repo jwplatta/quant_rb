@@ -1,6 +1,6 @@
 GIT
   remote: https://github.com/jwplatta/tickrake.git
-  revision: d917bc9176a2c9e78601ecb4e536d6435b76f8dc
+  revision: 12928268a7c48c9276e490d78038b160711c3326
   specs:
     tickrake (0.3.0)
       ib-api (~> 972.5)
@@ -89,7 +89,7 @@ GEM
     io-endpoint (0.15.2)
     io-event (1.11.2)
     io-stream (0.6.1)
-    json (2.13.2)
+    json (2.19.5)
     json-schema (6.2.0)
       addressable (~> 2.8)
       bigdecimal (>= 3.1, < 5)
@@ -98,7 +98,7 @@ GEM
     language_server-protocol (3.17.0.4)
     lint_roller (1.1.0)
     logger (1.7.0)
-    mcp (0.14.0)
+    mcp (0.15.0)
       json-schema (>= 4.1)
     method_source (1.1.0)
     metrics (0.12.2)
@@ -118,7 +118,7 @@ GEM
       snaky_hash (~> 2.0, >= 2.0.3)
       version_gem (~> 1.1, >= 1.1.9)
     openssl (3.3.2)
-    ox (2.14.25)
+    ox (2.14.26)
       bigdecimal (>= 3.0)
     parallel (1.27.0)
     parser (3.3.8.0)
@@ -209,9 +209,9 @@ GEM
     traces (0.15.2)
     tzinfo (2.0.6)
       concurrent-ruby (~> 1.0)
-    unicode-display_width (3.1.4)
-      unicode-emoji (~> 4.0, >= 4.0.4)
-    unicode-emoji (4.0.4)
+    unicode-display_width (3.2.0)
+      unicode-emoji (~> 4.1)
+    unicode-emoji (4.2.0)
     uri (1.1.1)
     version_gem (1.1.9)
 
