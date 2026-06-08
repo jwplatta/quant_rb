@@ -3,6 +3,7 @@
 require_relative "quant_rb/version"
 require_relative "quant_rb/constants"
 require_relative "quant_rb/logging"
+require_relative "quant_rb/option_expiration"
 
 begin
   require "dotenv"
@@ -22,6 +23,7 @@ module QuantRb
     :data_path,
     :options_subpath,
     :history_subpath,
+    :market_timezone,
     :log_level,
     keyword_init: true
   ) do
@@ -29,6 +31,7 @@ module QuantRb
       data_path:        ENV.fetch("QUANT_RB_DATA_PATH", "~/.tickrake/data"),
       options_subpath:  ENV.fetch("QUANT_RB_OPTIONS_SUBPATH", "options/schwab"),
       history_subpath:  ENV.fetch("QUANT_RB_HISTORY_SUBPATH", "history/schwab"),
+      market_timezone:  ENV.fetch("QUANT_RB_MARKET_TIMEZONE", "America/New_York"),
       log_level:        :info
     )
       super
@@ -69,9 +72,7 @@ module QuantRb
   require_relative "quant_rb/data/pricing/implied_volatility_solver"
   require_relative "quant_rb/data/validation/option_chain_validator"
   require_relative "quant_rb/data/loaders/csv_candle"
-  require_relative "quant_rb/data/loaders/csv_options_chain"
   require_relative "quant_rb/data/series/candle_series"
-  require_relative "quant_rb/data/index/options_chain_index"
   require_relative "quant_rb/data/index/synthetic_options_chain_index"
   require_relative "quant_rb/data/synthetic/synthetic_chain_builder"
   require_relative "quant_rb/data/option_chain_source"

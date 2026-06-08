@@ -284,7 +284,7 @@ module QuantRb
       def expiration_due?(position, current_time)
         return false unless position.expiration_date
 
-        current_time.to_date >= position.expiration_date
+        QuantRb::MarketTime.market_date(current_time) >= position.expiration_date
       end
 
       def expiration_spot(position, slice)

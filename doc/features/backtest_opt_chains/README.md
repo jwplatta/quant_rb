@@ -47,7 +47,7 @@ $ tickrake query --type options --provider massive --ticker SPXW --limit 10 --fo
 ## Sampled Option Chains from Schwab
 
 - The sampled option chains from schwab will have all the relevant chain data - prives, IV, greeks
-- All we need to do is run the validators to make sure the data is arbitrage free. If it isn't, then we need to fix it.
+- For complete sampled chains, `quant_rb` should treat them as pass-through snapshots: normalize the rows, preserve the supplied prices/IV/greeks, and use them directly in the backtest without interpolation or repair.
 
 ## Sampled Option Chains from Massive
 

@@ -54,6 +54,10 @@ module QuantRb
         @initial_cash = amount
       end
 
+      def set_market_timezone(timezone_name)
+        @market_timezone = timezone_name
+      end
+
       # ── Symbol subscriptions ──────────────────────────────────────────────
 
       # Register an equity symbol. Returns a symbol key used to access data in slices.
@@ -99,7 +103,8 @@ module QuantRb
             iv_map: iv,
             validation: validation,
             strike_grid: strike_grid,
-            raw_options: raw_options.merge(kwargs)
+            raw_options: raw_options.merge(kwargs),
+            market_timezone: market_timezone
           )
         }
         key
@@ -113,6 +118,14 @@ module QuantRb
 
       def time_rules
         @time_rules ||= QuantRb::Engine::TimeRules.new
+      end
+
+      def market_time(current_time = time)
+        current_time
+      end
+
+      def market_date(current_time = time)
+        current_time&.to_date
       end
 
       # ── Order placement ───────────────────────────────────────────────────
@@ -177,6 +190,10 @@ module QuantRb
       # ── Internal accessors (used by BacktestEngine) ───────────────────────
 
       attr_reader :start_date, :end_date, :initial_cash
+
+      def market_timezone
+        @market_timezone || QuantRb.config.market_timezone
+      end
 
       def subscribed_candle_symbols
         subscriptions[:candles]

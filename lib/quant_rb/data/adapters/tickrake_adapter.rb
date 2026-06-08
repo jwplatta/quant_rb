@@ -10,17 +10,18 @@ module QuantRb
           @loader = loader || build_loader
         end
 
-        def load_candle_series(provider:, ticker:, resolution:, start_date:, end_date:)
+        def load_candle_series(provider:, ticker:, resolution:, start_date:, end_date:, timezone: nil)
           frequency = normalize_frequency(resolution)
           candles = @loader.load_candles(
             provider: provider,
             ticker: ticker,
             frequency: frequency,
             start_date: start_date,
-            end_date: end_date
+            end_date: end_date,
+            timezone: timezone
           ).map do |row|
             QuantRb::DataObjects::Candle.new(
-              datetime: row.fetch("datetime"),
+              datetime: row["datetime_tz"] || row["datetime_utc"] || row.fetch("datetime"),
               open: row.fetch("open"),
               high: row.fetch("high"),
               low: row.fetch("low"),
@@ -32,7 +33,7 @@ module QuantRb
           QuantRb::Data::Series::CandleSeries.new(candles)
         end
 
-        def load_option_chain_rows(provider:, ticker:, option_root:, resolution:, start_date:, end_date:, include_metadata: true)
+        def load_option_chain_rows(provider:, ticker:, option_root:, resolution:, start_date:, end_date:, timezone: nil, include_metadata: true)
           @loader.load_option_chains(
             provider: provider,
             ticker: ticker,
@@ -40,6 +41,7 @@ module QuantRb
             start_date: start_date,
             end_date: end_date,
             frequency: normalize_frequency(resolution),
+            timezone: timezone,
             include_metadata: include_metadata,
             order: :sample_time_asc
           )

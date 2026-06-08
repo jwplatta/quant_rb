@@ -14,7 +14,8 @@ module QuantRb
       - index sampled snapshots by expiry and sampled time, then serve them with LOCF semantics
       - normalize raw rows into `Option` and `OptionsChain` objects
       - run sampled reconstruction steps when interpolation mode is enabled
-      - run shared validation and repair
+      - run shared validation and repair for synthetic and sampled-interpolated chains
+      - preserve complete sampled chains as pass-through snapshots in sampled-validated mode
       - derive IV and greeks for reconstructed sampled chains
       - delegate synthetic surface generation to `SyntheticChainBuilder`
 
@@ -77,7 +78,8 @@ module QuantRb
         ensure_sample_row_stream!
         consume_sample_rows_through!(target_time)
         matching_expiries = @sample_row_index.keys.select do |expiry|
-          expiry >= target_time.to_date && matches_expiry_filter?(expiry, expiry_filter)
+          QuantRb::OptionExpiration.active?(expiry, target_time, timezone_name: @config.market_timezone) &&
+            matches_expiry_filter?(expiry, expiry_filter)
         end
 
         matching_expiries.each_with_object({}) do |expiry, result|
@@ -93,14 +95,16 @@ module QuantRb
             ticker: @config.underlying,
             resolution: @config.resolution,
             start_date: @start_date,
-            end_date: @end_date
+            end_date: @end_date,
+            timezone: @config.market_timezone
           )
           iv_proxy_series = @adapter.load_candle_series(
             provider: @config.provider,
             ticker: @config.iv_proxy,
             resolution: @config.resolution,
             start_date: @start_date,
-            end_date: @end_date
+            end_date: @end_date,
+            timezone: @config.market_timezone
           )
 
           Synthetic::SyntheticChainBuilder.new(
@@ -129,7 +133,8 @@ module QuantRb
           option_root: @config.option_root,
           resolution: @config.resolution,
           start_date: @start_date,
-          end_date: @end_date
+          end_date: @end_date,
+          timezone: @config.market_timezone
         )
         @sample_row_enumerator = @sample_row_enumerator.to_enum unless @sample_row_enumerator.respond_to?(:next)
         @sample_row_count = 0
@@ -143,7 +148,7 @@ module QuantRb
           row = next_sample_row
           break unless row
 
-          sampled_at = row.fetch("metadata").fetch("sampled_at")
+          sampled_at = sampled_at_for(row)
           if sampled_at > target_time
             @sample_row_lookahead = row
             break
@@ -187,7 +192,7 @@ module QuantRb
 
         metadata = row.fetch("metadata")
         expiry = metadata.fetch("expiration_date")
-        sampled_at = metadata.fetch("sampled_at")
+        sampled_at = sampled_at_for(row)
         samples = @sample_row_index[expiry]
         if samples.empty? || samples.last.first != sampled_at
           samples << [sampled_at, [row]]
@@ -217,6 +222,8 @@ module QuantRb
       end
 
       def process_chain!(chain, expiry:, sampled_at:)
+        return chain if @config.sampled_validated?
+
         reconstruct_chain!(chain, expiry:, sampled_at:) if @config.sampled_interpolated?
         @validator.repair(chain) if @config.validation == :repair
         enrich_chain!(chain, sampled_at:) if @config.sampled_interpolated?
@@ -512,7 +519,8 @@ module QuantRb
           ticker: @config.underlying,
           resolution: @config.resolution,
           start_date: @start_date,
-          end_date: @end_date
+          end_date: @end_date,
+          timezone: @config.market_timezone
         )
       end
 
@@ -729,8 +737,8 @@ module QuantRb
       end
 
       def time_to_expiry_years(expiration_date, sampled_at)
-        expiry_close = Time.utc(expiration_date.year, expiration_date.month, expiration_date.day, 20, 0, 0)
-        [[expiry_close - sampled_at.getutc, 60.0].max / Synthetic::SyntheticChainBuilder::SECONDS_PER_YEAR, (1.0 / 365.25)].max
+        expiry_utc = QuantRb::OptionExpiration.expiration_time_utc(expiration_date, timezone_name: @config.market_timezone)
+        [[expiry_utc - sampled_at.getutc, 60.0].max / Synthetic::SyntheticChainBuilder::SECONDS_PER_YEAR, (1.0 / 365.25)].max
       end
 
       def build_option(row, sampled_at:)
@@ -827,6 +835,14 @@ module QuantRb
         return expiry_filter.include?(expiry) if expiry_filter.respond_to?(:include?)
 
         expiry == expiry_filter
+      end
+
+      def sampled_at_for(row)
+        row["sampled_at_tz"] ||
+          row["sampled_at"] ||
+          row.dig("metadata", "sampled_at_tz") ||
+          row.dig("metadata", "sampled_at") ||
+          raise(KeyError, "Sampled option row is missing sampled_at_tz/sample_time metadata")
       end
 
     end
