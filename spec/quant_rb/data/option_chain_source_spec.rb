@@ -4,6 +4,10 @@ require "csv"
 require "spec_helper"
 
 RSpec.describe QuantRb::Data::OptionChainSource do
+  def parse_filename_timestamp_utc(sample_date, sample_time)
+    Time.strptime("#{sample_date} #{sample_time.tr('-', ':')} UTC", "%Y-%m-%d %H:%M:%S %Z").utc
+  end
+
   def candle(timestamp, close:, open: close, high: close + 1.0, low: close - 1.0, volume: 100)
     QuantRb::DataObjects::Candle.new(datetime: Time.parse(timestamp), open: open, high: high, low: low, close: close, volume: volume)
   end
@@ -17,11 +21,14 @@ RSpec.describe QuantRb::Data::OptionChainSource do
     match = File.basename(path).match(/\ASPXW_exp(?<expiry>\d{4}-\d{2}-\d{2})_(?<sample_date>\d{4}-\d{2}-\d{2})_(?<sample_time>\d{2}-\d{2}-\d{2})\.csv\z/)
     raise "Unexpected fixture filename: #{filename}" unless match
 
-    sampled_at = QuantRb::Data::OptionChainSampleTime.parse_filename_timestamp(match[:sample_date], match[:sample_time])
+    sampled_at_utc = parse_filename_timestamp_utc(match[:sample_date], match[:sample_time])
+    sampled_at_tz = sampled_at_utc.getlocal("-05:00")
     expiry = Date.parse(match[:expiry])
 
     CSV.foreach(path, headers: true).map do |row|
       row.to_h.merge(
+        "sampled_at_utc" => sampled_at_utc,
+        "sampled_at_tz" => sampled_at_tz,
         "strike" => row["strike"].to_f,
         "expiration_date" => expiry,
         "mark" => row["mark"].to_f,
@@ -39,7 +46,8 @@ RSpec.describe QuantRb::Data::OptionChainSource do
         "intrinsic_value" => row["intrinsic_value"].to_f,
         "extrinsic_value" => row["extrinsic_value"].to_f,
         "metadata" => {
-          "sampled_at" => sampled_at,
+          "sampled_at_utc" => sampled_at_utc,
+          "sampled_at_tz" => sampled_at_tz,
           "expiration_date" => expiry
         }
       )
@@ -63,13 +71,13 @@ RSpec.describe QuantRb::Data::OptionChainSource do
       strike_grid: { step: 10.0, range_ratio: 0.05 }
     )
 
-    allow(adapter).to receive(:load_candle_series).with(provider: "test", ticker: "SPX", resolution: :minute, start_date: Date.new(2026, 4, 9), end_date: Date.new(2026, 4, 9)).and_return(
+    allow(adapter).to receive(:load_candle_series).with(provider: "test", ticker: "SPX", resolution: :minute, start_date: Date.new(2026, 4, 9), end_date: Date.new(2026, 4, 9), timezone: "America/New_York").and_return(
       series(
         candle("2026-04-08T20:00:00Z", close: 5050.0),
         candle("2026-04-09T15:00:00Z", close: 5100.0)
       )
     )
-    allow(adapter).to receive(:load_candle_series).with(provider: "test", ticker: "VIX", resolution: :minute, start_date: Date.new(2026, 4, 9), end_date: Date.new(2026, 4, 9)).and_return(series(candle("2026-04-09T15:00:00Z", close: 18.0)))
+    allow(adapter).to receive(:load_candle_series).with(provider: "test", ticker: "VIX", resolution: :minute, start_date: Date.new(2026, 4, 9), end_date: Date.new(2026, 4, 9), timezone: "America/New_York").and_return(series(candle("2026-04-09T15:00:00Z", close: 18.0)))
 
     source = described_class.build(config:, start_date: Date.new(2026, 4, 9), end_date: Date.new(2026, 4, 9), adapter: adapter)
     chains = source.chains_at(Time.parse("2026-04-09T15:00:00Z"), expiry_filter: Date.new(2026, 4, 10))
@@ -96,7 +104,7 @@ RSpec.describe QuantRb::Data::OptionChainSource do
       { "symbol" => "P1", "contract_type" => "PUT", "strike" => 5100.0, "open" => 14.0, "high" => 16.0, "low" => 13.0, "close" => 15.0, "underlying_price" => nil, "expiration_date" => Date.new(2026, 4, 10), "metadata" => { "sampled_at" => Time.parse("2026-04-09T15:00:00Z"), "expiration_date" => Date.new(2026, 4, 10) } }
     ]
     allow(adapter).to receive(:load_option_chain_rows).and_return(rows)
-    allow(adapter).to receive(:load_candle_series).with(provider: "test", ticker: "SPX", resolution: :minute, start_date: Date.new(2026, 4, 9), end_date: Date.new(2026, 4, 9)).and_return(
+    allow(adapter).to receive(:load_candle_series).with(provider: "test", ticker: "SPX", resolution: :minute, start_date: Date.new(2026, 4, 9), end_date: Date.new(2026, 4, 9), timezone: "America/New_York").and_return(
       series(candle("2026-04-09T15:00:00Z", close: 5105.0))
     )
 
@@ -225,7 +233,7 @@ RSpec.describe QuantRb::Data::OptionChainSource do
       { "symbol" => "P2", "contract_type" => "PUT", "strike" => 5110.0, "open" => 18.0, "high" => 21.0, "low" => 17.0, "close" => 20.0, "underlying_price" => nil, "expiration_date" => expiry, "metadata" => { "sampled_at" => sampled_at, "expiration_date" => expiry } }
     ]
     allow(adapter).to receive(:load_option_chain_rows).and_return(rows)
-    allow(adapter).to receive(:load_candle_series).with(provider: "test", ticker: "SPX", resolution: :minute, start_date: Date.new(2026, 4, 9), end_date: Date.new(2026, 4, 9)).and_return(
+    allow(adapter).to receive(:load_candle_series).with(provider: "test", ticker: "SPX", resolution: :minute, start_date: Date.new(2026, 4, 9), end_date: Date.new(2026, 4, 9), timezone: "America/New_York").and_return(
       series(candle("2026-04-09T15:00:00Z", close: 5105.0))
     )
 
@@ -254,7 +262,7 @@ RSpec.describe QuantRb::Data::OptionChainSource do
       { "symbol" => "P1", "contract_type" => "PUT", "strike" => 5100.0, "open" => 14.0, "high" => 16.0, "low" => 13.0, "close" => 15.0, "underlying_price" => nil, "expiration_date" => expiry, "metadata" => { "sampled_at" => sampled_at, "expiration_date" => expiry } }
     ]
     allow(adapter).to receive(:load_option_chain_rows).and_return(rows)
-    allow(adapter).to receive(:load_candle_series).with(provider: "test", ticker: "SPX", resolution: :minute, start_date: Date.new(2026, 4, 9), end_date: Date.new(2026, 4, 9)).and_return(
+    allow(adapter).to receive(:load_candle_series).with(provider: "test", ticker: "SPX", resolution: :minute, start_date: Date.new(2026, 4, 9), end_date: Date.new(2026, 4, 9), timezone: "America/New_York").and_return(
       series(candle("2026-04-09T15:01:00Z", close: 5105.0))
     )
 
@@ -388,6 +396,54 @@ RSpec.describe QuantRb::Data::OptionChainSource do
     expect(source.chains_at(first_sampled_at + 59, expiry_filter: expiry).fetch(expiry).object_id).to eq(first.object_id)
   end
 
+  it "uses localized sampled_at_tz to keep next-day expiries at 1 DTE before local midnight" do
+    config = QuantRb::Data::OptionChainConfig.new(
+      underlying: "SPX",
+      option_root: "SPXW",
+      resolution: :minute,
+      provider: "test",
+      chain_mode: :sampled_validated,
+      pricing_model: :black_scholes,
+      iv_map: nil,
+      validation: :repair,
+      strike_grid: { step: 5.0 },
+      market_timezone: "America/Chicago"
+    )
+    sampled_at_utc = Time.parse("2026-04-10T00:30:00Z")
+    sampled_at_tz = Time.parse("2026-04-09T19:30:00-05:00")
+    expiry = Date.new(2026, 4, 10)
+    rows = [
+      {
+        "sampled_at_utc" => sampled_at_utc,
+        "sampled_at_tz" => sampled_at_tz,
+        "symbol" => "C1",
+        "contract_type" => "CALL",
+        "strike" => 5100.0,
+        "mark" => 20.0,
+        "bid" => 19.5,
+        "ask" => 20.5,
+        "underlying_price" => 5105.0,
+        "expiration_date" => expiry,
+        "metadata" => {
+          "sampled_at_utc" => sampled_at_utc,
+          "sampled_at_tz" => sampled_at_tz,
+          "expiration_date" => expiry
+        }
+      }
+    ]
+    allow(adapter).to receive(:load_option_chain_rows).and_return(rows)
+
+    source = described_class.build(
+      config: config,
+      start_date: Date.new(2026, 4, 9),
+      end_date: Date.new(2026, 4, 10),
+      adapter: adapter
+    )
+    chain = source.chains_at(sampled_at_tz, expiry_filter: expiry).fetch(expiry)
+
+    expect(chain.call_opts.first.days_to_expiration).to eq(1)
+  end
+
   it "normalizes complete schwab sampled fixtures without adding or mutating contracts" do
     config = QuantRb::Data::OptionChainConfig.new(
       underlying: "SPX",
@@ -401,7 +457,7 @@ RSpec.describe QuantRb::Data::OptionChainSource do
       strike_grid: { step: 5.0 }
     )
     rows = fixture_option_rows("SPXW_exp2025-12-18_2025-12-18_13-50-58.csv")
-    sampled_at = rows.first.dig("metadata", "sampled_at")
+    sampled_at = rows.first.fetch("sampled_at_tz")
     expiry = rows.first.fetch("expiration_date")
     allow(adapter).to receive(:load_option_chain_rows).and_return(rows)
 

@@ -121,11 +121,11 @@ module QuantRb
       end
 
       def market_time(current_time = time)
-        QuantRb::MarketTime.local_time(current_time, market_timezone)
+        current_time
       end
 
       def market_date(current_time = time)
-        QuantRb::MarketTime.market_date(current_time, market_timezone)
+        current_time&.to_date
       end
 
       # ── Order placement ───────────────────────────────────────────────────

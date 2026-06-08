@@ -6,9 +6,13 @@ RSpec.describe "QuantRb data layer integration", :integration do
   let(:history_path) { File.expand_path("~/.tickrake/data/history/schwab") }
   let(:options_path) { File.expand_path("~/.tickrake/data/options/schwab") }
 
+  def parse_filename_timestamp_utc(sample_date, sample_time)
+    Time.strptime("#{sample_date} #{sample_time.tr('-', ':')} UTC", "%Y-%m-%d %H:%M:%S %Z").utc
+  end
+
   before do
     skip "tickrake history data not available" unless File.exist?(File.join(history_path, "SPX_1min.csv"))
-    skip "tickrake options data not available" if Dir.glob(File.join(options_path, "SPXW_exp*.csv")).empty?
+    skip "tickrake options data not available" if Dir.glob(File.join(options_path, "**", "SPXW_exp*.csv")).empty?
   end
 
   it "loads real candle data from the configured history path" do
@@ -26,12 +30,13 @@ RSpec.describe "QuantRb data layer integration", :integration do
   end
 
   it "loads sampled SPXW chains through the tickrake-backed option chain source" do
-    file_path = Dir.glob(File.join(options_path, "SPXW_exp*.csv")).sort.first
+    file_path = Dir.glob(File.join(options_path, "**", "SPXW_exp*.csv")).sort.first
     filename = File.basename(file_path)
     match = filename.match(/\ASPXW_exp(?<expiry>\d{4}-\d{2}-\d{2})_(?<sample_date>\d{4}-\d{2}-\d{2})_(?<sample_time>\d{2}-\d{2}-\d{2})\.csv\z/)
     raise "Unexpected fixture filename: #{filename}" unless match
 
-    sample_time = QuantRb::Data::OptionChainSampleTime.parse_filename_timestamp(match[:sample_date], match[:sample_time]) + 1
+    sample_time_utc = parse_filename_timestamp_utc(match[:sample_date], match[:sample_time])
+    sample_time = sample_time_utc.getlocal("-05:00") + 1
     expiry = Date.parse(match[:expiry])
     source = QuantRb::Data::OptionChainSource.build(
       config: QuantRb::Data::OptionChainConfig.new(

@@ -62,7 +62,7 @@ module QuantRb
         return (@start_date..@end_date).to_a if @config.synthetic?
 
         consume_all_sample_rows!
-        @sample_row_index.values.flat_map { |samples| samples.map(&:first).map { |time| market_date_for(time) } }.uniq.sort
+        @sample_row_index.values.flat_map { |samples| samples.map(&:first).map(&:to_date) }.uniq.sort
       end
 
       private
@@ -78,7 +78,8 @@ module QuantRb
         ensure_sample_row_stream!
         consume_sample_rows_through!(target_time)
         matching_expiries = @sample_row_index.keys.select do |expiry|
-          expiry >= market_date_for(target_time) && matches_expiry_filter?(expiry, expiry_filter)
+          QuantRb::OptionExpiration.active?(expiry, target_time, timezone_name: @config.market_timezone) &&
+            matches_expiry_filter?(expiry, expiry_filter)
         end
 
         matching_expiries.each_with_object({}) do |expiry, result|
@@ -94,14 +95,16 @@ module QuantRb
             ticker: @config.underlying,
             resolution: @config.resolution,
             start_date: @start_date,
-            end_date: @end_date
+            end_date: @end_date,
+            timezone: @config.market_timezone
           )
           iv_proxy_series = @adapter.load_candle_series(
             provider: @config.provider,
             ticker: @config.iv_proxy,
             resolution: @config.resolution,
             start_date: @start_date,
-            end_date: @end_date
+            end_date: @end_date,
+            timezone: @config.market_timezone
           )
 
           Synthetic::SyntheticChainBuilder.new(
@@ -130,7 +133,8 @@ module QuantRb
           option_root: @config.option_root,
           resolution: @config.resolution,
           start_date: @start_date,
-          end_date: @end_date
+          end_date: @end_date,
+          timezone: @config.market_timezone
         )
         @sample_row_enumerator = @sample_row_enumerator.to_enum unless @sample_row_enumerator.respond_to?(:next)
         @sample_row_count = 0
@@ -144,7 +148,7 @@ module QuantRb
           row = next_sample_row
           break unless row
 
-          sampled_at = row.fetch("metadata").fetch("sampled_at")
+          sampled_at = sampled_at_for(row)
           if sampled_at > target_time
             @sample_row_lookahead = row
             break
@@ -188,7 +192,7 @@ module QuantRb
 
         metadata = row.fetch("metadata")
         expiry = metadata.fetch("expiration_date")
-        sampled_at = metadata.fetch("sampled_at")
+        sampled_at = sampled_at_for(row)
         samples = @sample_row_index[expiry]
         if samples.empty? || samples.last.first != sampled_at
           samples << [sampled_at, [row]]
@@ -499,7 +503,7 @@ module QuantRb
             put_call: contract_type,
             underlying_price: underlying_price,
             expiration_date: expiry,
-            days_to_expiration: [QuantRb::MarketTime.days_to_expiration(expiry, sampled_at, @config.market_timezone).to_i, 0].max,
+            days_to_expiration: [expiry - sampled_at.to_date, 0].max,
             timestamp: sampled_at,
             mark: nil,
             bid: nil,
@@ -515,7 +519,8 @@ module QuantRb
           ticker: @config.underlying,
           resolution: @config.resolution,
           start_date: @start_date,
-          end_date: @end_date
+          end_date: @end_date,
+          timezone: @config.market_timezone
         )
       end
 
@@ -732,11 +737,8 @@ module QuantRb
       end
 
       def time_to_expiry_years(expiration_date, sampled_at)
-        expiry_close = Time.utc(expiration_date.year, expiration_date.month, expiration_date.day, 20, 0, 0)
-        market_days = QuantRb::MarketTime.days_to_expiration(expiration_date, sampled_at, @config.market_timezone).to_i
-        day_floor = market_days.negative? ? 0.0 : market_days.to_f
-        floor_seconds = [day_floor * 86_400.0, 60.0].max
-        [[expiry_close - sampled_at.getutc, floor_seconds].max / Synthetic::SyntheticChainBuilder::SECONDS_PER_YEAR, (1.0 / 365.25)].max
+        expiry_utc = QuantRb::OptionExpiration.expiration_time_utc(expiration_date, timezone_name: @config.market_timezone)
+        [[expiry_utc - sampled_at.getutc, 60.0].max / Synthetic::SyntheticChainBuilder::SECONDS_PER_YEAR, (1.0 / 365.25)].max
       end
 
       def build_option(row, sampled_at:)
@@ -753,7 +755,7 @@ module QuantRb
           put_call: put_call,
           underlying_price: row["underlying_price"],
           expiration_date: expiration,
-          days_to_expiration: QuantRb::MarketTime.days_to_expiration(expiration, sampled_at, @config.market_timezone).to_i,
+          days_to_expiration: (expiration - sampled_at.to_date).to_i,
           mark: row["mark"],
           bid: row["bid"],
           ask: row["ask"],
@@ -818,16 +820,12 @@ module QuantRb
 
       def candidate_expiries(target_time, expiry_filter)
         dates = []
-        date = market_date_for(target_time)
+        date = target_time.to_date
         while dates.length < 30
           dates << date unless date.saturday? || date.sunday?
           date += 1
         end
         dates.select { |expiry| matches_expiry_filter?(expiry, expiry_filter) }
-      end
-
-      def market_date_for(time)
-        QuantRb::MarketTime.market_date(time, @config.market_timezone)
       end
 
       def matches_expiry_filter?(expiry, expiry_filter)
@@ -837,6 +835,14 @@ module QuantRb
         return expiry_filter.include?(expiry) if expiry_filter.respond_to?(:include?)
 
         expiry == expiry_filter
+      end
+
+      def sampled_at_for(row)
+        row["sampled_at_tz"] ||
+          row["sampled_at"] ||
+          row.dig("metadata", "sampled_at_tz") ||
+          row.dig("metadata", "sampled_at") ||
+          raise(KeyError, "Sampled option row is missing sampled_at_tz/sample_time metadata")
       end
 
     end
