@@ -53,9 +53,7 @@ RSpec.describe QuantRb::Engine::BacktestEngine do
     original_config = QuantRb.config.dup
 
     QuantRb.configure do |config|
-      config.data_path = QUANT_RB_FIXTURES_ROOT.to_s
-      config.history_subpath = "history/schwab"
-      config.options_subpath = "options/schwab"
+      config.data_sources_config_path = QUANT_RB_FIXTURES_ROOT.join("data_sources.yml").to_s
     end
 
     example.run
@@ -161,7 +159,7 @@ RSpec.describe QuantRb::Engine::BacktestEngine do
         set_start_date(2024, 1, 18)
         set_end_date(2024, 1, 19)
         set_cash(10_000)
-        @spx = add_security("SPX", resolution: :"5min")
+        @spx = add_index("SPX", resolution: :"5min")
         @spxw = add_option_chain("SPX", "SPXW", resolution: :"5min")
         @opened = false
       end
@@ -210,7 +208,7 @@ RSpec.describe QuantRb::Engine::BacktestEngine do
         set_start_date(2024, 1, 18)
         set_end_date(2024, 1, 19)
         set_cash(10_000)
-        @spx = add_security("SPX", resolution: :"5min")
+        @spx = add_index("SPX", resolution: :"5min")
         @spxw = add_option_chain("SPX", "SPXW", resolution: :"5min")
         @submitted = []
       end
@@ -276,8 +274,8 @@ RSpec.describe QuantRb::Engine::BacktestEngine do
         set_start_date(2024, 1, 2)
         set_end_date(2024, 1, 2)
         set_cash(10_000)
-        @spx = add_security("SPX", resolution: :minute)
-        @spxw = add_option_chain("SPX", "SPXW", resolution: :minute, provider: "test", interpolate: true)
+        @spx = add_index("SPX", resolution: :minute)
+        @spxw = add_option_chain("SPX", "SPXW", resolution: :minute, interpolate: true)
       end
 
       def on_data(_slice); end
@@ -305,8 +303,8 @@ RSpec.describe QuantRb::Engine::BacktestEngine do
         set_start_date(2025, 12, 18)
         set_end_date(2025, 12, 18)
         set_cash(10_000)
-        @spx = add_security("SPX", resolution: :minute)
-        @spxw = add_option_chain("SPX", "SPXW", resolution: :minute, provider: "schwab")
+        @spx = add_index("SPX", resolution: :minute)
+        @spxw = add_option_chain("SPX", "SPXW", resolution: :minute)
         @selected_symbols = []
         @submitted_limit = nil
         @submitted = false
@@ -427,7 +425,7 @@ RSpec.describe QuantRb::Engine::BacktestEngine do
         set_start_date(2026, 4, 9)
         set_end_date(2026, 4, 10)
         set_market_timezone("America/Chicago")
-        @spx = add_security("SPX", resolution: :minute)
+        @spx = add_index("SPX", resolution: :minute)
         @end_of_day_calls = []
       end
 

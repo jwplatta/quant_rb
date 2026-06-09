@@ -3,8 +3,6 @@
 require_relative "../lib/quant_rb"
 
 RESOLUTION = :"5min"
-OPTIONS_PROVIDER = ENV.fetch("OPTIONS_PROVIDER", "schwab")
-UNDERLYING_PROVIDER = ENV.fetch("UNDERLYING_PROVIDER", "ibkr-paper")
 
 class ValidatedSpxwOneDtePutSpreadExample < QuantRb::Strategy
   START_DATE = Date.iso8601(ENV.fetch("START_DATE", "2026-03-09"))
@@ -21,18 +19,13 @@ class ValidatedSpxwOneDtePutSpreadExample < QuantRb::Strategy
     set_start_date(START_DATE.year, START_DATE.month, START_DATE.day)
     set_end_date(END_DATE.year, END_DATE.month, END_DATE.day)
     set_cash(100_000)
-    set_market_timezone("America/Chicago")
 
-    @spx = add_security("SPX", resolution: RESOLUTION, provider: UNDERLYING_PROVIDER)
+    @spx = add_index("SPX", resolution: RESOLUTION)
     @spxw = add_option_chain(
       "SPX",
       "SPXW",
-      resolution: RESOLUTION,
-      provider: OPTIONS_PROVIDER,
-      raw_options: {
-        underlying_provider: UNDERLYING_PROVIDER
-      }
-    ) { |expiry| expiry == next_trading_day(market_date) }
+      resolution: RESOLUTION
+    ) { |expiry| expiry == next_trading_day(time.to_date) }
 
     @open_spreads_by_expiry = {}
   end
@@ -45,10 +38,10 @@ class ValidatedSpxwOneDtePutSpreadExample < QuantRb::Strategy
   private
 
   def open_position_if_needed(chains_by_expiry)
-    return unless time >= utc_time_for(market_date, ENTRY_HOUR_UTC, ENTRY_MINUTE_UTC)
+    return unless time >= utc_time_for(time.to_date, ENTRY_HOUR_UTC, ENTRY_MINUTE_UTC)
     return if @open_spreads_by_expiry.size >= MAX_OPEN_SPREADS
 
-    expiry = next_trading_day(market_date)
+    expiry = next_trading_day(time.to_date)
     return if @open_spreads_by_expiry.key?(expiry)
 
     chain = chains_by_expiry[expiry]
@@ -144,11 +137,12 @@ class ValidatedSpxwOneDtePutSpreadExample < QuantRb::Strategy
 end
 
 QuantRb.configure do |config|
+  config.data_sources_config_path = ENV.fetch("QUANT_RB_DATA_SOURCES_CONFIG_PATH", QuantRb.config.data_sources_config_path)
   config.log_level = ENV.fetch("QUANT_RB_LOG_LEVEL", "info")
 end
 
 QuantRb.logger.info("Running validated sampled SPXW 1DTE put spread example")
-QuantRb.logger.info("options_provider=#{OPTIONS_PROVIDER} underlying_provider=#{UNDERLYING_PROVIDER} interval=#{RESOLUTION}")
+QuantRb.logger.info("data_sources_config=#{QuantRb.config.data_sources_config_path} interval=#{RESOLUTION}")
 
 result = QuantRb::BacktestEngine.run(ValidatedSpxwOneDtePutSpreadExample)
 

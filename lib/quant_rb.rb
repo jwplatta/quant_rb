@@ -20,6 +20,7 @@ module QuantRb
   # ── Configuration ──────────────────────────────────────────────────────────
 
   Config = Struct.new(
+    :data_sources_config_path,
     :data_path,
     :options_subpath,
     :history_subpath,
@@ -28,9 +29,10 @@ module QuantRb
     keyword_init: true
   ) do
     def initialize(
-      data_path:        ENV.fetch("QUANT_RB_DATA_PATH", "~/.tickrake/data"),
-      options_subpath:  ENV.fetch("QUANT_RB_OPTIONS_SUBPATH", "options/schwab"),
-      history_subpath:  ENV.fetch("QUANT_RB_HISTORY_SUBPATH", "history/schwab"),
+      data_sources_config_path: ENV.fetch("QUANT_RB_DATA_SOURCES_CONFIG_PATH", "~/.quant_rb/data_sources.yml"),
+      data_path: ENV.fetch("QUANT_RB_DATA_PATH", "~/.tickrake/data"),
+      options_subpath: ENV.fetch("QUANT_RB_OPTIONS_SUBPATH", "options/schwab"),
+      history_subpath: ENV.fetch("QUANT_RB_HISTORY_SUBPATH", "history/schwab"),
       market_timezone:  ENV.fetch("QUANT_RB_MARKET_TIMEZONE", "America/New_York"),
       log_level:        :info
     )
@@ -64,7 +66,7 @@ module QuantRb
 
   # ── Data layer ────────────────────────────────────────────────────────────
 
-  require_relative "quant_rb/data/data_source"
+  require_relative "quant_rb/data/data_sources_registry"
   require_relative "quant_rb/data/option_chain_config"
   require_relative "quant_rb/data/adapters/tickrake_adapter"
   require_relative "quant_rb/data/pricing/black_scholes"

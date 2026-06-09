@@ -6,6 +6,14 @@ RSpec.describe QuantRb::Data::Adapters::TickrakeAdapter do
   let(:loader) { instance_double(Tickrake::DataLoader) }
   let(:adapter) { described_class.new(loader: loader) }
 
+  it "passes config_path to Tickrake::DataLoader when provided" do
+    allow(Tickrake::DataLoader).to receive(:new).with(config_path: "/tmp/tickrake.yml").and_return(loader)
+
+    described_class.new(config_path: "/tmp/tickrake.yml")
+
+    expect(Tickrake::DataLoader).to have_received(:new).with(config_path: "/tmp/tickrake.yml")
+  end
+
   it "passes timezone through when loading candle series and uses datetime_tz as runtime time" do
     row = {
       "datetime_utc" => Time.parse("2026-04-10 14:30:00 UTC"),

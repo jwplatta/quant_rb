@@ -1,0 +1,17 @@
+tickrake:
+  config_path: spec/fixtures/quant_rb/tickrake.yml
+
+securities:
+  SPY:
+    provider: schwab
+
+indices:
+  SPX:
+    provider: schwab
+
+option_chains:
+  SPXW:
+    underlying: SPX
+    provider: schwab
+    default_mode: sampled_validated
+    default_pricing_model: black_scholes
