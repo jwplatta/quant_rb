@@ -34,8 +34,7 @@ module QuantRb
       # Injected by the engine before initialize is called
       attr_reader :time, :portfolio, :securities, :schedule, :broker
 
-      # ── Configuration helpers (called inside user's initialize) ───────────
-
+      # Configuration helpers (called inside user's initialize)
       def set_start_date(year, month, day)
         @start_date = Date.new(year, month, day)
       end
@@ -51,8 +50,6 @@ module QuantRb
       def set_market_timezone(timezone_name)
         @market_timezone = timezone_name
       end
-
-      # ── Symbol subscriptions ──────────────────────────────────────────────
 
       # Register a security symbol. Returns a symbol key used to access data in slices.
       def add_security(symbol, resolution: :minute, provider: nil)
@@ -97,8 +94,7 @@ module QuantRb
         key
       end
 
-      # ── Scheduling ────────────────────────────────────────────────────────
-
+      # Scheduling
       def date_rules
         @date_rules ||= QuantRb::Engine::DateRules.new
       end
@@ -115,7 +111,7 @@ module QuantRb
         current_time&.to_date
       end
 
-      # ── Order placement ───────────────────────────────────────────────────
+      # Order placement
 
       # Place a multi-leg combo limit order. Returns an OrderTicket.
       # legs: Array of { symbol: String, quantity: Integer } (negative = short)
@@ -146,13 +142,11 @@ module QuantRb
         broker.submit_order(order)
       end
 
-      # ── Event hooks (users override these) ────────────────────────────────
+      # Event hooks: users override these
 
       def on_data(slice); end
       def on_end_of_day(symbol); end
       def on_end_of_algorithm; end
-
-      # ── Logging ───────────────────────────────────────────────────────────
 
       def log(msg)
         info(msg)
@@ -174,7 +168,7 @@ module QuantRb
         logger.error(format_log_message(msg))
       end
 
-      # ── Internal accessors (used by BacktestEngine) ───────────────────────
+      # Internal accessors used by BacktestEngine
 
       attr_reader :start_date, :end_date, :initial_cash
 
