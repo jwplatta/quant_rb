@@ -19,8 +19,8 @@ class ValidatedSpxwSampledBacktestExample < QuantRb::Strategy
     set_end_date(END_DATE.year, END_DATE.month, END_DATE.day)
     set_cash(100_000)
 
-    @spx = add_index("SPX", resolution: RESOLUTION, provider: UNDERLYING_PROVIDER)
-    @spxw = add_index_option(
+    @spx = add_security("SPX", resolution: RESOLUTION, provider: UNDERLYING_PROVIDER)
+    @spxw = add_option_chain(
       "SPX",
       "SPXW",
       resolution: RESOLUTION,

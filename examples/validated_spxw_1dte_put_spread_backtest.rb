@@ -23,8 +23,8 @@ class ValidatedSpxwOneDtePutSpreadExample < QuantRb::Strategy
     set_cash(100_000)
     set_market_timezone("America/Chicago")
 
-    @spx = add_index("SPX", resolution: RESOLUTION, provider: UNDERLYING_PROVIDER)
-    @spxw = add_index_option(
+    @spx = add_security("SPX", resolution: RESOLUTION, provider: UNDERLYING_PROVIDER)
+    @spxw = add_option_chain(
       "SPX",
       "SPXW",
       resolution: RESOLUTION,
