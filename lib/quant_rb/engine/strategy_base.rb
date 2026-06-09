@@ -71,7 +71,7 @@ module QuantRb
 
       # Register an options chain subscription for an underlying.
       # Optionally pass a block to configure expiry/strike filters.
-      def add_option_chain(underlying, option_root, resolution: :minute, synthetic: false, interpolate: false, pricing_model: nil, iv: nil, validation: :repair, strike_grid: {}, **kwargs, &filter)
+      def add_option_chain(underlying, option_root, resolution: :minute, dataset: nil, synthetic: false, interpolate: false, pricing_model: nil, iv: nil, validation: :repair, strike_grid: {}, **kwargs, &filter)
         key = :"#{option_root}_options"
         raw_options = kwargs.delete(:raw_options) || {}
         chain_mode =
@@ -84,6 +84,7 @@ module QuantRb
           underlying: underlying,
           option_root: option_root,
           resolution: resolution,
+          dataset: dataset,
           filter: filter,
           chain_mode: chain_mode,
           pricing_model: pricing_model,

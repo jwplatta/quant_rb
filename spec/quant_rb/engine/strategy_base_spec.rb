@@ -86,6 +86,7 @@ RSpec.describe QuantRb::Engine::StrategyBase do
         @interpolated_key = add_option_chain(
           "SPX",
           "SPXW_INT",
+          dataset: "massive_samples",
           interpolate: true,
           raw_options: { bucket_selector: :first }
         )
@@ -100,6 +101,7 @@ RSpec.describe QuantRb::Engine::StrategyBase do
     )
 
     subscription = strategy.subscribed_option_chains[strategy.interpolated_key]
+    expect(subscription[:dataset]).to eq("massive_samples")
     expect(subscription[:raw_options][:bucket_selector]).to eq(:first)
   end
 

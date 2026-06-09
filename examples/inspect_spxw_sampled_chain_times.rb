@@ -27,7 +27,7 @@ class InspectSpxwSampledChainTimesExample < QuantRb::Strategy
     set_market_timezone(MARKET_TIMEZONE)
 
     @spx = add_index("SPX", resolution: RESOLUTION)
-    @spxw = add_option_chain("SPX", "SPXW", resolution: RESOLUTION)
+    @spxw = add_option_chain("SPX", "SPXW", resolution: RESOLUTION, dataset: "schwab_samples")
     @observations = []
   end
 

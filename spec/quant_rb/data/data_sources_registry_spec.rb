@@ -21,6 +21,7 @@ RSpec.describe QuantRb::Data::DataSourcesRegistry do
       underlying: "SPX",
       option_root: "SPXW",
       resolution: :minute,
+      dataset: "schwab_samples",
       chain_mode: nil,
       pricing_model: nil,
       iv_map: nil,
@@ -40,12 +41,37 @@ RSpec.describe QuantRb::Data::DataSourcesRegistry do
     expect(resolved.config.underlying_provider).to eq("schwab")
   end
 
+  it "uses the synthetic default when no dataset is selected" do
+    resolved = registry.resolve_option_chain(
+      underlying: "SPX",
+      option_root: "SPXW",
+      resolution: :minute,
+      dataset: nil,
+      chain_mode: nil,
+      pricing_model: :binomial,
+      iv_map: nil,
+      validation: :repair,
+      strike_grid: {},
+      raw_options: {},
+      market_timezone: "America/New_York"
+    )
+
+    expect(resolved.subscription).to include(
+      provider: "schwab",
+      underlying_provider: "schwab"
+    )
+    expect(resolved.config.chain_mode).to eq(:synthetic)
+    expect(resolved.config.pricing_model).to eq(:binomial)
+    expect(resolved.config.iv_proxy).to eq("VIX")
+  end
+
   it "raises when an option chain references the wrong underlying" do
     expect do
       registry.resolve_option_chain(
         underlying: "SPY",
         option_root: "SPXW",
         resolution: :minute,
+        dataset: "schwab_samples",
         chain_mode: nil,
         pricing_model: nil,
         iv_map: nil,
@@ -55,5 +81,23 @@ RSpec.describe QuantRb::Data::DataSourcesRegistry do
         market_timezone: "America/New_York"
       )
     end.to raise_error(QuantRb::Error, /Configured underlying/)
+  end
+
+  it "raises when a named dataset does not exist" do
+    expect do
+      registry.resolve_option_chain(
+        underlying: "SPX",
+        option_root: "SPXW",
+        resolution: :minute,
+        dataset: "missing",
+        chain_mode: nil,
+        pricing_model: nil,
+        iv_map: nil,
+        validation: :repair,
+        strike_grid: {},
+        raw_options: {},
+        market_timezone: "America/New_York"
+      )
+    end.to raise_error(QuantRb::Error, /No configured dataset/)
   end
 end

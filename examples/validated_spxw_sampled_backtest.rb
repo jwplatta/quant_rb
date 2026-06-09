@@ -21,7 +21,8 @@ class ValidatedSpxwSampledBacktestExample < QuantRb::Strategy
     @spxw = add_option_chain(
       "SPX",
       "SPXW",
-      resolution: RESOLUTION
+      resolution: RESOLUTION,
+      dataset: "schwab_samples"
     )
 
     @opened_ticket = nil

@@ -24,8 +24,7 @@ class InterpolatedSpxwOneDtePutSpreadExample < QuantRb::Strategy
       "SPX",
       "SPXW",
       resolution: RESOLUTION,
-      interpolate: true,
-      pricing_model: :black_scholes,
+      dataset: "massive_samples",
       strike_grid: {
         step: ENV.fetch("STRIKE_STEP", "5.0").to_f,
         range_ratio: ENV.fetch("RANGE_RATIO", "0.20").to_f

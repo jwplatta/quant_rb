@@ -24,7 +24,8 @@ class ValidatedSpxwOneDtePutSpreadExample < QuantRb::Strategy
     @spxw = add_option_chain(
       "SPX",
       "SPXW",
-      resolution: RESOLUTION
+      resolution: RESOLUTION,
+      dataset: "schwab_samples"
     ) { |expiry| expiry == next_trading_day(time.to_date) }
 
     @open_spreads_by_expiry = {}

@@ -4,6 +4,8 @@ providers:
     adapter: schwab
   ibkr-paper:
     adapter: ibkr
+  massive:
+    adapter: massive
   test:
     adapter: schwab
 

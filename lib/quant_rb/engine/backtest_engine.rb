@@ -172,16 +172,37 @@ module QuantRb
             adapter: adapter
           )
           source.preload! if source.respond_to?(:preload!)
-          if !resolved.config.synthetic? && source.respond_to?(:available_dates) && source.available_dates.empty?
-            raise QuantRb::Error,
-                  "No option chain data for #{resolved.subscription.fetch(:option_root)} via provider #{resolved.subscription.fetch(:provider)} for #{strategy.start_date}..#{strategy.end_date}"
-          end
+          validate_option_chain_coverage!(source, resolved:, strategy:)
           result[key] = source
         end
       end
 
       def build_tickrake_adapter(registry)
         QuantRb::Data::Adapters::TickrakeAdapter.new(config_path: registry.tickrake_config_path)
+      end
+
+      def validate_option_chain_coverage!(source, resolved:, strategy:)
+        return if resolved.config.synthetic?
+        return unless source.respond_to?(:available_dates)
+
+        available_dates = source.available_dates
+        if available_dates.empty?
+          raise QuantRb::Error,
+                "No option chain data for #{resolved.subscription.fetch(:option_root)} " \
+                "dataset=#{resolved.subscription[:dataset] || 'default'} " \
+                "provider=#{resolved.subscription.fetch(:provider)} " \
+                "for #{strategy.start_date}..#{strategy.end_date}"
+        end
+
+        first_date = available_dates.min
+        last_date = available_dates.max
+        return if first_date <= strategy.start_date && last_date >= strategy.end_date
+
+        raise QuantRb::Error,
+              "Incomplete option chain coverage for #{resolved.subscription.fetch(:option_root)} " \
+              "dataset=#{resolved.subscription[:dataset] || 'default'} " \
+              "provider=#{resolved.subscription.fetch(:provider)} " \
+              "available=#{first_date}..#{last_date} requested=#{strategy.start_date}..#{strategy.end_date}"
       end
 
       def build_bars(current_time, candle_series_map)

@@ -26,7 +26,6 @@ class SyntheticSpxwOneDtePutSpreadExample < QuantRb::Strategy
       "SPX",
       "SPXW",
       resolution: RESOLUTION,
-      synthetic: true,
       pricing_model: :black_scholes,
       iv: "VIX"
     ) { |expiry| expiry == (time.to_date + 1) }

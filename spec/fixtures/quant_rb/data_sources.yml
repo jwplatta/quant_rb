@@ -12,6 +12,14 @@ indices:
 option_chains:
   SPXW:
     underlying: SPX
-    provider: schwab
-    default_mode: sampled_validated
-    default_pricing_model: black_scholes
+    mode: synthetic
+    pricing_model: black_scholes
+    iv_proxy: VIX
+    datasets:
+      massive_samples:
+        provider: massive
+        mode: sampled_interpolated
+        pricing_model: black_scholes
+      schwab_samples:
+        provider: schwab
+        mode: sampled_validated

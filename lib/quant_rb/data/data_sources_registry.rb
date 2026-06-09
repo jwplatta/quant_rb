@@ -7,12 +7,21 @@ module QuantRb
   module Data
     class DataSourcesRegistry
       UnderlyingConfig = Struct.new(:symbol, :provider, :kind, keyword_init: true)
-      OptionChainDefaults = Struct.new(
+      OptionChainEntry = Struct.new(
         :option_root,
         :underlying,
+        :mode,
+        :pricing_model,
+        :iv_map,
+        :datasets,
+        keyword_init: true
+      )
+      OptionChainDataset = Struct.new(
+        :name,
         :provider,
-        :default_mode,
-        :default_pricing_model,
+        :mode,
+        :pricing_model,
+        :iv_map,
         keyword_init: true
       )
       ResolvedOptionChain = Struct.new(:subscription, :config, keyword_init: true)
@@ -78,29 +87,46 @@ module QuantRb
 
         def resolve_option_chain(subscription)
           option_root = subscription.fetch(:option_root).to_s.upcase
-          defaults = option_chains[option_root]
-          raise QuantRb::Error, "No configured option chain data source for #{option_root} in #{path}" unless defaults
+          entry = option_chains[option_root]
+          raise QuantRb::Error, "No configured option chain data source for #{option_root} in #{path}" unless entry
 
           requested_underlying = subscription.fetch(:underlying).to_s.upcase
-          if requested_underlying != defaults.underlying
+          if requested_underlying != entry.underlying
             raise QuantRb::Error,
-                  "Configured underlying for #{option_root} is #{defaults.underlying}, got #{requested_underlying}"
+                  "Configured underlying for #{option_root} is #{entry.underlying}, got #{requested_underlying}"
           end
 
           underlying_entry = indices[requested_underlying] || securities[requested_underlying]
           raise QuantRb::Error, "No configured underlying data source for #{requested_underlying} in #{path}" unless underlying_entry
 
+          dataset_name = subscription[:dataset]&.to_s
+          selected_dataset = dataset_name && entry.datasets.fetch(dataset_name, nil)
+          if dataset_name && selected_dataset.nil?
+            raise QuantRb::Error, "No configured dataset #{dataset_name.inspect} for option chain #{option_root} in #{path}"
+          end
+
           requested_mode = subscription[:chain_mode]
           requested_pricing_model = subscription[:pricing_model]
+          resolved_mode = requested_mode || selected_dataset&.mode || entry.mode || :synthetic
+          resolved_pricing_model = requested_pricing_model || selected_dataset&.pricing_model || entry.pricing_model || :black_scholes
+          resolved_iv_map = subscription[:iv_map] || selected_dataset&.iv_map || entry.iv_map
+          resolved_provider =
+            if selected_dataset
+              selected_dataset.provider
+            elsif resolved_mode == :synthetic
+              underlying_entry.provider
+            else
+              raise QuantRb::Error, "Option chain #{option_root} requires a dataset for mode #{resolved_mode}"
+            end
           config = QuantRb::Data::OptionChainConfig.new(
             underlying: requested_underlying,
             option_root: option_root,
             resolution: subscription.fetch(:resolution),
-            provider: defaults.provider,
+            provider: resolved_provider,
             underlying_provider: underlying_entry.provider,
-            chain_mode: requested_mode || defaults.default_mode || :sampled_validated,
-            pricing_model: requested_pricing_model || defaults.default_pricing_model || :black_scholes,
-            iv_map: subscription[:iv_map],
+            chain_mode: resolved_mode,
+            pricing_model: resolved_pricing_model,
+            iv_map: resolved_iv_map,
             validation: subscription[:validation],
             strike_grid: subscription[:strike_grid] || {},
             raw_options: subscription[:raw_options] || {},
@@ -111,7 +137,7 @@ module QuantRb
             subscription: subscription.merge(
               underlying: requested_underlying,
               option_root: option_root,
-              provider: defaults.provider,
+              provider: resolved_provider,
               underlying_provider: underlying_entry.provider
             ),
             config:
@@ -139,19 +165,53 @@ module QuantRb
         mapping.each_with_object({}) do |(option_root, attrs), result|
           raise QuantRb::Error, "option chain #{option_root} config must be a mapping" unless attrs.is_a?(Hash)
 
-          provider = attrs.fetch("provider").to_s
-          validate_provider!(provider, tickrake_config:)
           underlying = attrs.fetch("underlying").to_s.upcase
           raise QuantRb::Error, "option chain #{option_root} references unknown underlying #{underlying}" unless underlyings.key?(underlying)
 
-          result[option_root.to_s.upcase] = OptionChainDefaults.new(
+          result[option_root.to_s.upcase] = OptionChainEntry.new(
             option_root: option_root.to_s.upcase,
             underlying:,
-            provider:,
-            default_mode: normalize_mode(attrs["default_mode"]),
-            default_pricing_model: normalize_pricing_model(attrs["default_pricing_model"])
+            mode: normalize_mode(attrs["mode"]),
+            pricing_model: normalize_pricing_model(attrs["pricing_model"]),
+            iv_map: attrs["iv_map"] || attrs["iv_proxy"],
+            datasets: load_option_chain_datasets(
+              attrs.fetch("datasets", {}),
+              tickrake_config:
+            )
           )
         end
+      end
+
+      def load_option_chain_datasets(raw_datasets, tickrake_config:)
+        case raw_datasets
+        when Hash
+          raw_datasets.each_with_object({}) do |(name, attrs), result|
+            result[name.to_s] = build_option_chain_dataset(name, attrs, tickrake_config:)
+          end
+        when Array
+          raw_datasets.each_with_object({}) do |attrs, result|
+            raise QuantRb::Error, "option chain dataset entries must be mappings" unless attrs.is_a?(Hash)
+
+            name = attrs.fetch("name")
+            result[name.to_s] = build_option_chain_dataset(name, attrs, tickrake_config:)
+          end
+        else
+          raise QuantRb::Error, "option chain datasets must be a mapping or array"
+        end
+      end
+
+      def build_option_chain_dataset(name, attrs, tickrake_config:)
+        raise QuantRb::Error, "option chain dataset #{name} config must be a mapping" unless attrs.is_a?(Hash)
+
+        provider = attrs.fetch("provider").to_s
+        validate_provider!(provider, tickrake_config:)
+        OptionChainDataset.new(
+          name: name.to_s,
+          provider:,
+          mode: normalize_mode(attrs["mode"]),
+          pricing_model: normalize_pricing_model(attrs["pricing_model"]),
+          iv_map: attrs["iv_map"] || attrs["iv_proxy"]
+        )
       end
 
       def validate_provider!(provider, tickrake_config:)

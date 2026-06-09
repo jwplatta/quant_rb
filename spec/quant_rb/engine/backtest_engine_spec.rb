@@ -275,7 +275,7 @@ RSpec.describe QuantRb::Engine::BacktestEngine do
         set_end_date(2024, 1, 2)
         set_cash(10_000)
         @spx = add_index("SPX", resolution: :minute)
-        @spxw = add_option_chain("SPX", "SPXW", resolution: :minute, interpolate: true)
+        @spxw = add_option_chain("SPX", "SPXW", resolution: :minute, dataset: "massive_samples")
       end
 
       def on_data(_slice); end
@@ -304,7 +304,7 @@ RSpec.describe QuantRb::Engine::BacktestEngine do
         set_end_date(2025, 12, 18)
         set_cash(10_000)
         @spx = add_index("SPX", resolution: :minute)
-        @spxw = add_option_chain("SPX", "SPXW", resolution: :minute)
+        @spxw = add_option_chain("SPX", "SPXW", resolution: :minute, dataset: "schwab_samples")
         @selected_symbols = []
         @submitted_limit = nil
         @submitted = false
