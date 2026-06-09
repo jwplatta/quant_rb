@@ -8,8 +8,6 @@ module QuantRb
     #   time_rules.at(15, 0)          # exactly 3:00 PM
     #   time_rules.every(minutes: 5)  # every 5 minutes
     #
-    # TODO (Phase 3): Add market_open / market_close offset rules.
-    #
     class TimeRules
       DEFAULT_MARKET_OPEN = [9, 30].freeze
       DEFAULT_MARKET_CLOSE = [16, 0].freeze

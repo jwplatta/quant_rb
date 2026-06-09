@@ -6,7 +6,7 @@ module QuantRb
       Public option-chain source interface for backtests.
 
       In Stage 1 this class is intentionally load-bearing: it is the main orchestration layer
-      behind `add_index_option(...)` after strategy subscription config has been normalized.
+      behind `add_option_chain(...)` after strategy subscription config has been normalized.
 
       Responsibilities:
       - dispatch between synthetic, sampled-interpolated, and sampled-validated chain modes

@@ -8,13 +8,14 @@ The format is based on Keep a Changelog, and this project follows Semantic Versi
 
 ### Added
 
-- unified option-chain subscription pipeline behind `add_index_option`, with canonical synthetic, sampled-interpolated, and sampled-validated modes
+- unified option-chain subscription pipeline behind `add_option_chain`, with canonical synthetic, sampled-interpolated, and sampled-validated modes
 - Tickrake-backed option-chain acquisition adapter and shared option-chain source contract for backtests
 - shared pricing utilities for Black-Scholes, CRR/binomial pricing, and implied-volatility solving
 - shared option-chain validation and repair for intrinsic floors, strike monotonicity, and bid/ask consistency
 
 ### Changed
 
+- simplified the strategy DSL by replacing `add_equity`/`add_index` with `add_security` and renaming `add_index_option` to `add_option_chain`
 - synthetic option-chain generation now uses the shared pricing and validation pipeline
 - backtest data-source resolution now supports provider-backed candle and option-chain subscriptions through strategy config
 

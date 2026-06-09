@@ -32,8 +32,8 @@ RSpec.describe QuantRb::Engine::StrategyBase do
         set_start_date(2024, 1, 1)
         set_end_date(2024, 12, 31)
         set_cash(125_000)
-        @spy = add_equity("SPY", resolution: :minute)
-        @spxw = add_index_option("SPX", "SPXW", resolution: :minute)
+        @spy = add_security("SPY", resolution: :minute)
+        @spxw = add_option_chain("SPX", "SPXW", resolution: :minute)
       end
     end
   end
@@ -52,7 +52,8 @@ RSpec.describe QuantRb::Engine::StrategyBase do
     expect(strategy.spy).to eq(:SPY)
     expect(strategy.spxw).to eq(:SPXW_options)
     expect(strategy.initial_cash).to eq(125_000)
-    expect(strategy.subscribed_option_chain_symbols[:SPXW_options][:config].chain_mode).to eq(:sampled_validated)
+    expect(strategy.subscribed_option_chains[:SPXW_options][:config].chain_mode).to eq(:sampled_validated)
+    expect(strategy.subscribed_securities[:SPY]).to eq(symbol: "SPY", resolution: :minute, provider: nil)
   end
 
   it "normalizes synthetic and interpolated option-chain modes into canonical config" do
@@ -60,8 +61,8 @@ RSpec.describe QuantRb::Engine::StrategyBase do
       attr_reader :synthetic_key, :interpolated_key
 
       def initialize
-        @synthetic_key = add_index_option("SPX", "SPXW_SYN", provider: "test", synthetic: true, iv: { "0DTE" => "VIX1D", "9DTE" => "VIX9D", "30DTE" => "VIX" })
-        @interpolated_key = add_index_option("SPX", "SPXW_INT", provider: "test", interpolate: true)
+        @synthetic_key = add_option_chain("SPX", "SPXW_SYN", provider: "test", synthetic: true, iv: { "0DTE" => "VIX1D", "9DTE" => "VIX9D", "30DTE" => "VIX" })
+        @interpolated_key = add_option_chain("SPX", "SPXW_INT", provider: "test", interpolate: true)
       end
     end
 
@@ -72,7 +73,7 @@ RSpec.describe QuantRb::Engine::StrategyBase do
       broker: broker
     )
 
-    subscriptions = strategy.subscribed_option_chain_symbols
+    subscriptions = strategy.subscribed_option_chains
     expect(subscriptions[strategy.synthetic_key][:config].chain_mode).to eq(:synthetic)
     expect(subscriptions[strategy.interpolated_key][:config].chain_mode).to eq(:sampled_interpolated)
   end
@@ -82,7 +83,7 @@ RSpec.describe QuantRb::Engine::StrategyBase do
       attr_reader :interpolated_key
 
       def initialize
-        @interpolated_key = add_index_option(
+        @interpolated_key = add_option_chain(
           "SPX",
           "SPXW_INT",
           provider: "massive",
@@ -99,7 +100,7 @@ RSpec.describe QuantRb::Engine::StrategyBase do
       broker: broker
     )
 
-    config = strategy.subscribed_option_chain_symbols[strategy.interpolated_key][:config]
+    config = strategy.subscribed_option_chains[strategy.interpolated_key][:config]
     expect(config.raw_options[:underlying_provider]).to eq("ibkr-paper")
   end
 
@@ -109,7 +110,7 @@ RSpec.describe QuantRb::Engine::StrategyBase do
 
       def initialize
         set_market_timezone("America/Chicago")
-        @option_key = add_index_option("SPX", "SPXW", provider: "schwab")
+        @option_key = add_option_chain("SPX", "SPXW", provider: "schwab")
       end
     end
 
@@ -120,7 +121,7 @@ RSpec.describe QuantRb::Engine::StrategyBase do
       broker: broker
     )
 
-    config = strategy.subscribed_option_chain_symbols[strategy.option_key][:config]
+    config = strategy.subscribed_option_chains[strategy.option_key][:config]
     expect(strategy.market_timezone).to eq("America/Chicago")
     expect(config.market_timezone).to eq("America/Chicago")
   end

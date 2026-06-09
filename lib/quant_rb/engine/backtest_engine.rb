@@ -47,13 +47,13 @@ module QuantRb
         strategy.send(:set_portfolio, portfolio)
 
         # Register subscriptions with securities registry
-        strategy.subscribed_candle_symbols.each do |key, sub|
+        strategy.subscribed_securities.each do |key, sub|
           securities.register(key, sub)
         end
 
         candle_series_map = resolve_candle_series_map(strategy)
         option_chain_indexes = resolve_option_chain_index_map(strategy)
-        primary_key = strategy.subscribed_candle_symbols.keys.first
+        primary_key = strategy.subscribed_securities.keys.first
         raise ArgumentError, "BacktestEngine requires at least one candle subscription" unless primary_key
 
         primary_series = candle_series_map.fetch(primary_key)
@@ -113,14 +113,14 @@ module QuantRb
       private
 
       def resolve_candle_series_map(strategy)
-        subscriptions = strategy.subscribed_candle_symbols
+        subscriptions = strategy.subscribed_securities
         raise ArgumentError, "BacktestEngine requires at least one candle subscription" if subscriptions.empty?
 
         explicit_series_map(@candle_series, subscriptions.keys) || load_candle_series_map(strategy)
       end
 
       def resolve_option_chain_index_map(strategy)
-        subscriptions = strategy.subscribed_option_chain_symbols
+        subscriptions = strategy.subscribed_option_chains
         return {} if subscriptions.empty?
 
         explicit_series_map(@options_chain_index, subscriptions.keys) || load_option_chain_index_map(strategy)
@@ -135,7 +135,7 @@ module QuantRb
       end
 
       def load_candle_series_map(strategy)
-        strategy.subscribed_candle_symbols.each_with_object({}) do |(key, subscription), result|
+        strategy.subscribed_securities.each_with_object({}) do |(key, subscription), result|
           result[key] =
             if subscription[:provider]
               QuantRb::Data::Adapters::TickrakeAdapter.new.load_candle_series(
@@ -159,7 +159,7 @@ module QuantRb
       end
 
       def load_option_chain_index_map(strategy)
-        strategy.subscribed_option_chain_symbols.each_with_object({}) do |(key, subscription), result|
+        strategy.subscribed_option_chains.each_with_object({}) do |(key, subscription), result|
           source = QuantRb::Data::OptionChainSource.build(
             config: subscription.fetch(:config),
             start_date: strategy.start_date,
@@ -178,7 +178,7 @@ module QuantRb
       end
 
       def build_option_chains(current_time, strategy, option_chain_indexes)
-        strategy.subscribed_option_chain_symbols.each_with_object({}) do |(key, subscription), chains|
+        strategy.subscribed_option_chains.each_with_object({}) do |(key, subscription), chains|
           index = option_chain_indexes[key]
           next unless index
 

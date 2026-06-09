@@ -11,7 +11,7 @@ module QuantRb
     #       set_start_date(2024, 1, 1)
     #       set_end_date(2024, 12, 31)
     #       set_cash(100_000)
-    #       @spy = add_equity("SPY", resolution: :minute)
+    #       @spy = add_security("SPY", resolution: :minute)
     #       schedule.on(date_rules.every_day(@spy), time_rules.at(15, 0), method(:check_entry))
     #     end
     #
@@ -34,12 +34,6 @@ module QuantRb
       # Injected by the engine before initialize is called
       attr_reader :time, :portfolio, :securities, :schedule, :broker
 
-      # TODO (Phase 3): Implement full engine wiring
-      # - set_start_date / set_end_date / set_cash store config for BacktestEngine
-      # - add_equity / add_index / add_index_option register subscriptions
-      # - schedule exposes Scheduler instance
-      # - combo_limit_order / market_order delegate to b
-
       # ── Configuration helpers (called inside user's initialize) ───────────
 
       def set_start_date(year, month, day)
@@ -60,23 +54,16 @@ module QuantRb
 
       # ── Symbol subscriptions ──────────────────────────────────────────────
 
-      # Register an equity symbol. Returns a symbol key used to access data in slices.
-      def add_equity(symbol, resolution: :minute, provider: nil)
+      # Register a security symbol. Returns a symbol key used to access data in slices.
+      def add_security(symbol, resolution: :minute, provider: nil)
         key = symbol.to_sym
-        subscriptions[:candles][key] = { symbol: symbol, resolution: resolution, type: :equity, provider: provider }
-        key
-      end
-
-      # Register an index symbol.
-      def add_index(symbol, resolution: :minute, provider: nil)
-        key = symbol.to_sym
-        subscriptions[:candles][key] = { symbol: symbol, resolution: resolution, type: :index, provider: provider }
+        subscriptions[:securities][key] = { symbol: symbol, resolution: resolution, provider: provider }
         key
       end
 
       # Register an options chain subscription for an underlying.
       # Optionally pass a block to configure expiry/strike filters.
-      def add_index_option(underlying, option_root, resolution: :minute, provider: nil, synthetic: false, interpolate: false, pricing_model: :black_scholes, iv: nil, validation: :repair, strike_grid: {}, **kwargs, &filter)
+      def add_option_chain(underlying, option_root, resolution: :minute, provider: nil, synthetic: false, interpolate: false, pricing_model: :black_scholes, iv: nil, validation: :repair, strike_grid: {}, **kwargs, &filter)
         key = :"#{option_root}_options"
         raw_options = kwargs.delete(:raw_options) || {}
         chain_mode =
@@ -195,22 +182,22 @@ module QuantRb
         @market_timezone || QuantRb.config.market_timezone
       end
 
-      def subscribed_candle_symbols
-        subscriptions[:candles]
+      def subscribed_securities
+        subscriptions[:securities]
       end
 
-      def subscribed_option_chain_symbols
+      def subscribed_option_chains
         subscriptions[:option_chains]
       end
 
       def subscribed_symbols
-        subscriptions[:candles].keys + subscriptions[:option_chains].keys
+        subscriptions[:securities].keys + subscriptions[:option_chains].keys
       end
 
       private
 
       def subscriptions
-        @subscriptions ||= { candles: {}, option_chains: {} }
+        @subscriptions ||= { securities: {}, option_chains: {} }
       end
 
       def logger
