@@ -47,13 +47,14 @@ module QuantRb
         strategy.send(:set_portfolio, portfolio)
 
         # Register subscriptions with securities registry
-        strategy.subscribed_securities.each do |key, sub|
+        strategy.subscribed_underlyings.each do |key, sub|
           securities.register(key, sub)
         end
 
-        candle_series_map = resolve_candle_series_map(strategy)
-        option_chain_indexes = resolve_option_chain_index_map(strategy)
-        primary_key = strategy.subscribed_securities.keys.first
+        registry = resolve_registry
+        candle_series_map = resolve_candle_series_map(strategy, registry)
+        option_chain_indexes = resolve_option_chain_index_map(strategy, registry)
+        primary_key = strategy.subscribed_underlyings.keys.first
         raise ArgumentError, "BacktestEngine requires at least one candle subscription" unless primary_key
 
         primary_series = candle_series_map.fetch(primary_key)
@@ -112,18 +113,24 @@ module QuantRb
 
       private
 
-      def resolve_candle_series_map(strategy)
-        subscriptions = strategy.subscribed_securities
-        raise ArgumentError, "BacktestEngine requires at least one candle subscription" if subscriptions.empty?
+      def resolve_registry
+        return nil if @candle_series && @options_chain_index
 
-        explicit_series_map(@candle_series, subscriptions.keys) || load_candle_series_map(strategy)
+        QuantRb::Data::DataSourcesRegistry.load
       end
 
-      def resolve_option_chain_index_map(strategy)
+      def resolve_candle_series_map(strategy, registry)
+        subscriptions = strategy.subscribed_underlyings
+        raise ArgumentError, "BacktestEngine requires at least one candle subscription" if subscriptions.empty?
+
+        explicit_series_map(@candle_series, subscriptions.keys) || load_candle_series_map(strategy, registry)
+      end
+
+      def resolve_option_chain_index_map(strategy, registry)
         subscriptions = strategy.subscribed_option_chains
         return {} if subscriptions.empty?
 
-        explicit_series_map(@options_chain_index, subscriptions.keys) || load_option_chain_index_map(strategy)
+        explicit_series_map(@options_chain_index, subscriptions.keys) || load_option_chain_index_map(strategy, registry)
       end
 
       def explicit_series_map(explicit_value, keys)
@@ -134,40 +141,68 @@ module QuantRb
         raise ArgumentError, "Multiple subscriptions require a hash of injected data sources"
       end
 
-      def load_candle_series_map(strategy)
-        strategy.subscribed_securities.each_with_object({}) do |(key, subscription), result|
-          result[key] =
-            if subscription[:provider]
-              QuantRb::Data::Adapters::TickrakeAdapter.new.load_candle_series(
-                provider: subscription.fetch(:provider),
-                ticker: subscription.fetch(:symbol),
-                resolution: subscription.fetch(:resolution, :minute),
-                start_date: strategy.start_date,
-                end_date: strategy.end_date,
-                timezone: strategy.market_timezone
-              )
-            else
-              QuantRb::Data::Series::CandleLoader.load(
-                symbol: subscription.fetch(:symbol),
-                resolution: subscription.fetch(:resolution, :minute),
-                data_path: QuantRb::Data::DataSource.history_path,
-                start_date: strategy.start_date,
-                end_date: strategy.end_date
-              )
-            end
+      def load_candle_series_map(strategy, registry)
+        adapter = build_tickrake_adapter(registry)
+
+        strategy.subscribed_underlyings.each_with_object({}) do |(key, subscription), result|
+          resolved = registry.resolve_underlying(subscription)
+          series = adapter.load_candle_series(
+            provider: resolved.fetch(:provider),
+            ticker: resolved.fetch(:symbol),
+            resolution: resolved.fetch(:resolution, :minute),
+            start_date: strategy.start_date,
+            end_date: strategy.end_date,
+            timezone: strategy.market_timezone
+          )
+          raise QuantRb::Error, "No candle data for #{resolved.fetch(:symbol)} via provider #{resolved.fetch(:provider)} for #{strategy.start_date}..#{strategy.end_date}" if series.to_a.empty?
+
+          result[key] = series
         end
       end
 
-      def load_option_chain_index_map(strategy)
+      def load_option_chain_index_map(strategy, registry)
+        adapter = build_tickrake_adapter(registry)
+
         strategy.subscribed_option_chains.each_with_object({}) do |(key, subscription), result|
+          resolved = registry.resolve_option_chain(subscription)
           source = QuantRb::Data::OptionChainSource.build(
-            config: subscription.fetch(:config),
+            config: resolved.config,
             start_date: strategy.start_date,
-            end_date: strategy.end_date
+            end_date: strategy.end_date,
+            adapter: adapter
           )
           source.preload! if source.respond_to?(:preload!)
+          validate_option_chain_coverage!(source, resolved:, strategy:)
           result[key] = source
         end
+      end
+
+      def build_tickrake_adapter(registry)
+        QuantRb::Data::Adapters::TickrakeAdapter.new(config_path: registry.tickrake_config_path)
+      end
+
+      def validate_option_chain_coverage!(source, resolved:, strategy:)
+        return if resolved.config.synthetic?
+        return unless source.respond_to?(:available_dates)
+
+        available_dates = source.available_dates
+        if available_dates.empty?
+          raise QuantRb::Error,
+                "No option chain data for #{resolved.subscription.fetch(:option_root)} " \
+                "dataset=#{resolved.subscription[:dataset] || 'default'} " \
+                "provider=#{resolved.subscription.fetch(:provider)} " \
+                "for #{strategy.start_date}..#{strategy.end_date}"
+        end
+
+        first_date = available_dates.min
+        last_date = available_dates.max
+        return if first_date <= strategy.start_date && last_date >= strategy.end_date
+
+        raise QuantRb::Error,
+              "Incomplete option chain coverage for #{resolved.subscription.fetch(:option_root)} " \
+              "dataset=#{resolved.subscription[:dataset] || 'default'} " \
+              "provider=#{resolved.subscription.fetch(:provider)} " \
+              "available=#{first_date}..#{last_date} requested=#{strategy.start_date}..#{strategy.end_date}"
       end
 
       def build_bars(current_time, candle_series_map)

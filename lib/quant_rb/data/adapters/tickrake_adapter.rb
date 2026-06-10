@@ -6,8 +6,8 @@ module QuantRb
   module Data
     module Adapters
       class TickrakeAdapter
-        def initialize(loader: nil)
-          @loader = loader || build_loader
+        def initialize(loader: nil, config_path: nil)
+          @loader = loader || build_loader(config_path:)
         end
 
         def load_candle_series(provider:, ticker:, resolution:, start_date:, end_date:, timezone: nil)
@@ -49,8 +49,10 @@ module QuantRb
 
         private
 
-        def build_loader
-          Tickrake::DataLoader.new
+        def build_loader(config_path: nil)
+          return Tickrake::DataLoader.new if config_path.nil?
+
+          Tickrake::DataLoader.new(config_path: config_path)
         end
 
         def normalize_frequency(resolution)

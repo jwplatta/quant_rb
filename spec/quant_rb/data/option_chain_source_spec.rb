@@ -93,12 +93,12 @@ RSpec.describe QuantRb::Data::OptionChainSource do
       option_root: "SPXW",
       resolution: :minute,
       provider: "test",
+      underlying_provider: "test",
       chain_mode: :sampled_interpolated,
       pricing_model: :black_scholes,
       iv_map: nil,
       validation: :repair,
-      strike_grid: { step: 5.0, range_ratio: 0.01 },
-      raw_options: { underlying_provider: "test" }
+      strike_grid: { step: 5.0, range_ratio: 0.01 }
     )
     rows = [
       { "symbol" => "P1", "contract_type" => "PUT", "strike" => 5100.0, "open" => 14.0, "high" => 16.0, "low" => 13.0, "close" => 15.0, "underlying_price" => nil, "expiration_date" => Date.new(2026, 4, 10), "metadata" => { "sampled_at" => Time.parse("2026-04-09T15:00:00Z"), "expiration_date" => Date.new(2026, 4, 10) } }

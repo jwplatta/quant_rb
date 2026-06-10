@@ -27,5 +27,9 @@ module OptionsTrader
         raise "Unsupported order instruction: #{order_instruction}"
       end
     end
+
+    def add_index(symbol, resolution: :minute)
+      { symbol: symbol, resolution: resolution, kind: :index }
+    end
   end
 end

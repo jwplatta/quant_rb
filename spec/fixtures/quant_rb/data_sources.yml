@@ -1,0 +1,25 @@
+tickrake:
+  config_path: spec/fixtures/quant_rb/tickrake.yml
+
+securities:
+  SPY:
+    provider: schwab
+
+indices:
+  SPX:
+    provider: schwab
+
+option_chains:
+  SPXW:
+    underlying: SPX
+    mode: synthetic
+    pricing_model: black_scholes
+    iv_proxy: VIX
+    datasets:
+      massive_samples:
+        provider: massive
+        mode: sampled_interpolated
+        pricing_model: black_scholes
+      schwab_samples:
+        provider: schwab
+        mode: sampled_validated

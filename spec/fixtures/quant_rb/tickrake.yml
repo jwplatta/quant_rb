@@ -1,0 +1,26 @@
+default_provider: schwab
+providers:
+  schwab:
+    adapter: schwab
+  ibkr-paper:
+    adapter: ibkr
+  massive:
+    adapter: massive
+  test:
+    adapter: schwab
+
+storage:
+  data_dir: spec/fixtures/quant_rb
+  history_dir: spec/fixtures/quant_rb/history
+  options_dir: spec/fixtures/quant_rb/options
+
+schedule:
+  manual_candles:
+    type: candles
+    manual: true
+    lookback_days: 1
+    universe:
+      - symbol: SPY
+        frequencies:
+          - 1min
+        start_date: "2024-01-01"

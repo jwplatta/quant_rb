@@ -52,8 +52,8 @@ RSpec.describe QuantRb::Engine::StrategyBase do
     expect(strategy.spy).to eq(:SPY)
     expect(strategy.spxw).to eq(:SPXW_options)
     expect(strategy.initial_cash).to eq(125_000)
-    expect(strategy.subscribed_option_chains[:SPXW_options][:config].chain_mode).to eq(:sampled_validated)
-    expect(strategy.subscribed_securities[:SPY]).to eq(symbol: "SPY", resolution: :minute, provider: nil)
+    expect(strategy.subscribed_option_chains[:SPXW_options][:chain_mode]).to be_nil
+    expect(strategy.subscribed_securities[:SPY]).to eq(symbol: "SPY", resolution: :minute, kind: :security)
   end
 
   it "normalizes synthetic and interpolated option-chain modes into canonical config" do
@@ -61,8 +61,8 @@ RSpec.describe QuantRb::Engine::StrategyBase do
       attr_reader :synthetic_key, :interpolated_key
 
       def initialize
-        @synthetic_key = add_option_chain("SPX", "SPXW_SYN", provider: "test", synthetic: true, iv: { "0DTE" => "VIX1D", "9DTE" => "VIX9D", "30DTE" => "VIX" })
-        @interpolated_key = add_option_chain("SPX", "SPXW_INT", provider: "test", interpolate: true)
+        @synthetic_key = add_option_chain("SPX", "SPXW_SYN", synthetic: true, iv: { "0DTE" => "VIX1D", "9DTE" => "VIX9D", "30DTE" => "VIX" })
+        @interpolated_key = add_option_chain("SPX", "SPXW_INT", interpolate: true)
       end
     end
 
@@ -74,8 +74,8 @@ RSpec.describe QuantRb::Engine::StrategyBase do
     )
 
     subscriptions = strategy.subscribed_option_chains
-    expect(subscriptions[strategy.synthetic_key][:config].chain_mode).to eq(:synthetic)
-    expect(subscriptions[strategy.interpolated_key][:config].chain_mode).to eq(:sampled_interpolated)
+    expect(subscriptions[strategy.synthetic_key][:chain_mode]).to eq(:synthetic)
+    expect(subscriptions[strategy.interpolated_key][:chain_mode]).to eq(:sampled_interpolated)
   end
 
   it "preserves explicit raw option config for interpolated chains" do
@@ -86,9 +86,9 @@ RSpec.describe QuantRb::Engine::StrategyBase do
         @interpolated_key = add_option_chain(
           "SPX",
           "SPXW_INT",
-          provider: "massive",
+          dataset: "massive_samples",
           interpolate: true,
-          raw_options: { underlying_provider: "ibkr-paper" }
+          raw_options: { bucket_selector: :first }
         )
       end
     end
@@ -100,8 +100,9 @@ RSpec.describe QuantRb::Engine::StrategyBase do
       broker: broker
     )
 
-    config = strategy.subscribed_option_chains[strategy.interpolated_key][:config]
-    expect(config.raw_options[:underlying_provider]).to eq("ibkr-paper")
+    subscription = strategy.subscribed_option_chains[strategy.interpolated_key]
+    expect(subscription[:dataset]).to eq("massive_samples")
+    expect(subscription[:raw_options][:bucket_selector]).to eq(:first)
   end
 
   it "propagates the strategy market timezone into option chain subscriptions" do
@@ -110,7 +111,7 @@ RSpec.describe QuantRb::Engine::StrategyBase do
 
       def initialize
         set_market_timezone("America/Chicago")
-        @option_key = add_option_chain("SPX", "SPXW", provider: "schwab")
+        @option_key = add_option_chain("SPX", "SPXW")
       end
     end
 
@@ -121,9 +122,28 @@ RSpec.describe QuantRb::Engine::StrategyBase do
       broker: broker
     )
 
-    config = strategy.subscribed_option_chains[strategy.option_key][:config]
     expect(strategy.market_timezone).to eq("America/Chicago")
-    expect(config.market_timezone).to eq("America/Chicago")
+    expect(strategy.subscribed_option_chains[strategy.option_key][:market_timezone]).to eq("America/Chicago")
+  end
+
+  it "registers indices separately from tradable securities" do
+    strategy_class = Class.new(described_class) do
+      attr_reader :spx
+
+      def initialize
+        @spx = add_index("SPX", resolution: :"5min")
+      end
+    end
+
+    strategy = strategy_class.build_for_engine(
+      portfolio: portfolio,
+      schedule: schedule,
+      securities: securities,
+      broker: broker
+    )
+
+    expect(strategy.subscribed_indices[:SPX]).to eq(symbol: "SPX", resolution: :"5min", kind: :index)
+    expect(strategy.subscribed_underlyings[:SPX][:kind]).to eq(:index)
   end
 
   it "exposes market_date from the localized runtime timestamp" do
@@ -154,6 +174,23 @@ RSpec.describe QuantRb::Engine::StrategyBase do
     end.and_return(QuantRb::Engine::OrderTicket.new(order_id: "2", status: :submitted))
 
     strategy.combo_limit_order([{ symbol: "LEG1", quantity: 1 }, { symbol: "LEG2", quantity: -1 }], 1, -1.25)
+  end
+
+  it "rejects direct index share orders" do
+    strategy_class = Class.new(described_class) do
+      def initialize
+        add_index("SPX")
+      end
+    end
+
+    strategy = strategy_class.build_for_engine(
+      portfolio: portfolio,
+      schedule: schedule,
+      securities: securities,
+      broker: broker
+    )
+
+    expect { strategy.market_order(:SPX, 1) }.to raise_error(ArgumentError, /cannot be traded/)
   end
 
   it "routes strategy log levels through the shared quant_rb logger" do

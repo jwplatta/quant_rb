@@ -8,6 +8,10 @@ SPEC_ROOT = Pathname(__dir__).expand_path
 FIXTURES_ROOT = SPEC_ROOT.join("fixtures")
 QUANT_RB_FIXTURES_ROOT = FIXTURES_ROOT.join("quant_rb")
 
+QuantRb.configure do |config|
+  config.data_sources_config_path = QUANT_RB_FIXTURES_ROOT.join("data_sources.yml").to_s
+end
+
 RSpec.configure do |config|
   config.expect_with :rspec do |expectations|
     expectations.include_chain_clauses_in_custom_matcher_descriptions = true

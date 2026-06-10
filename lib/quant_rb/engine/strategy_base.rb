@@ -51,16 +51,27 @@ module QuantRb
         @market_timezone = timezone_name
       end
 
-      # Register a security symbol. Returns a symbol key used to access data in slices.
-      def add_security(symbol, resolution: :minute, provider: nil)
+      # Register a tradable security symbol. Returns a symbol key used to access data in slices.
+      def add_security(symbol, resolution: :minute)
         key = symbol.to_sym
-        subscriptions[:securities][key] = { symbol: symbol, resolution: resolution, provider: provider }
+        subscriptions[:securities][key] = { symbol: symbol, resolution: resolution, kind: :security }
+        key
+      end
+
+      def add_equity(symbol, resolution: :minute)
+        add_security(symbol, resolution:)
+      end
+
+      # Register a non-tradable index symbol used as an observable underlying.
+      def add_index(symbol, resolution: :minute)
+        key = symbol.to_sym
+        subscriptions[:indices][key] = { symbol: symbol, resolution: resolution, kind: :index }
         key
       end
 
       # Register an options chain subscription for an underlying.
       # Optionally pass a block to configure expiry/strike filters.
-      def add_option_chain(underlying, option_root, resolution: :minute, provider: nil, synthetic: false, interpolate: false, pricing_model: :black_scholes, iv: nil, validation: :repair, strike_grid: {}, **kwargs, &filter)
+      def add_option_chain(underlying, option_root, resolution: :minute, dataset: nil, synthetic: false, interpolate: false, pricing_model: nil, iv: nil, validation: :repair, strike_grid: {}, **kwargs, &filter)
         key = :"#{option_root}_options"
         raw_options = kwargs.delete(:raw_options) || {}
         chain_mode =
@@ -68,28 +79,20 @@ module QuantRb
             :synthetic
           elsif interpolate
             :sampled_interpolated
-          else
-            :sampled_validated
           end
         subscriptions[:option_chains][key] = {
           underlying: underlying,
           option_root: option_root,
           resolution: resolution,
-          provider: provider,
+          dataset: dataset,
           filter: filter,
-          config: QuantRb::Data::OptionChainConfig.new(
-            underlying: underlying,
-            option_root: option_root,
-            resolution: resolution,
-            provider: provider,
-            chain_mode: chain_mode,
-            pricing_model: pricing_model,
-            iv_map: iv,
-            validation: validation,
-            strike_grid: strike_grid,
-            raw_options: raw_options.merge(kwargs),
-            market_timezone: market_timezone
-          )
+          chain_mode: chain_mode,
+          pricing_model: pricing_model,
+          iv_map: iv,
+          validation: validation,
+          strike_grid: strike_grid,
+          raw_options: raw_options.merge(kwargs),
+          market_timezone: market_timezone
         }
         key
       end
@@ -128,9 +131,17 @@ module QuantRb
         broker.submit_order(order)
       end
 
-      # Place a simple market order for equities/indexes.
+      # Place a simple market order for tradable securities.
       def market_order(symbol, quantity)
         raise "No broker configured" unless broker
+
+        subscription = subscribed_underlyings[symbol.to_sym]
+        if subscription.nil?
+          raise ArgumentError, "No subscribed security for #{symbol.inspect}"
+        end
+        if subscription[:kind] == :index
+          raise ArgumentError, "#{symbol} is an index and cannot be traded with market_order"
+        end
 
         order = QuantRb::Engine::Order.new(
           legs: [{ symbol: symbol, quantity: quantity }],
@@ -180,18 +191,26 @@ module QuantRb
         subscriptions[:securities]
       end
 
+      def subscribed_indices
+        subscriptions[:indices]
+      end
+
+      def subscribed_underlyings
+        subscriptions[:securities].merge(subscriptions[:indices])
+      end
+
       def subscribed_option_chains
         subscriptions[:option_chains]
       end
 
       def subscribed_symbols
-        subscriptions[:securities].keys + subscriptions[:option_chains].keys
+        subscribed_underlyings.keys + subscriptions[:option_chains].keys
       end
 
       private
 
       def subscriptions
-        @subscriptions ||= { securities: {}, option_chains: {} }
+        @subscriptions ||= { securities: {}, indices: {}, option_chains: {} }
       end
 
       def logger

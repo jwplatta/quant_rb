@@ -91,7 +91,7 @@ module QuantRb
       def synthetic_builder
         @synthetic_builder ||= begin
           underlying_series = @adapter.load_candle_series(
-            provider: @config.provider,
+            provider: @config.underlying_provider,
             ticker: @config.underlying,
             resolution: @config.resolution,
             start_date: @start_date,
@@ -99,7 +99,7 @@ module QuantRb
             timezone: @config.market_timezone
           )
           iv_proxy_series = @adapter.load_candle_series(
-            provider: @config.provider,
+            provider: @config.underlying_provider,
             ticker: @config.iv_proxy,
             resolution: @config.resolution,
             start_date: @start_date,
@@ -529,7 +529,7 @@ module QuantRb
       end
 
       def sampled_underlying_provider
-        @config.raw_options[:underlying_provider] || @config.provider
+        @config.underlying_provider
       end
 
       def ensure_underlying_price!(underlying_price, sampled_at)
