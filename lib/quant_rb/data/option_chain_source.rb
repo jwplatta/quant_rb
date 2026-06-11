@@ -40,8 +40,8 @@ module QuantRb
         @cache = {}
         @sample_index = nil
         @sample_row_index = Hash.new { |h, k| h[k] = [] }
-        @loaded_sample_dates = Set.new
-        @sample_row_counts_by_date = {}
+        @sample_snapshot_refs_by_date = {}
+        @loaded_sample_snapshot_keys = Set.new
       end
 
       def chains_at(target_time, expiry_filter: nil)
@@ -66,8 +66,7 @@ module QuantRb
       end
 
       def sampled_chains_at(target_time, expiry_filter:)
-        ensure_sample_rows_loaded_for!(target_time)
-        return {} if @sample_row_counts_by_date.fetch(sample_date_for(target_time), 0).zero?
+        ensure_sample_rows_loaded_for!(target_time, expiry_filter:)
 
         matching_expiries = @sample_row_index.keys.select do |expiry|
           QuantRb::OptionExpiration.active?(expiry, target_time, timezone_name: @config.market_timezone) &&
@@ -111,34 +110,51 @@ module QuantRb
         end
       end
 
-      def ensure_sample_rows_loaded_for!(target_time)
+      def ensure_sample_rows_loaded_for!(target_time, expiry_filter:)
         target_date = sample_date_for(target_time)
-        return if @loaded_sample_dates.include?(target_date)
-
-        load_sample_rows_for_date!(target_date)
+        refs = snapshot_refs_for_date(target_date)
+        refs_for_target_time(refs, target_time, expiry_filter:).each do |snapshot_ref|
+          load_sample_rows_for_snapshot!(snapshot_ref)
+        end
       end
 
-      def load_sample_rows_for_date!(date)
-        QuantRb.logger.info("Loading sampled option rows provider=#{@config.provider} underlying=#{@config.underlying} option_root=#{@config.option_root} resolution=#{@config.resolution} date=#{date}")
-        rows = @adapter.load_option_chain_rows(
+      def snapshot_refs_for_date(date)
+        @sample_snapshot_refs_by_date[date] ||= @adapter.option_snapshot_refs(
           provider: @config.provider,
           ticker: @config.underlying,
           option_root: @config.option_root,
           resolution: @config.resolution,
           start_date: date,
-          end_date: date,
+          end_date: date
+        )
+      end
+
+      def refs_for_target_time(refs, target_time, expiry_filter:)
+        refs
+          .select { |ref| ref.sampled_at_utc <= target_time.getutc }
+          .select { |ref| matches_expiry_filter?(ref.expiration_date, expiry_filter) }
+          .group_by(&:expiration_date)
+          .values
+          .map { |snapshot_refs| snapshot_refs.max_by(&:sampled_at_utc) }
+      end
+
+      def load_sample_rows_for_snapshot!(snapshot_ref)
+        snapshot_key = snapshot_key_for(snapshot_ref)
+        return if @loaded_sample_snapshot_keys.include?(snapshot_key)
+
+        # QuantRb.logger.info("Loading sampled option rows provider=#{@config.provider} underlying=#{@config.underlying} option_root=#{@config.option_root} resolution=#{@config.resolution} sampled_at=#{snapshot_ref.sampled_at_utc.utc.iso8601} expiry=#{snapshot_ref.expiration_date}")
+        rows = @adapter.load_option_snapshot_rows(
+          snapshot_ref: snapshot_ref,
           timezone: @config.market_timezone
         )
-
         row_count = 0
         rows.each do |row|
           store_sample_row(row)
           row_count += 1
         end
 
-        @loaded_sample_dates << date
-        @sample_row_counts_by_date[date] = row_count
-        QuantRb.logger.info("Loaded #{row_count} sampled option rows provider=#{@config.provider} option_root=#{@config.option_root} date=#{date}")
+        @loaded_sample_snapshot_keys << snapshot_key
+        # QuantRb.logger.info("Loaded #{row_count} sampled option rows provider=#{@config.provider} option_root=#{@config.option_root} sampled_at=#{snapshot_ref.sampled_at_utc.utc.iso8601} expiry=#{snapshot_ref.expiration_date}")
       end
 
       def store_sample_row(row)
@@ -793,6 +809,10 @@ module QuantRb
 
       def sample_date_for(timestamp)
         timestamp.to_date
+      end
+
+      def snapshot_key_for(snapshot_ref)
+        [snapshot_ref.expiration_date, snapshot_ref.sampled_at_utc.to_i, snapshot_ref.file_path]
       end
 
     end
