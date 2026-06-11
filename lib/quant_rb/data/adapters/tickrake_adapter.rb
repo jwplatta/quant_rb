@@ -47,6 +47,26 @@ module QuantRb
           )
         end
 
+        def option_data_available?(provider:, ticker:, option_root:, start_date:, end_date:)
+          @loader.options_available?(
+            provider: provider,
+            ticker: ticker,
+            option_root: option_root,
+            start_date: start_date,
+            end_date: end_date
+          )
+        end
+
+        def option_data_availability(provider:, ticker:, option_root:, start_date:, end_date:)
+          @loader.options_availability(
+            provider: provider,
+            ticker: ticker,
+            option_root: option_root,
+            start_date: start_date,
+            end_date: end_date
+          )
+        end
+
         private
 
         def build_loader(config_path: nil)

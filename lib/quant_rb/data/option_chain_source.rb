@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require "set"
+
 module QuantRb
   module Data
     <<~DOC
@@ -38,9 +40,8 @@ module QuantRb
         @cache = {}
         @sample_index = nil
         @sample_row_index = Hash.new { |h, k| h[k] = [] }
-        @sample_row_enumerator = nil
-        @sample_row_exhausted = false
-        @sample_row_lookahead = nil
+        @loaded_sample_dates = Set.new
+        @sample_row_counts_by_date = {}
       end
 
       def chains_at(target_time, expiry_filter: nil)
@@ -52,17 +53,7 @@ module QuantRb
       end
 
       def preload!
-        return self if @config.synthetic?
-
-        sampled_underlying_series
         self
-      end
-
-      def available_dates
-        return (@start_date..@end_date).to_a if @config.synthetic?
-
-        consume_all_sample_rows!
-        @sample_row_index.values.flat_map { |samples| samples.map(&:first).map(&:to_date) }.uniq.sort
       end
 
       private
@@ -75,8 +66,9 @@ module QuantRb
       end
 
       def sampled_chains_at(target_time, expiry_filter:)
-        ensure_sample_row_stream!
-        consume_sample_rows_through!(target_time)
+        ensure_sample_rows_loaded_for!(target_time)
+        return {} if @sample_row_counts_by_date.fetch(sample_date_for(target_time), 0).zero?
+
         matching_expiries = @sample_row_index.keys.select do |expiry|
           QuantRb::OptionExpiration.active?(expiry, target_time, timezone_name: @config.market_timezone) &&
             matches_expiry_filter?(expiry, expiry_filter)
@@ -119,72 +111,34 @@ module QuantRb
         end
       end
 
-      def ensure_sample_row_stream!
-        return if @sample_row_enumerator || @sample_row_exhausted
+      def ensure_sample_rows_loaded_for!(target_time)
+        target_date = sample_date_for(target_time)
+        return if @loaded_sample_dates.include?(target_date)
 
-        # TODO: Amortize sampled option-row loading over the life of the backtest by chunking the
-        # stream into smaller date windows instead of opening one long-running enumerator across the
-        # full backtest range at first use.
-        QuantRb.logger.info("Loading sampled option data for backtest slices. This can take a bit before the first options-enabled bars run.")
-        QuantRb.logger.info("Loading sampled option rows provider=#{@config.provider} underlying=#{@config.underlying} option_root=#{@config.option_root} resolution=#{@config.resolution}")
-        @sample_row_enumerator = @adapter.load_option_chain_rows(
+        load_sample_rows_for_date!(target_date)
+      end
+
+      def load_sample_rows_for_date!(date)
+        QuantRb.logger.info("Loading sampled option rows provider=#{@config.provider} underlying=#{@config.underlying} option_root=#{@config.option_root} resolution=#{@config.resolution} date=#{date}")
+        rows = @adapter.load_option_chain_rows(
           provider: @config.provider,
           ticker: @config.underlying,
           option_root: @config.option_root,
           resolution: @config.resolution,
-          start_date: @start_date,
-          end_date: @end_date,
+          start_date: date,
+          end_date: date,
           timezone: @config.market_timezone
         )
-        @sample_row_enumerator = @sample_row_enumerator.to_enum unless @sample_row_enumerator.respond_to?(:next)
-        @sample_row_count = 0
-      end
 
-      def consume_sample_rows_through!(target_time)
-        ensure_sample_row_stream!
-        return if @sample_row_exhausted
-
-        loop do
-          row = next_sample_row
-          break unless row
-
-          sampled_at = sampled_at_for(row)
-          if sampled_at > target_time
-            @sample_row_lookahead = row
-            break
-          end
-
+        row_count = 0
+        rows.each do |row|
           store_sample_row(row)
-        end
-      end
-
-      def consume_all_sample_rows!
-        ensure_sample_row_stream!
-        return if @sample_row_exhausted
-
-        store_sample_row(@sample_row_lookahead) if @sample_row_lookahead
-        @sample_row_lookahead = nil
-        while (row = next_sample_row)
-          store_sample_row(row)
-        end
-        @sample_row_exhausted = true
-        log_sample_row_load_complete
-      end
-
-      def next_sample_row
-        return nil if @sample_row_exhausted
-
-        if @sample_row_lookahead
-          row = @sample_row_lookahead
-          @sample_row_lookahead = nil
-          return row
+          row_count += 1
         end
 
-        @sample_row_enumerator.next
-      rescue StopIteration
-        @sample_row_exhausted = true
-        log_sample_row_load_complete
-        nil
+        @loaded_sample_dates << date
+        @sample_row_counts_by_date[date] = row_count
+        QuantRb.logger.info("Loaded #{row_count} sampled option rows provider=#{@config.provider} option_root=#{@config.option_root} date=#{date}")
       end
 
       def store_sample_row(row)
@@ -199,14 +153,6 @@ module QuantRb
         else
           samples.last.last << row
         end
-        @sample_row_count += 1
-      end
-
-      def log_sample_row_load_complete
-        return if @sample_row_load_logged
-
-        QuantRb.logger.info("Loaded #{@sample_row_count || 0} sampled option rows provider=#{@config.provider} option_root=#{@config.option_root}")
-        @sample_row_load_logged = true
       end
 
       def build_chain_from_rows(rows, sampled_at:, expiry:)
@@ -843,6 +789,10 @@ module QuantRb
           row.dig("metadata", "sampled_at_tz") ||
           row.dig("metadata", "sampled_at") ||
           raise(KeyError, "Sampled option row is missing sampled_at_tz/sample_time metadata")
+      end
+
+      def sample_date_for(timestamp)
+        timestamp.to_date
       end
 
     end

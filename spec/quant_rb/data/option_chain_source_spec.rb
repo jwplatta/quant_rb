@@ -87,7 +87,7 @@ RSpec.describe QuantRb::Data::OptionChainSource do
     expect(chains.values.first.put_opts).not_to be_empty
   end
 
-  it "preloads sampled underlying candles without eagerly loading option rows" do
+  it "does not eagerly load sampled supporting data during preload" do
     config = QuantRb::Data::OptionChainConfig.new(
       underlying: "SPX",
       option_root: "SPXW",
@@ -111,8 +111,101 @@ RSpec.describe QuantRb::Data::OptionChainSource do
     source = described_class.build(config:, start_date: Date.new(2026, 4, 9), end_date: Date.new(2026, 4, 9), adapter: adapter)
 
     expect(source.preload!).to equal(source)
-    expect(adapter).to have_received(:load_candle_series).once
+    expect(adapter).not_to have_received(:load_candle_series)
     expect(adapter).not_to have_received(:load_option_chain_rows)
+  end
+
+  it "loads sampled option rows one trading day at a time and caches each loaded day" do
+    config = QuantRb::Data::OptionChainConfig.new(
+      underlying: "SPX",
+      option_root: "SPXW",
+      resolution: :minute,
+      provider: "test",
+      underlying_provider: "test",
+      chain_mode: :sampled_validated,
+      pricing_model: :black_scholes,
+      iv_map: nil,
+      validation: :repair,
+      strike_grid: { step: 5.0, range_ratio: 0.01 }
+    )
+    day_one = Date.new(2026, 4, 9)
+    day_two = Date.new(2026, 4, 10)
+    expiry_one = Date.new(2026, 4, 10)
+    expiry_two = Date.new(2026, 4, 11)
+    day_one_sample = Time.parse("2026-04-09T15:00:00-04:00")
+    day_two_sample = Time.parse("2026-04-10T15:00:00-04:00")
+    day_one_rows = [
+      {
+        "symbol" => "P1",
+        "contract_type" => "PUT",
+        "strike" => 5100.0,
+        "mark" => 15.0,
+        "bid" => 14.5,
+        "ask" => 15.5,
+        "underlying_price" => 5105.0,
+        "expiration_date" => expiry_one,
+        "metadata" => { "sampled_at_tz" => day_one_sample, "expiration_date" => expiry_one }
+      }
+    ]
+    day_two_rows = [
+      {
+        "symbol" => "P2",
+        "contract_type" => "PUT",
+        "strike" => 5050.0,
+        "mark" => 12.0,
+        "bid" => 11.5,
+        "ask" => 12.5,
+        "underlying_price" => 5060.0,
+        "expiration_date" => expiry_two,
+        "metadata" => { "sampled_at_tz" => day_two_sample, "expiration_date" => expiry_two }
+      }
+    ]
+    allow(adapter).to receive(:load_option_chain_rows).with(
+      provider: "test",
+      ticker: "SPX",
+      option_root: "SPXW",
+      resolution: :minute,
+      start_date: day_one,
+      end_date: day_one,
+      timezone: "America/New_York"
+    ).and_return(day_one_rows)
+    allow(adapter).to receive(:load_option_chain_rows).with(
+      provider: "test",
+      ticker: "SPX",
+      option_root: "SPXW",
+      resolution: :minute,
+      start_date: day_two,
+      end_date: day_two,
+      timezone: "America/New_York"
+    ).and_return(day_two_rows)
+
+    source = described_class.build(config:, start_date: day_one, end_date: day_two, adapter: adapter)
+
+    first_chain = source.chains_at(Time.parse("2026-04-09T15:30:00-04:00"), expiry_filter: expiry_one).fetch(expiry_one)
+    second_same_day = source.chains_at(Time.parse("2026-04-09T15:45:00-04:00"), expiry_filter: expiry_one).fetch(expiry_one)
+    third_next_day = source.chains_at(Time.parse("2026-04-10T15:30:00-04:00"), expiry_filter: expiry_two).fetch(expiry_two)
+
+    expect(first_chain.put_opts.first.symbol).to eq("P1")
+    expect(second_same_day.put_opts.first.symbol).to eq("P1")
+    expect(third_next_day.put_opts.first.symbol).to eq("P2")
+    expect(adapter).to have_received(:load_option_chain_rows).with(
+      provider: "test",
+      ticker: "SPX",
+      option_root: "SPXW",
+      resolution: :minute,
+      start_date: day_one,
+      end_date: day_one,
+      timezone: "America/New_York"
+    ).once
+    expect(adapter).to have_received(:load_option_chain_rows).with(
+      provider: "test",
+      ticker: "SPX",
+      option_root: "SPXW",
+      resolution: :minute,
+      start_date: day_two,
+      end_date: day_two,
+      timezone: "America/New_York"
+    ).once
   end
 
   it "reconstructs sampled interpolated chains and populates greeks" do
