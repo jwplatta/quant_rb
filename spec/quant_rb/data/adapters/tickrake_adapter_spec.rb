@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "spec_helper"
+require "csv"
 
 RSpec.describe QuantRb::Data::Adapters::TickrakeAdapter do
   let(:loader) { instance_double(Tickrake::DataLoader) }
@@ -116,5 +117,52 @@ RSpec.describe QuantRb::Data::Adapters::TickrakeAdapter do
     )
 
     expect(availability).to eq(summary)
+  end
+
+  it "selects bucketed snapshot refs for a slice without loading option rows" do
+    raw_results = [
+      Tickrake::Query::OptionsScanner::Result.new(
+        provider_name: "schwab",
+        ticker: "SPX",
+        root_symbol: "SPXW",
+        expiration_date: "2026-04-10",
+        sample_datetime: "2026-04-10T14:31:00Z",
+        file_path: "/tmp/early.csv"
+      ),
+      Tickrake::Query::OptionsScanner::Result.new(
+        provider_name: "schwab",
+        ticker: "SPX",
+        root_symbol: "SPXW",
+        expiration_date: "2026-04-10",
+        sample_datetime: "2026-04-10T14:34:00Z",
+        file_path: "/tmp/late.csv"
+      )
+    ]
+    allow(loader).to receive(:send).with(
+      :scan_options,
+      provider: "schwab",
+      ticker: "SPX",
+      option_root: "SPXW",
+      start_date: Date.new(2026, 4, 10),
+      end_date: Date.new(2026, 4, 10)
+    ).and_return(raw_results)
+    allow(loader).to receive(:send).with(
+      :select_option_results,
+      raw_results,
+      frequency: "5min",
+      bucket_selector: :last
+    ).and_return([raw_results.last])
+
+    refs = adapter.option_snapshot_refs(
+      provider: "schwab",
+      ticker: "SPX",
+      option_root: "SPXW",
+      resolution: :"5min",
+      start_date: Date.new(2026, 4, 10),
+      end_date: Date.new(2026, 4, 10)
+    )
+
+    expect(refs.map(&:file_path)).to eq(["/tmp/late.csv"])
+    expect(refs.map(&:sampled_at_utc)).to eq([Time.parse("2026-04-10T14:34:00Z")])
   end
 end
