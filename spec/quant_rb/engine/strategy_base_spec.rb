@@ -105,6 +105,68 @@ RSpec.describe QuantRb::Engine::StrategyBase do
     expect(subscription[:raw_options][:bucket_selector]).to eq(:first)
   end
 
+  it "supports an explicit dte filter for option chains" do
+    strategy_class = Class.new(described_class) do
+      attr_reader :option_key
+
+      def initialize
+        @option_key = add_option_chain("SPX", "SPXW", dte: 0)
+      end
+    end
+
+    strategy = strategy_class.build_for_engine(
+      portfolio: portfolio,
+      schedule: schedule,
+      securities: securities,
+      broker: broker
+    )
+    strategy.send(:set_time, Time.parse("2024-01-15 10:00:00 -0500"))
+    filter = strategy.subscribed_option_chains[strategy.option_key][:filter]
+
+    expect(filter.call(Date.new(2024, 1, 15))).to be(true)
+    expect(filter.call(Date.new(2024, 1, 16))).to be(false)
+  end
+
+  it "supports an explicit dte range filter for option chains" do
+    strategy_class = Class.new(described_class) do
+      attr_reader :option_key
+
+      def initialize
+        @option_key = add_option_chain("SPX", "SPXW", dte_range: 0..2)
+      end
+    end
+
+    strategy = strategy_class.build_for_engine(
+      portfolio: portfolio,
+      schedule: schedule,
+      securities: securities,
+      broker: broker
+    )
+    strategy.send(:set_time, Time.parse("2024-01-15 10:00:00 -0500"))
+    filter = strategy.subscribed_option_chains[strategy.option_key][:filter]
+
+    expect(filter.call(Date.new(2024, 1, 15))).to be(true)
+    expect(filter.call(Date.new(2024, 1, 17))).to be(true)
+    expect(filter.call(Date.new(2024, 1, 18))).to be(false)
+  end
+
+  it "rejects dte and dte_range together" do
+    strategy_class = Class.new(described_class) do
+      def initialize
+        add_option_chain("SPX", "SPXW", dte: 0, dte_range: 0..2)
+      end
+    end
+
+    expect do
+      strategy_class.build_for_engine(
+        portfolio: portfolio,
+        schedule: schedule,
+        securities: securities,
+        broker: broker
+      )
+    end.to raise_error(ArgumentError, /cannot accept both dte and dte_range/)
+  end
+
   it "propagates the strategy market timezone into option chain subscriptions" do
     strategy_class = Class.new(described_class) do
       attr_reader :option_key

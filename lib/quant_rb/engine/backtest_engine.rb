@@ -53,12 +53,16 @@ module QuantRb
 
         registry = resolve_registry
         candle_series_map = resolve_candle_series_map(strategy, registry)
-        option_chain_indexes = resolve_option_chain_index_map(strategy, registry)
         primary_key = strategy.subscribed_underlyings.keys.first
         raise ArgumentError, "BacktestEngine requires at least one candle subscription" unless primary_key
 
         primary_series = candle_series_map.fetch(primary_key)
         candles = primary_series.to_a
+        option_chain_indexes = resolve_option_chain_index_map(
+          strategy,
+          registry,
+          expected_trading_dates: candles.map { |candle| candle.datetime.to_date }.uniq.sort
+        )
         progress_reporter = Reporting::ProgressReporter.new(
           total: candles.size,
           title: strategy.class.name || "Backtest",
@@ -126,11 +130,15 @@ module QuantRb
         explicit_series_map(@candle_series, subscriptions.keys) || load_candle_series_map(strategy, registry)
       end
 
-      def resolve_option_chain_index_map(strategy, registry)
+      def resolve_option_chain_index_map(strategy, registry, expected_trading_dates:)
         subscriptions = strategy.subscribed_option_chains
         return {} if subscriptions.empty?
 
-        explicit_series_map(@options_chain_index, subscriptions.keys) || load_option_chain_index_map(strategy, registry)
+        explicit_series_map(@options_chain_index, subscriptions.keys) || load_option_chain_index_map(
+          strategy,
+          registry,
+          expected_trading_dates:
+        )
       end
 
       def explicit_series_map(explicit_value, keys)
@@ -160,11 +168,12 @@ module QuantRb
         end
       end
 
-      def load_option_chain_index_map(strategy, registry)
+      def load_option_chain_index_map(strategy, registry, expected_trading_dates:)
         adapter = build_tickrake_adapter(registry)
 
         strategy.subscribed_option_chains.each_with_object({}) do |(key, subscription), result|
           resolved = registry.resolve_option_chain(subscription)
+          validate_option_chain_coverage!(adapter, resolved:, expected_trading_dates:, strategy:)
           source = QuantRb::Data::OptionChainSource.build(
             config: resolved.config,
             start_date: strategy.start_date,
@@ -172,7 +181,6 @@ module QuantRb
             adapter: adapter
           )
           source.preload! if source.respond_to?(:preload!)
-          validate_option_chain_coverage!(source, resolved:, strategy:)
           result[key] = source
         end
       end
@@ -181,28 +189,33 @@ module QuantRb
         QuantRb::Data::Adapters::TickrakeAdapter.new(config_path: registry.tickrake_config_path)
       end
 
-      def validate_option_chain_coverage!(source, resolved:, strategy:)
+      def validate_option_chain_coverage!(adapter, resolved:, expected_trading_dates:, strategy:)
         return if resolved.config.synthetic?
-        return unless source.respond_to?(:available_dates)
+        missing_dates = expected_trading_dates.reject do |date|
+          adapter.option_data_available?(
+            provider: resolved.config.provider,
+            ticker: resolved.config.underlying,
+            option_root: resolved.config.option_root,
+            start_date: date,
+            end_date: date
+          )
+        end
+        return if missing_dates.empty?
 
-        available_dates = source.available_dates
-        if available_dates.empty?
+        if missing_dates.length == expected_trading_dates.length
           raise QuantRb::Error,
                 "No option chain data for #{resolved.subscription.fetch(:option_root)} " \
                 "dataset=#{resolved.subscription[:dataset] || 'default'} " \
-                "provider=#{resolved.subscription.fetch(:provider)} " \
+                "provider=#{resolved.config.provider} " \
                 "for #{strategy.start_date}..#{strategy.end_date}"
         end
-
-        first_date = available_dates.min
-        last_date = available_dates.max
-        return if first_date <= strategy.start_date && last_date >= strategy.end_date
 
         raise QuantRb::Error,
               "Incomplete option chain coverage for #{resolved.subscription.fetch(:option_root)} " \
               "dataset=#{resolved.subscription[:dataset] || 'default'} " \
-              "provider=#{resolved.subscription.fetch(:provider)} " \
-              "available=#{first_date}..#{last_date} requested=#{strategy.start_date}..#{strategy.end_date}"
+              "provider=#{resolved.config.provider} " \
+              "requested=#{strategy.start_date}..#{strategy.end_date} " \
+              "missing_dates=#{missing_dates.first(5).join(',')}#{'...' if missing_dates.length > 5}"
       end
 
       def build_bars(current_time, candle_series_map)

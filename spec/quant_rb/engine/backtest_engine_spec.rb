@@ -284,7 +284,19 @@ RSpec.describe QuantRb::Engine::BacktestEngine do
     candles = QuantRb::Data::Series::CandleSeries.new([
       QuantRb::DataObjects::Candle.new(datetime: Time.parse("2024-01-02 14:30:00 UTC"), open: 4950.0, high: 4955.0, low: 4945.0, close: 4950.0, volume: 0)
     ])
+    adapter = instance_double(
+      QuantRb::Data::Adapters::TickrakeAdapter,
+      option_data_availability: {
+        available: true,
+        sample_count: 1,
+        earliest: Time.parse("2024-01-02 14:30:00 UTC"),
+        latest: Time.parse("2024-01-02 14:30:00 UTC"),
+        expirations: [Date.new(2024, 1, 5)]
+      },
+      option_data_available?: true
+    )
     source = instance_double(QuantRb::Data::OptionChainSource, preload!: nil, chains_at: {})
+    allow(QuantRb::Data::Adapters::TickrakeAdapter).to receive(:new).and_return(adapter)
     expect(QuantRb::Data::OptionChainSource).to receive(:build).and_return(source)
     expect(source).to receive(:preload!).once
 
@@ -293,6 +305,58 @@ RSpec.describe QuantRb::Engine::BacktestEngine do
       candle_series: { SPX: candles },
       progress: false
     )
+  end
+
+  it "raises a clear error when sampled option metadata is missing trading-day coverage" do
+    strategy = Class.new(QuantRb::Strategy) do
+      def initialize
+        set_start_date(2024, 1, 2)
+        set_end_date(2024, 1, 3)
+        set_cash(10_000)
+        @spx = add_index("SPX", resolution: :minute)
+        @spxw = add_option_chain("SPX", "SPXW", resolution: :minute, dataset: "massive_samples")
+      end
+
+      def on_data(_slice); end
+    end
+
+    candles = QuantRb::Data::Series::CandleSeries.new([
+      QuantRb::DataObjects::Candle.new(datetime: Time.parse("2024-01-02 14:30:00 UTC"), open: 4950.0, high: 4955.0, low: 4945.0, close: 4950.0, volume: 0),
+      QuantRb::DataObjects::Candle.new(datetime: Time.parse("2024-01-03 14:30:00 UTC"), open: 4960.0, high: 4965.0, low: 4955.0, close: 4960.0, volume: 0)
+    ])
+    adapter = instance_double(
+      QuantRb::Data::Adapters::TickrakeAdapter,
+      option_data_availability: {
+        available: true,
+        sample_count: 1,
+        earliest: Time.parse("2024-01-02 14:30:00 UTC"),
+        latest: Time.parse("2024-01-02 20:55:00 UTC"),
+        expirations: [Date.new(2024, 1, 5)]
+      }
+    )
+    allow(adapter).to receive(:option_data_available?).with(
+      provider: "massive",
+      ticker: "SPX",
+      option_root: "SPXW",
+      start_date: Date.new(2024, 1, 2),
+      end_date: Date.new(2024, 1, 2)
+    ).and_return(true)
+    allow(adapter).to receive(:option_data_available?).with(
+      provider: "massive",
+      ticker: "SPX",
+      option_root: "SPXW",
+      start_date: Date.new(2024, 1, 3),
+      end_date: Date.new(2024, 1, 3)
+    ).and_return(false)
+    allow(QuantRb::Data::Adapters::TickrakeAdapter).to receive(:new).and_return(adapter)
+
+    expect do
+      described_class.run(
+        strategy,
+        candle_series: { SPX: candles },
+        progress: false
+      )
+    end.to raise_error(QuantRb::Error, /Incomplete option chain coverage.*missing_dates=2024-01-03/)
   end
 
   it "runs a backtest against complete sampled option chains in pass-through mode" do
@@ -355,14 +419,27 @@ RSpec.describe QuantRb::Engine::BacktestEngine do
     end
 
     sampled_rows = fixture_option_rows("SPXW_exp2025-12-18_2025-12-18_13-50-58.csv")
+    sampled_at = sampled_rows.first.dig("metadata", "sampled_at_utc")
+    expiry = sampled_rows.first.dig("metadata", "expiration_date")
+    snapshot_ref = QuantRb::Data::Adapters::TickrakeAdapter::OptionSnapshotRef.new(
+      provider: "schwab",
+      ticker: "SPX",
+      option_root: "SPXW",
+      expiration_date: expiry,
+      sampled_at_utc: sampled_at,
+      file_path: "/tmp/#{expiry}-#{sampled_at.to_i}.csv"
+    )
     adapter = instance_double(QuantRb::Data::Adapters::TickrakeAdapter)
-    allow(adapter).to receive(:load_option_chain_rows).with(
+    allow(adapter).to receive(:option_snapshot_refs).with(
       provider: "schwab",
       ticker: "SPX",
       option_root: "SPXW",
       resolution: :minute,
       start_date: Date.new(2025, 12, 18),
-      end_date: Date.new(2025, 12, 18),
+      end_date: Date.new(2025, 12, 18)
+    ).and_return([snapshot_ref])
+    allow(adapter).to receive(:load_option_snapshot_rows).with(
+      snapshot_ref: snapshot_ref,
       timezone: "America/New_York"
     ).and_return(sampled_rows)
     allow(adapter).to receive(:load_candle_series).with(
@@ -373,11 +450,32 @@ RSpec.describe QuantRb::Engine::BacktestEngine do
       end_date: Date.new(2025, 12, 18),
       timezone: "America/New_York"
     ).and_return(
-      QuantRb::Data::Series::CandleSeries.new([
+        QuantRb::Data::Series::CandleSeries.new([
         QuantRb::DataObjects::Candle.new(datetime: Time.parse("2025-12-18 19:50:58 UTC"), open: 6005.0, high: 6005.0, low: 6005.0, close: 6005.0, volume: 0),
         QuantRb::DataObjects::Candle.new(datetime: Time.parse("2025-12-18 21:05:00 UTC"), open: 6005.0, high: 6005.0, low: 6005.0, close: 6005.0, volume: 0)
       ])
     )
+    allow(adapter).to receive(:option_data_availability).with(
+      provider: "schwab",
+      ticker: "SPX",
+      option_root: "SPXW",
+      start_date: Date.new(2025, 12, 18),
+      end_date: Date.new(2025, 12, 18)
+    ).and_return(
+      available: true,
+      sample_count: 1,
+      earliest: Time.parse("2025-12-18 19:50:58 UTC"),
+      latest: Time.parse("2025-12-18 19:50:58 UTC"),
+      expirations: [Date.new(2025, 12, 18)]
+    )
+    allow(adapter).to receive(:option_data_available?).with(
+      provider: "schwab",
+      ticker: "SPX",
+      option_root: "SPXW",
+      start_date: Date.new(2025, 12, 18),
+      end_date: Date.new(2025, 12, 18)
+    ).and_return(true)
+    allow(QuantRb::Data::Adapters::TickrakeAdapter).to receive(:new).and_return(adapter)
     source = QuantRb::Data::OptionChainSource.build(
       config: QuantRb::Data::OptionChainConfig.new(
         underlying: "SPX",
