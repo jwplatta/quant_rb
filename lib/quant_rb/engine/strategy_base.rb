@@ -71,9 +71,11 @@ module QuantRb
 
       # Register an options chain subscription for an underlying.
       # Optionally pass a block to configure expiry/strike filters.
-      def add_option_chain(underlying, option_root, resolution: :minute, dataset: nil, synthetic: false, interpolate: false, pricing_model: nil, iv: nil, validation: :repair, strike_grid: {}, **kwargs, &filter)
+      def add_option_chain(underlying, option_root, resolution: :minute, dataset: nil, synthetic: false, interpolate: false, pricing_model: nil, iv: nil, validation: :repair, strike_grid: {}, dte: nil, dte_range: nil, **kwargs, &filter)
         key = :"#{option_root}_options"
         raw_options = kwargs.delete(:raw_options) || {}
+        raise ArgumentError, "add_option_chain cannot accept both dte and dte_range" if !dte.nil? && !dte_range.nil?
+
         chain_mode =
           if synthetic
             :synthetic
@@ -85,7 +87,7 @@ module QuantRb
           option_root: option_root,
           resolution: resolution,
           dataset: dataset,
-          filter: filter,
+          filter: combined_expiry_filter(filter, dte:, dte_range:),
           chain_mode: chain_mode,
           pricing_model: pricing_model,
           iv_map: iv,
@@ -220,6 +222,19 @@ module QuantRb
       def format_log_message(msg)
         prefix = time ? "[#{time.utc}]" : "[no-time]"
         "#{prefix} #{self.class}: #{msg}"
+      end
+
+      def combined_expiry_filter(filter, dte:, dte_range:)
+        return filter if dte.nil? && dte_range.nil?
+
+        proc do |expiry|
+          matches = if !dte.nil?
+                      (expiry - market_date).to_i == Integer(dte)
+                    else
+                      dte_range.cover?((expiry - market_date).to_i)
+                    end
+          matches && (filter.nil? || filter.call(expiry))
+        end
       end
 
       # Engine calls these to inject dependencies
