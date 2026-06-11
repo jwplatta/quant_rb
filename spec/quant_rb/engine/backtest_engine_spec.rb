@@ -419,14 +419,27 @@ RSpec.describe QuantRb::Engine::BacktestEngine do
     end
 
     sampled_rows = fixture_option_rows("SPXW_exp2025-12-18_2025-12-18_13-50-58.csv")
+    sampled_at = sampled_rows.first.dig("metadata", "sampled_at_utc")
+    expiry = sampled_rows.first.dig("metadata", "expiration_date")
+    snapshot_ref = QuantRb::Data::Adapters::TickrakeAdapter::OptionSnapshotRef.new(
+      provider: "schwab",
+      ticker: "SPX",
+      option_root: "SPXW",
+      expiration_date: expiry,
+      sampled_at_utc: sampled_at,
+      file_path: "/tmp/#{expiry}-#{sampled_at.to_i}.csv"
+    )
     adapter = instance_double(QuantRb::Data::Adapters::TickrakeAdapter)
-    allow(adapter).to receive(:load_option_chain_rows).with(
+    allow(adapter).to receive(:option_snapshot_refs).with(
       provider: "schwab",
       ticker: "SPX",
       option_root: "SPXW",
       resolution: :minute,
       start_date: Date.new(2025, 12, 18),
-      end_date: Date.new(2025, 12, 18),
+      end_date: Date.new(2025, 12, 18)
+    ).and_return([snapshot_ref])
+    allow(adapter).to receive(:load_option_snapshot_rows).with(
+      snapshot_ref: snapshot_ref,
       timezone: "America/New_York"
     ).and_return(sampled_rows)
     allow(adapter).to receive(:load_candle_series).with(
