@@ -1,0 +1,21 @@
+tickrake:
+  config_path: ~/.tickrake/tickrake.yml
+
+indices:
+  SPX:
+    provider: ibkr-paper
+
+option_chains:
+  SPXW:
+    underlying: SPX
+    mode: synthetic
+    pricing_model: black_scholes
+    iv_proxy: VIX
+    datasets:
+      massive_samples:
+        provider: massive
+        mode: sampled_interpolated
+        pricing_model: black_scholes
+      schwab_samples:
+        provider: schwab
+        mode: sampled_validated
