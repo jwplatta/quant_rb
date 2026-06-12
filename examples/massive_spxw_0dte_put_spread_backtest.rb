@@ -5,8 +5,8 @@ require_relative "../lib/quant_rb"
 DATA_SOURCES_CONFIG = File.expand_path("data_sources.yml", __dir__)
 RESOLUTION = :"5min"
 MARKET_TIMEZONE = "America/Chicago"
-START_DATE = Date.iso8601(ENV.fetch("START_DATE", "2023-09-26"))
-END_DATE = Date.iso8601(ENV.fetch("END_DATE", "2023-12-29"))
+START_DATE = Date.iso8601(ENV.fetch("START_DATE", "2025-10-10"))
+END_DATE = Date.iso8601(ENV.fetch("END_DATE", "2025-10-10"))
 TARGET_PUT_DELTA = -0.10
 SPREAD_WIDTH = 20.0
 CONTRACTS = 1
