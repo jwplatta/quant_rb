@@ -95,7 +95,11 @@ module QuantRb
           next_date    = candles[idx + 1]&.datetime&.to_date
           if next_date != current_date
             broker.cancel_all_pending_orders(reason: :end_of_day) if broker.respond_to?(:cancel_all_pending_orders)
-            broker.process_expirations(slice, portfolio, strategy_class: strategy.class) if broker.respond_to?(:process_expirations)
+            broker.process_expirations(
+              expiration_processing_slice(slice, current_time),
+              portfolio,
+              strategy_class: strategy.class
+            ) if broker.respond_to?(:process_expirations)
             strategy.subscribed_symbols.each { |sym| strategy.on_end_of_day(sym) }
           end
 
@@ -232,6 +236,14 @@ module QuantRb
 
           chains[key] = index.chains_at(current_time, expiry_filter: subscription[:filter])
         end
+      end
+
+      def expiration_processing_slice(slice, current_time)
+        expiration_time = QuantRb::OptionExpiration.expiration_time_utc(current_time.to_date)
+        effective_time = current_time >= expiration_time ? current_time : expiration_time
+        return slice if effective_time == current_time
+
+        Slice.new(time: effective_time, bars: slice.bars, option_chains: slice.option_chains)
       end
     end
   end

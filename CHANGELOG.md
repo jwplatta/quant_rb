@@ -18,6 +18,7 @@ The format is based on Keep a Changelog, and this project follows Semantic Versi
 - simplified the strategy DSL by replacing `add_equity`/`add_index` with `add_security` and renaming `add_index_option` to `add_option_chain`
 - synthetic option-chain generation now uses the shared pricing and validation pipeline
 - backtest data-source resolution now supports provider-backed candle and option-chain subscriptions through strategy config
+- backtest expiration settlement now closes expiring option positions at the contract expiry timestamp even when the last intraday bar arrives before the cutoff
 
 ## [0.1.0] - 2026-04-15
 
